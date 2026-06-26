@@ -24,6 +24,11 @@ struct BrunoShelfView: View {
     @Router
     private var router
 
+    // The custom tab container keeps hidden tabs mounted (so they never fire onDisappear). When this
+    // shelf's tab deactivates, free its warmed poster set instead of letting it linger in memory.
+    @Environment(\.brunoTabIsActive)
+    private var isActiveTab
+
     // INV-4: warms this row's posters into the same pipeline at the same width the cells request,
     // so a freshly-revealed or horizontally-scrolled row isn't blank. Cancelled on disappear.
     @State
@@ -106,6 +111,15 @@ struct BrunoShelfView: View {
             }
             .onDisappear {
                 prefetcher.stop(viewModel.items.elements, type: viewModel.posterType)
+            }
+            .onChange(of: isActiveTab) { _, active in
+                // Tab hidden → cancel prefetch (no onDisappear fires for an opacity-hidden tab); tab
+                // shown again → re-warm the still-mounted row.
+                if active {
+                    prefetcher.warm(viewModel.items.elements, type: viewModel.posterType)
+                } else {
+                    prefetcher.stop(viewModel.items.elements, type: viewModel.posterType)
+                }
             }
             // Debug HUD instrumentation (inert unless a debug overlay is on): count shelf redraws
             // and track the shelf's vertical movement — the up/down "graphic math" the perf

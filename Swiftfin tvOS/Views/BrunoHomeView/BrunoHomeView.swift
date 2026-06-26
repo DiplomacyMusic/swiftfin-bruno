@@ -23,6 +23,15 @@ struct BrunoHomeView: View {
     @StateObject
     private var viewModel = BrunoHomeViewModel()
 
+    // Bruno custom tab container (MainTabView) keeps every tab mounted, so this view stays alive while
+    // hidden. `selectedTabID` tells us whether Home is the ACTIVE tab — used to pause the hero
+    // auto-advance offscreen; the publisher fires the per-entry hero reshuffle that onAppear used to.
+    @EnvironmentObject
+    private var tabCoordinator: TabCoordinator
+
+    @TabItemSelected
+    private var tabItemSelected
+
     @Environment(\.accessibilityReduceMotion)
     private var reduceMotion
 
@@ -60,9 +69,13 @@ struct BrunoHomeView: View {
                 case let .error(error):
                     errorView(error)
                 default:
+                    // Focusable so cold launch has SOMETHING focusable in the content section — else the
+                    // focus engine strands focus on the menu bar (the only focusable on screen) and the
+                    // user lands on the bar, not the hero. We hand focus to the hero once it streams in.
                     ProgressView()
                         .scaleEffect(2)
                         .tint(Color.bruno.accent)
+                        .focusable()
                 }
             }
         }
@@ -71,14 +84,28 @@ struct BrunoHomeView: View {
             viewModel.send(.refresh)
         }
         .onAppear {
-            // Re-entry (tab switch back) or returning from playback re-fires onAppear but not
-            // onFirstAppear: re-pick the hero so the banner is fresh on every entry. Skipped on the
-            // very first appearance (hero still empty → the initial refresh seeds it).
-            if !viewModel.heroItems.isEmpty {
-                spotlightIndex = 0
-                viewModel.send(.reshuffleHero)
-            }
+            // Returning from playback (fullScreenCover dismiss) re-fires onAppear but not onFirstAppear:
+            // re-pick the hero so the banner is fresh. Tab switch-back no longer fires onAppear (the tab
+            // stays mounted in MainTabView) — the publisher below handles that case. Skipped on the very
+            // first appearance (hero still empty → the initial refresh seeds it).
+            reshuffleHeroIfReady()
         }
+        .onReceive(tabItemSelected) { _ in
+            // Tab switch-back (Home re-selected): re-pick the hero, mirroring the old onAppear behaviour.
+            reshuffleHeroIfReady()
+        }
+        .onChange(of: viewModel.heroItems.isEmpty) { _, isEmpty in
+            // Hero just streamed in on a cold launch → move focus off the loading placeholder onto it.
+            // Defer a runloop (like "Back to Top") so the hero is in the tree before we focus it.
+            guard !isEmpty, tabCoordinator.selectedTabID == "home" else { return }
+            Task { @MainActor in homeFocus = .hero }
+        }
+    }
+
+    private func reshuffleHeroIfReady() {
+        guard !viewModel.heroItems.isEmpty else { return }
+        spotlightIndex = 0
+        viewModel.send(.reshuffleHero)
     }
 
     private var content: some View {
@@ -92,7 +119,9 @@ struct BrunoHomeView: View {
                         // Taller banner: restores the vacated wordmark-row space AND shows more of the
                         // backdrop (incl. its top) so the subject reads centered below the nav.
                         extraHeight: 200,
-                        autoAdvanceEnabled: viewModel.state == .content
+                        // Also gate on Home being the ACTIVE tab: the custom container keeps Home mounted
+                        // while hidden, so without this the hero would keep crossfading backdrops offscreen.
+                        autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
                     )
                     // BRUNO wordmark floats ON TOP of the hero (z-order), at the same title-safe
                     // top-left spot it held as a row — the banner now extends up under it. The overlay
