@@ -129,7 +129,10 @@ extension TabItem {
             systemImage: "magnifyingglass",
             labelStyle: .iconOnly
         ) {
+            // Stock utility tab: no ambient/hero, so inset the whole view below the pinned BrunoMenuBar
+            // (real padding + focus section) so its content clears the bar and UP traverses up to it.
             SearchView()
+                .brunoBelowMenuBar()
         }
         #else
         TabItem(
@@ -150,7 +153,10 @@ extension TabItem {
             systemImage: "gearshape",
             labelStyle: .iconOnly
         ) {
+            // Stock utility tab: inset below the pinned BrunoMenuBar so its content clears the bar and UP
+            // traverses up to it (real padding + focus section, same as the other tabs).
             SettingsView()
+                .brunoBelowMenuBar()
         }
         #else
         TabItem(

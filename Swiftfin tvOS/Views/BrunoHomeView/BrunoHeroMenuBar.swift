@@ -16,8 +16,9 @@ import SwiftUI
 // Genres). Those surfaces are presented as fullScreenCovers OVER the tab bar, so MainTabView's
 // safeAreaInset bar is occluded — this re-creates it inside the cover.
 //
-// Same shape as MainTabView's bar: `safeAreaInset(.top)` so the hero backdrop bleeds to the physical
-// top behind the pills, both regions `focusSection()` so UP reaches the bar / DOWN returns to content,
+// Same shape as MainTabView's bar: the cover content insets its scroll plane below the bar with a REAL
+// padding (`brunoBelowMenuBar()` inside BrunoCategoryShelves) so its focus section is a non-overlapping
+// peer and UP reaches the bar / DOWN returns to content, the ambient bleeds full-screen behind the pills,
 // and `prefersDefaultFocus` so the cover opens with focus on the hero (not the bar). Differences from
 // the tab-root bar:
 //   • No `onExitCommand` override — in a cover, Menu should DISMISS (the natural back), which it does
@@ -39,16 +40,15 @@ private struct BrunoHeroMenuBar: ViewModifier {
     private var namespace
 
     func body(content: Content) -> some View {
-        // Same peer-sibling shape as MainTabView: content + bar are two `.focusSection()` peers under one
-        // `.focusScope`, the bar floating over the hero's background spill via `ZStack(alignment: .top)`. The
-        // content's `Color.clear` barHeight inset pushes the cover's focusable cells below the bar so UP
-        // traverses into it (without this inset the cover's first shelf sits under the bar and UP re-breaks
-        // here). The bar layer reserves barHeight even before the bridge resolves, so the inset and the bar
-        // frame never desync on first paint. No onExitCommand — in a cover, Menu dismisses (the natural back).
+        // Same peer-sibling shape as MainTabView: content + bar are focus peers under one `.focusScope`, the
+        // bar floating over the cover's full-bleed ambient via `ZStack(alignment: .top)`. The non-overlap
+        // that lets UP reach the bar lives in the cover's CONTENT: BrunoCategoryShelves wraps its scroll
+        // content in `brunoBelowMenuBar()` (a REAL padding inset + focus section), so the focusable cells are
+        // a peer strictly below the bar — we must NOT re-inset or re-section here (a `safeAreaInset` left the
+        // frame full-screen and overlapped the bar, the UP bug). We only overlay the bar and bias default
+        // focus to the content. No onExitCommand — in a cover, Menu dismisses (the natural back).
         ZStack(alignment: .top) {
             content
-                .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: BrunoMenuBar.barHeight) }
-                .focusSection()
                 .prefersDefaultFocus(in: namespace)
 
             Group {

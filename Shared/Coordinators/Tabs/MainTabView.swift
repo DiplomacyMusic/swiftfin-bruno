@@ -102,18 +102,18 @@ struct MainTabView: View {
     }
 
     private var brunoTabView: some View {
-        // Bar and content are two `.focusSection()` PEERS under one `.focusScope` — the original working
-        // structure (a VStack of bar + content), reconstructed as a ZStack so the bar floats OVER the hero's
-        // edge-to-edge background spill instead of pushing it down. The content's `Color.clear` top inset
-        // re-creates the vertical separation the VStack gave for free: its focusable cells start at
-        // y ≥ barHeight while the pills render at y = 0..~108, so the frames don't overlap and the focus
-        // engine can carry UP from the top content row into the bar. The bar is pinned by
-        // `ZStack(alignment: .top)` — it no longer rides the focus-driven scroll (the safeAreaInset form did,
-        // and inset content is not a focus PEER of the primary content, so UP couldn't reach it).
+        // Bar and content are focus PEERS under one `.focusScope`, the bar floating in a `ZStack(.top)` OVER
+        // each tab's full-bleed ambient backdrop. The non-overlap that lets UP reach the bar lives in each
+        // tab now, not here: every page wraps its SCROLL CONTENT in `brunoBelowMenuBar()` — a REAL
+        // `padding(.top, barHeight)` + `.focusSection()` — so the content's focus frame starts strictly
+        // below the bar's band (a `safeAreaInset` left the frame full-screen, overlapping the bar, so UP
+        // resolved to itself — the bug). The ambient stays a sibling OUTSIDE that inset, so it still bleeds
+        // to the physical top behind the translucent pills. We therefore do NOT inset or section the content
+        // stack here — only bias default focus into it and route Menu to the bar.
         //
         // REQUIRES every tab's page view to RESPECT the top safe area (they use
-        // `.ignoresSafeArea(edges: [.horizontal, .bottom])`). A page that ignores `.top` cancels this inset
-        // and re-introduces the bar drift + the dimmer-short-of-top strip.
+        // `.ignoresSafeArea(edges: [.horizontal, .bottom])`) and to apply `brunoBelowMenuBar()` to its
+        // scroll content. Stock utility tabs (Search/Settings) get the wrapper at their TabItem call site.
         ZStack(alignment: .top) {
             ZStack {
                 ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
@@ -131,10 +131,6 @@ struct MainTabView: View {
                     }
                 }
             }
-            // Reserve barHeight at the TOP of the CONTENT only (Color.clear → invisible, non-focusable): this
-            // starts the focusable cells below the bar so their frames don't overlap the pills.
-            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: BrunoMenuBar.barHeight) }
-            .focusSection()
             .prefersDefaultFocus(in: rootNamespace)
             // Menu from content surfaces the bar (focuses the selected pill); the bar itself has no
             // exit handler, so Menu there falls through to the system and backgrounds the app at root.

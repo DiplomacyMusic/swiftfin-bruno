@@ -29,12 +29,14 @@ struct BrunoMenuBar: View {
     /// Owned by MainTabView so it can drive focus onto the selected pill when Menu is pressed in content.
     var focus: FocusState<String?>.Binding
 
-    /// Reserved top inset for the pinned bar. The bar floats as a `ZStack(alignment: .top)` PEER over the
-    /// hero's background spill; the content gets a `Color.clear` inset of this height so its focusable cells
-    /// start BELOW the bar (non-overlapping frames → the tvOS focus engine can traverse UP into the bar).
+    /// Reserved top band for the pinned bar. The bar floats as a `ZStack(alignment: .top)` PEER over the
+    /// full-bleed ambient backdrop; the scroll content is pushed below it by a REAL `padding(.top:)` of this
+    /// height (`brunoBelowMenuBar()`) so its focus section is a non-overlapping peer beneath the bar's —
+    /// that geometric separation is what lets the tvOS focus engine traverse UP into the bar.
     /// Must be ≥ the bar's intrinsic height (~108pt: brunoBody(28) pill + 14·2 + HStack 12·2 + 8/14 bar
     /// padding) or `.frame(height:)` undersizes the pill box and its focusable frames re-overlap the
-    /// content's top row, re-breaking UP. Read by MainTabView, BrunoHeroView, and BrunoHeroMenuBar.
+    /// content's top row, re-breaking UP. Read by MainTabView, BrunoHeroView, BrunoHeroMenuBar, and
+    /// `brunoBelowMenuBar()`.
     static let barHeight: CGFloat = 116
 
     var body: some View {
@@ -49,7 +51,7 @@ struct BrunoMenuBar: View {
         .padding(.horizontal, 22)
         .padding(.vertical, 12)
         // Floating dark-glass pill group (the stock-bar look) so the hero art reads through and around
-        // it. The bar is pinned via safeAreaInset, so this capsule sits over the bled-up backdrop.
+        // it. The bar is pinned by a ZStack(.top), so this capsule sits over the full-bleed ambient backdrop.
         .background {
             Capsule(style: .continuous)
                 .fill(.black.opacity(0.4))
@@ -64,6 +66,30 @@ struct BrunoMenuBar: View {
         .padding(.top, 8)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - brunoBelowMenuBar
+
+extension View {
+
+    /// Inset focusable tab / cover content BELOW the pinned `BrunoMenuBar`, and mark it a focus section.
+    ///
+    /// The REAL top inset (`padding`, **not** `safeAreaInset`) is the whole fix. `safeAreaInset` shifts
+    /// the safe area but leaves the modified view's *frame* full-screen — so its `.focusSection()` frame
+    /// overlaps the bar's 0…barHeight band, and the tvOS focus engine (which routes UP geometrically)
+    /// resolves an UP move from the top content row to that same overlapping section, i.e. to itself: no
+    /// movement, the long-standing "UP doesn't reach the bar" bug. A genuine `padding(.top:)` shrinks the
+    /// frame so the content's focus section becomes a non-overlapping PEER strictly below the bar's
+    /// section; UP then traverses cleanly into the pills, DOWN returns.
+    ///
+    /// Apply this to the SCROLL CONTENT only — keep the ambient/backdrop a full-bleed sibling OUTSIDE this
+    /// inset (its own `.ignoresSafeArea()`), so it still reaches the physical top behind the translucent
+    /// pills. `padding` is layout space a sibling cannot reclaim, so an ambient placed *inside* this inset
+    /// would no longer bleed up.
+    func brunoBelowMenuBar() -> some View {
+        padding(.top, BrunoMenuBar.barHeight)
+            .focusSection()
     }
 }
 

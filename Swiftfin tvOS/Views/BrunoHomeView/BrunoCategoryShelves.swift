@@ -229,18 +229,20 @@ struct BrunoCategoryShelves: View {
             // Ambient as a SIBLING layer (matching BrunoHomeView — the smooth surface), NOT a
             // .background of the ScrollView. Keeps the radius-90 blur out of the ScrollView's
             // per-frame compositing so it doesn't re-rasterize during the focus-driven
-            // scroll-to-reveal animation (the residual vertical-scroll hitch).
+            // scroll-to-reveal animation (the residual vertical-scroll hitch). Full-bleed sibling OUTSIDE
+            // the menu-bar inset below, so it reaches the physical top behind the pills.
             BrunoAmbientBackground(item: featured)
 
+            // REAL top inset + focus section so the scroll content's focus frame is a non-overlapping peer
+            // below the pinned bar — works for BOTH the Collections tab root (MainTabView's bar) and the
+            // pushed Decades/Genres covers (.brunoHeroMenuBar()), which both pin a BrunoMenuBar of this
+            // height. UP then reaches whichever bar is on screen. Ambient sibling above stays full-bleed.
             scrollContent
+                .brunoBelowMenuBar()
         }
-        // Let the ScrollView fill the screen (matching BrunoHomeView) so the hero's full-bleed
-        // backdrop reaches the physical edges instead of being clipped at the title-safe inset. The
-        // ScrollView still re-insets its own content to the safe area, so shelves stay title-safe.
-        // Drop only the TOP edge: a pinned top bar (MainTabView's on the Collections tab root, or the
-        // cover's own .brunoHeroMenuBar() on Decades/Genres) reserves the top inset, and ignoring .top
-        // here would cancel that inset and let the bar ride the focus-driven scroll downward. The
-        // ambient layer (BrunoAmbientBackground self-ignores all edges) still bleeds behind the pills.
+        // Let the ScrollView fill the screen horizontally (matching BrunoHomeView) so shelves reach the
+        // physical edges. Drop only the TOP edge so the menu-bar inset (brunoBelowMenuBar) is measured from
+        // the title-safe top. The ambient layer (self-ignores all edges) still bleeds behind the pills.
         .ignoresSafeArea(edges: [.horizontal, .bottom])
     }
 
@@ -255,7 +257,9 @@ struct BrunoCategoryShelves: View {
                             items: [featured],
                             index: .constant(0),
                             eyebrow: heroEyebrow,
-                            bleedsTop: true,
+                            // Sits below the pinned bar; the full-bleed ambient sibling owns the strip behind
+                            // the pills, so the hero no longer bleeds up (it would be clipped at the inset).
+                            bleedsTop: false,
                             // Taller banner shows more of the backdrop (incl. its top), subject centered.
                             extraHeight: 160
                         )
