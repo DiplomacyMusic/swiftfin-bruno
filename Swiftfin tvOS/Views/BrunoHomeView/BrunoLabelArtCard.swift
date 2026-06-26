@@ -39,26 +39,24 @@ struct BrunoLabelArtCard: View {
     let action: () -> Void
 
     var body: some View {
+        // A pure 2:3 art tile, identical in shape to BrunoCategoryTile — the title lives ON the art,
+        // so there is NO title-below region. (An earlier blank two-line reserve here left the card's
+        // `.card` background showing as a grey band below the art — the "cropped before the bottom
+        // edge" bug.) The card is shorter than the pinned shelf-row height; the extra row space is
+        // transparent slack outside the button, not a backed band. Row height itself is unchanged
+        // (`BrunoShelfRow` pins it), so INV-1 holds.
         Button(action: action) {
-            VStack(spacing: 0) {
-                // `.card` provides `\.isFocused` to this subtree, which BrunoFocusArtCycle reads to
-                // cycle film art only while focused — same wiring as BrunoCategoryTile.
-                BrunoFocusArtCycle(
-                    parentID: item.id,
-                    type: .portrait
-                ) {
-                    restBackground
-                } foreground: {
-                    label
-                }
-                .posterStyle(.portrait)
-
-                // Match the poster cards' two-line title area so the row stays aligned (INV-1). The
-                // title lives ON the card now, so this reserve is intentionally blank.
-                Text(" ")
-                    .font(.footnote)
-                    .lineLimit(2, reservesSpace: true)
+            // `.card` provides `\.isFocused` to this subtree, which BrunoFocusArtCycle reads to
+            // cycle film art only while focused — same wiring as BrunoCategoryTile.
+            BrunoFocusArtCycle(
+                parentID: item.id,
+                type: .portrait
+            ) {
+                restBackground
+            } foreground: {
+                label
             }
+            .posterStyle(.portrait)
         }
         .buttonStyle(.card)
         .accessibilityLabel(item.displayTitle)
