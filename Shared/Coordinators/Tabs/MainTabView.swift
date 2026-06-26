@@ -97,38 +97,42 @@ struct MainTabView: View {
     }
 
     private var brunoTabView: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
+                if mountedIDs.contains(tab.item.id) {
+                    NavigationInjectionView(coordinator: tab.coordinator) {
+                        tab.item.content
+                    }
+                    .environmentObject(tabCoordinator)
+                    .environment(\.tabItemSelected, tab.publisher)
+                    .environment(\.brunoTabIsActive, tab.item.id == tabCoordinator.selectedTabID)
+                    .opacity(tab.item.id == tabCoordinator.selectedTabID ? 1 : 0)
+                    .allowsHitTesting(tab.item.id == tabCoordinator.selectedTabID)
+                    // Removes inactive subtrees from the focus chain — exactly one tab is focusable.
+                    .disabled(tab.item.id != tabCoordinator.selectedTabID)
+                }
+            }
+        }
+        .focusSection()
+        .prefersDefaultFocus(in: rootNamespace)
+        // Menu from content surfaces the bar (focuses the selected pill); the bar itself has no
+        // exit handler, so Menu there falls through to the system and backgrounds the app at root.
+        .onExitCommand { barFocus = tabCoordinator.selectedTabID }
+        // Pin the bar to the top as a safe-area inset (NOT a VStack row): it stays LOCKED to the top
+        // (never scrolls) and remains a focusable section above content so UP reaches it — but because
+        // it's an inset, the hero's full-bleed backdrop (ignoresSafeArea) draws to the PHYSICAL top
+        // BEHIND the translucent pills, restoring the edge-to-edge banner. A VStack pushed content down
+        // under an opaque band, which obscured the art and the hero.
+        .safeAreaInset(edge: .top, spacing: 0) {
             BrunoMenuBar(
                 tabs: tabCoordinator.tabs.map(\.item),
                 selection: $tabCoordinator.selectedTabID,
                 focus: $barFocus
             )
             .focusSection()
-
-            ZStack {
-                ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
-                    if mountedIDs.contains(tab.item.id) {
-                        NavigationInjectionView(coordinator: tab.coordinator) {
-                            tab.item.content
-                        }
-                        .environmentObject(tabCoordinator)
-                        .environment(\.tabItemSelected, tab.publisher)
-                        .environment(\.brunoTabIsActive, tab.item.id == tabCoordinator.selectedTabID)
-                        .opacity(tab.item.id == tabCoordinator.selectedTabID ? 1 : 0)
-                        .allowsHitTesting(tab.item.id == tabCoordinator.selectedTabID)
-                        // Removes inactive subtrees from the focus chain — exactly one tab is focusable.
-                        .disabled(tab.item.id != tabCoordinator.selectedTabID)
-                    }
-                }
-            }
-            .focusSection()
-            .prefersDefaultFocus(in: rootNamespace)
-            // Menu from content surfaces the bar (focuses the selected pill); the bar itself has no
-            // exit handler, so Menu there falls through to the system and backgrounds the app at root.
-            .onExitCommand { barFocus = tabCoordinator.selectedTabID }
         }
         .focusScope(rootNamespace)
-        .background(Color.bruno.page)
+        .background(Color.bruno.page.ignoresSafeArea())
         .onChange(of: tabCoordinator.selectedTabID) { _, newValue in
             guard let newValue else { return }
             recency.removeAll { $0 == newValue }
