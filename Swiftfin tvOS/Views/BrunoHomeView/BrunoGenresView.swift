@@ -31,11 +31,11 @@ struct BrunoCoreGenre: Identifiable, Hashable {
     }
 
     static let all: [BrunoCoreGenre] = [
-        .init(id: "action", title: "Action", keywords: ["action", "adventure", "martial", "war", "western", "spy"]),
+        .init(id: "action", title: "Action", keywords: ["action", "adventure", "martial", "war", "western", "spy", "superhero"]),
         .init(
             id: "scifi-fantasy",
             title: "Sci-Fi & Fantasy",
-            keywords: ["sci-fi", "scifi", "science fiction", "fantasy", "superhero", "supernatural"]
+            keywords: ["sci-fi", "scifi", "science fiction", "fantasy", "supernatural"]
         ),
         // "romcom"/"rom-com" so the curated "RomCom All-Timers" shelf lands in this bucket
         // (its name contains neither "romance" nor "romantic").
