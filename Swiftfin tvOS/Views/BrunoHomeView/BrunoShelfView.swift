@@ -74,6 +74,22 @@ struct BrunoShelfView: View {
                     // carousel cards. Same card geometry as PosterButton, so INV-1's row height holds.
                     carouselRow
                         .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
+                } else if viewModel.posterType == .portrait {
+                    // Portrait shelves use the Bruno-wide two-line poster title (long titles wrap to a
+                    // second line instead of truncating with "…"). Same reserved label height as the
+                    // shared default, so INV-1's pinned row geometry is unchanged.
+                    PosterHStack(
+                        title: nil,
+                        type: viewModel.posterType,
+                        items: viewModel.items,
+                        action: { item in
+                            router.route(to: .item(item: item))
+                        },
+                        label: { item in
+                            BrunoPosterTitleContentView(item: item)
+                        }
+                    )
+                    .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                 } else {
                     PosterHStack(
                         title: nil,

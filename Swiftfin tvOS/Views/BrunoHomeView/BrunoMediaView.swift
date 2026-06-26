@@ -102,7 +102,7 @@ struct BrunoPosterGrid: View {
                 PosterButton(item: item, type: .portrait) {
                     onItem(item)
                 } label: {
-                    PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                    BrunoPosterTitleContentView(item: item)
                 }
             }
         }

@@ -61,7 +61,7 @@ struct BrunoShelfRow: View {
                     BrunoArtCarouselCard(item: item, type: .portrait) {
                         onItem(item)
                     } label: {
-                        PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                        BrunoPosterTitleContentView(item: item)
                     }
                 } else {
                     PosterButton(item: item, type: .portrait) {
@@ -70,7 +70,7 @@ struct BrunoShelfRow: View {
                         if showsDate {
                             BrunoTitleDateContentView(item: item)
                         } else {
-                            PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                            BrunoPosterTitleContentView(item: item)
                         }
                     }
                 }

@@ -98,9 +98,13 @@ struct BrunoBoxSetGridView: View {
         if posterType == .landscape, collectionLabel {
             BrunoBoxSetCardLabel(item: item, yearRange: yearRanges.ranges[item.id ?? ""])
         } else if showsDate {
+            // New Releases "Show all": full release date on line 2.
             BrunoTitleDateContentView(item: item)
-        } else {
+        } else if posterType == .landscape {
             PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+        } else {
+            // Portrait grid cards: Bruno-wide two-line title (wrap, don't truncate with "…").
+            BrunoPosterTitleContentView(item: item)
         }
     }
 }
