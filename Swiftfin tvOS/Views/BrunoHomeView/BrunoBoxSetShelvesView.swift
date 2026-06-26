@@ -422,8 +422,9 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                 // The decades curation is movies-only (verified live: every 2000s child is a Movie).
                 parameters.includeItemTypes = [.movie]
                 // premiereDate & productionYear return implicitly; .genres keeps brunoFeaturedItem /
-                // brunoHeroEligible working on the surface's hero. NO shuffle — completeness matters.
-                parameters.fields = .MinimumFields + [.genres]
+                // brunoHeroEligible working on the surface's hero. .tags carries bruno-sig:<NN> for the
+                // "Best of the decade" shelf. NO shuffle — completeness matters.
+                parameters.fields = .MinimumFields + [.genres, .tags]
                 parameters.enableUserData = true
                 parameters.startIndex = startIndex
                 parameters.limit = limit
@@ -471,6 +472,28 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
 
         let slug = decadeName.lowercased()
         var out: [BrunoCollectionCategory] = []
+
+        // "Best of the decade" — significance-ordered FIRST shelf, from the per-item bruno-sig:<NN> tag
+        // (written by the enrichment pipeline). Preserve significance order — do NOT run ordered(),
+        // which would re-sort by premiereDate. Pure over `items` with an id tiebreak (INV-3); stable id
+        // (INV-2). Hidden when too few tagged films exist.
+        let bestOf = items
+            .compactMap { item -> (BaseItemDto, Int)? in
+                guard let sig = brunoSignificance(item) else { return nil }
+                return (item, sig)
+            }
+            .sorted { $0.1 != $1.1 ? $0.1 > $1.1 : ($0.0.id ?? "") < ($1.0.id ?? "") }
+            .prefix(15)
+            .map(\.0)
+        if bestOf.count >= 8 {
+            out.append(yearCategory(
+                id: "decade-\(slug)-bestof",
+                title: "Best of the \(decadeName)",
+                films: Array(bestOf),
+                decade: decade,
+                year: nil
+            ))
+        }
 
         // Real years, newest-first; skip empty years.
         for year in window.reversed() {
@@ -539,6 +562,13 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     /// 1950); 0 when none, so any non-decade name sorts last under the descending sort.
     private static func leadingYear(_ name: String) -> Int {
         Int(name.prefix { $0.isNumber }) ?? 0
+    }
+
+    /// Parse the enrichment pipeline's significance score from a `bruno-sig:<NN>` item tag (0–100),
+    /// nil when absent. Drives the "Best of the decade" shelf order.
+    private static func brunoSignificance(_ item: BaseItemDto) -> Int? {
+        guard let tag = item.tags?.first(where: { $0.hasPrefix("bruno-sig:") }) else { return nil }
+        return Int(tag.dropFirst("bruno-sig:".count))
     }
 
     /// Drop a film from every genre shelf after the first that lists it (server order wins), so the

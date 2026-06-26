@@ -92,11 +92,11 @@ extension BrunoCollectionCategory {
         let order = BrunoCollectionArtwork.seasonalPromoted(on: date)
             ? [
                 "new releases": 0, "seasonal": 1, "genres": 2, "directors": 3,
-                "boxed sets": 4, "decades": 5, "curated": 6, "studios": 7,
+                "movie stars": 4, "boxed sets": 5, "decades": 6, "curated": 7, "studios": 8,
             ]
             : [
-                "new releases": 0, "genres": 1, "directors": 2, "boxed sets": 3,
-                "decades": 4, "curated": 5, "studios": 6, "seasonal": 7,
+                "new releases": 0, "genres": 1, "directors": 2, "movie stars": 3,
+                "boxed sets": 4, "decades": 5, "curated": 6, "studios": 7, "seasonal": 8,
             ]
         return order[name.lowercased()] ?? .max
     }
@@ -116,6 +116,7 @@ extension BrunoCollectionCategory {
     static func lens(for groupName: String) -> String? {
         switch groupName.lowercased() {
         case "directors": "Auteurs"
+        case "movie stars": "Movie Stars"
         case "studios": "From the Vault"
         case "curated": "Hand-Picked"
         case "decades": "Through the Years"
@@ -322,7 +323,7 @@ struct BrunoCategoryShelves: View {
                 items: shelfItems(for: category),
                 onItem: { router.route(to: .item(item: $0)) },
                 onShowAll: { brunoRouteToShowAll(category, router: router, namespace: namespace) },
-                artCarousel: ["studios", "directors"].contains(category.name.lowercased()),
+                artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
                 // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
                 showsDate: showsDate || category.showsDate,
                 labelArt: Self.labelArtStyle(for: category.name)
