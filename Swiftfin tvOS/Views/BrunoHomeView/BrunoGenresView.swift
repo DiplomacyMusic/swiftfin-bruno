@@ -132,6 +132,10 @@ struct BrunoGenresView: View {
                     // to avoid re-evaluating the shelf view per scrub.
                     pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
+                // This surface is a pushed cover that occludes MainTabView's tab bar — re-pin the Bruno
+                // top menu bar here. Attached at the COVER call site (not inside BrunoCategoryShelves,
+                // which is also the Collections tab root where MainTabView already supplies the bar).
+                .brunoHeroMenuBar()
             }
         }
         .toolbar(.hidden, for: .navigationBar)

@@ -54,7 +54,10 @@ struct BrunoMediaView: View {
                 content
             }
         }
-        .ignoresSafeArea()
+        // Drop only the TOP edge so MainTabView's pinned menu bar keeps its reserved top inset (ignoring
+        // .top cancels the inset and lets the bar ride the focus-driven scroll). The ambient backdrop
+        // still bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
+        .ignoresSafeArea(edges: [.horizontal, .bottom])
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
             Task { await viewModel.load() }
