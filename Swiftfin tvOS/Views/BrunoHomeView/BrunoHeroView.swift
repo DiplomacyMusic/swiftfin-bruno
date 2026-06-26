@@ -95,7 +95,13 @@ struct BrunoHeroView: View {
 
     private func heroCard(for item: BaseItemDto) -> some View {
         let insets = UIApplication.shared.brunoOverscanInsets
-        let topBleed = bleedsTop ? insets.top : 0
+        // +barHeight: the content is now inset by the pinned bar's height (MainTabView / BrunoHeroMenuBar
+        // Color.clear inset), so the hero's measured layout box starts barHeight lower. The backdrop is
+        // bottom-pinned, so its upward spill must clear BOTH the overscan strip AND the bar band to reach the
+        // physical top — otherwise a lighter ambient strip shows above the hero (the dimmer-short-of-top
+        // bug). topBleed is pure background overflow (never measured), so growing it moves no sibling;
+        // layoutHeight is untouched (adding barHeight there too would double-count and over-grow the banner).
+        let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight : 0
         // Three independent knobs (see swift-reference / hero notes):
         //  • layoutHeight  — the ONLY height the parent VStack measures, so it alone fixes the banner's
         //    bottom edge and the shelves below. extraHeight grows it downward (Home restores the

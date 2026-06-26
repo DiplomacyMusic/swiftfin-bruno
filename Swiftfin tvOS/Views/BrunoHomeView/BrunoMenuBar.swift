@@ -29,6 +29,14 @@ struct BrunoMenuBar: View {
     /// Owned by MainTabView so it can drive focus onto the selected pill when Menu is pressed in content.
     var focus: FocusState<String?>.Binding
 
+    /// Reserved top inset for the pinned bar. The bar floats as a `ZStack(alignment: .top)` PEER over the
+    /// hero's background spill; the content gets a `Color.clear` inset of this height so its focusable cells
+    /// start BELOW the bar (non-overlapping frames → the tvOS focus engine can traverse UP into the bar).
+    /// Must be ≥ the bar's intrinsic height (~108pt: brunoBody(28) pill + 14·2 + HStack 12·2 + 8/14 bar
+    /// padding) or `.frame(height:)` undersizes the pill box and its focusable frames re-overlap the
+    /// content's top row, re-breaking UP. Read by MainTabView, BrunoHeroView, and BrunoHeroMenuBar.
+    static let barHeight: CGFloat = 116
+
     var body: some View {
         HStack(spacing: 12) {
             ForEach(tabs) { tab in
