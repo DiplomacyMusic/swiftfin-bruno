@@ -42,26 +42,21 @@ struct BrunoMediaView: View {
     var body: some View {
         ZStack {
             // One fixed ambient backdrop (the first spotlight) — keeps the surface snappy by never
-            // re-blurring as the hero rotates or you scroll (Home's pattern). A full-bleed sibling OUTSIDE
-            // the menu-bar inset below, so it reaches the physical top behind the pills.
+            // re-blurring as the hero rotates or you scroll (Home's pattern).
             BrunoAmbientBackground(item: viewModel.heroItems.first)
 
-            Group {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(2)
-                        .tint(Color.bruno.accent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    content
-                }
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(2)
+                    .tint(Color.bruno.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                content
             }
-            // REAL top inset + focus section so UP from the content reaches the pinned bar (peer, not
-            // overlapping). Ambient sibling above stays full-bleed.
-            .brunoBelowMenuBar()
         }
-        // Drop only the TOP edge so the menu-bar inset (brunoBelowMenuBar) is measured from the title-safe
-        // top. The ambient backdrop still bleeds behind the pills via its own .ignoresSafeArea().
+        // Drop only the TOP edge so MainTabView's pinned menu bar keeps its reserved top inset (ignoring
+        // .top cancels the inset and lets the bar ride the focus-driven scroll). The ambient backdrop
+        // still bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
@@ -77,9 +72,7 @@ struct BrunoMediaView: View {
                         items: viewModel.heroItems,
                         index: $spotlightIndex,
                         eyebrow: heroEyebrow,
-                        // Sits below the pinned bar (scroll plane inset by brunoBelowMenuBar); the full-bleed
-                        // ambient sibling owns the strip behind the pills, so the hero no longer bleeds up.
-                        bleedsTop: false,
+                        bleedsTop: true,
                         extraHeight: 160
                     )
                 }

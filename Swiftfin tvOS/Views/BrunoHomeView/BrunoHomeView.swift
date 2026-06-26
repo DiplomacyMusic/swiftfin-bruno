@@ -59,38 +59,31 @@ struct BrunoHomeView: View {
     var body: some View {
         ZStack {
             // One fixed backdrop (the first spotlight), not the cycling one — keeps the home
-            // snappy by never re-blurring a full-res cover as the hero rotates or you scroll. A full-bleed
-            // SIBLING (its own .ignoresSafeArea()), OUTSIDE the menu-bar inset below, so it reaches the
-            // physical top behind the translucent pills.
+            // snappy by never re-blurring a full-res cover as the hero rotates or you scroll.
             BrunoAmbientBackground(item: viewModel.heroItems.first)
 
-            Group {
-                if viewModel.sections.isNotEmpty || !viewModel.heroItems.isEmpty {
-                    content
-                } else {
-                    switch viewModel.state {
-                    case let .error(error):
-                        errorView(error)
-                    default:
-                        // Focusable so cold launch has SOMETHING focusable in the content section — else the
-                        // focus engine strands focus on the menu bar (the only focusable on screen) and the
-                        // user lands on the bar, not the hero. We hand focus to the hero once it streams in.
-                        ProgressView()
-                            .scaleEffect(2)
-                            .tint(Color.bruno.accent)
-                            .focusable()
-                    }
+            if viewModel.sections.isNotEmpty || !viewModel.heroItems.isEmpty {
+                content
+            } else {
+                switch viewModel.state {
+                case let .error(error):
+                    errorView(error)
+                default:
+                    // Focusable so cold launch has SOMETHING focusable in the content section — else the
+                    // focus engine strands focus on the menu bar (the only focusable on screen) and the
+                    // user lands on the bar, not the hero. We hand focus to the hero once it streams in.
+                    ProgressView()
+                        .scaleEffect(2)
+                        .tint(Color.bruno.accent)
+                        .focusable()
                 }
             }
-            // REAL top inset + focus section so the content's focus frame is a non-overlapping peer below
-            // the pinned bar (UP reaches the bar). Applied to the foreground only — the ambient sibling
-            // above stays full-bleed.
-            .brunoBelowMenuBar()
         }
-        // Drop only the TOP edge so the menu-bar inset (brunoBelowMenuBar, above) is measured from the
-        // title-safe top: ignoring .top would let the content slide under the bar. The ambient backdrop
-        // still bleeds to the physical top behind the translucent pills because BrunoAmbientBackground
-        // self-ignores all edges. Matches SearchView / ProgramsView.
+        // Drop only the TOP edge so MainTabView's pinned menu bar (a .safeAreaInset on this tab's
+        // container) keeps its reserved top inset: ignoring .top here cancelled that inset, so the bar
+        // rode the focus-driven scroll downward into the shelves (UP no longer reached it). The ambient
+        // backdrop still bleeds to the physical top behind the translucent pills because
+        // BrunoAmbientBackground self-ignores all edges. Matches SearchView / ProgramsView.
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .onFirstAppear {
             viewModel.send(.refresh)
@@ -127,11 +120,7 @@ struct BrunoHomeView: View {
                     BrunoHeroView(
                         items: viewModel.heroItems,
                         index: $spotlightIndex,
-                        // The hero now sits BELOW the pinned bar (its scroll plane is inset by
-                        // brunoBelowMenuBar), so it no longer bleeds to the physical top — the full-bleed
-                        // ambient sibling owns the strip behind the pills. An in-ScrollView bleed would just
-                        // be clipped at the inset edge.
-                        bleedsTop: false,
+                        bleedsTop: true,
                         // Taller banner: restores the vacated wordmark-row space AND shows more of the
                         // backdrop (incl. its top) so the subject reads centered below the nav.
                         extraHeight: 200,

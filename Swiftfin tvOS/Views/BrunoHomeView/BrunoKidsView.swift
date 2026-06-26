@@ -89,28 +89,23 @@ struct BrunoKidsView: View {
 
     var body: some View {
         ZStack {
-            // Ambient now tracks the kids spotlight (was a flat hero-less page). A full-bleed sibling
-            // OUTSIDE the menu-bar inset below, so it reaches the physical top behind the pills.
+            // Ambient now tracks the kids spotlight (was a flat hero-less page).
             BrunoAmbientBackground(item: viewModel.heroItems.first)
 
-            Group {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(2)
-                        .tint(Color.bruno.accent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.parents.isEmpty {
-                    notFound
-                } else {
-                    content
-                }
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(2)
+                    .tint(Color.bruno.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.parents.isEmpty {
+                notFound
+            } else {
+                content
             }
-            // REAL top inset + focus section so UP from the content reaches the pinned bar (peer, not
-            // overlapping). Ambient sibling above stays full-bleed.
-            .brunoBelowMenuBar()
         }
-        // Drop only the TOP edge so the menu-bar inset (brunoBelowMenuBar) is measured from the title-safe
-        // top. The ambient backdrop still bleeds behind the pills via its own .ignoresSafeArea().
+        // Drop only the TOP edge so MainTabView's pinned menu bar keeps its reserved top inset (ignoring
+        // .top cancels the inset and lets the bar ride the focus-driven scroll). The ambient backdrop
+        // still bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
@@ -133,9 +128,7 @@ struct BrunoKidsView: View {
                             items: viewModel.heroItems,
                             index: $spotlightIndex,
                             eyebrow: "Featured",
-                            // Sits below the pinned bar; the full-bleed ambient sibling owns the strip behind
-                            // the pills, so the hero no longer bleeds up (it would be clipped at the inset).
-                            bleedsTop: false,
+                            bleedsTop: true,
                             extraHeight: 160
                         )
                     }
