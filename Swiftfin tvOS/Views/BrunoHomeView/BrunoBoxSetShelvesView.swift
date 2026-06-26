@@ -59,6 +59,12 @@ struct BrunoBoxSetShelvesView: View {
     @FocusState
     private var focusedChip: String?
 
+    /// Flips true once the pill row has been focused at least once. Before that, `defaultFocus` forces
+    /// "All" (.userInitiated); after, it yields to engine restoration (.automatic) so UP-from-shelves
+    /// returns to the active pill.
+    @State
+    private var didEnterChipRow = false
+
     private var isDecades: Bool {
         parent.displayTitle.lowercased() == "decades"
     }
@@ -108,9 +114,11 @@ struct BrunoBoxSetShelvesView: View {
                     heroEyebrow: "Featured Film",
                     // Decade surface opts in to per-poster release dates; Genres/Curated keep the default.
                     showsDate: isDecades,
-                    // Decades only: scroll the pills to the top on a COMMITTED decade change (the
-                    // debounced value, so a fast scrub scrolls once on settle). Other groups pass nil.
-                    pillScrollKey: isDecades ? selectedDecade : nil
+                    // pillScrollKey intentionally nil: the committed-decade scroll-to-top RE-FRAME animated
+                    // the whole page vertically while the focus ring sat on a pill — it fought the focus
+                    // engine (hero jumping in/out) on every decade change. The engine already keeps the
+                    // focused pill on screen, so we drop the re-frame. (The machinery stays, gated off.)
+                    pillScrollKey: nil
                 )
             }
         }
@@ -179,11 +187,15 @@ struct BrunoBoxSetShelvesView: View {
                 .padding(.vertical, 8)
             }
             .focusSection()
-            // Force DOWN-from-hero to land on "All" (not the restored middle pill). .userInitiated while
-            // focus is outside the row overrides the engine's last-focused restoration; .automatic once
-            // inside so left/right scrubbing isn't fought. (LetterPickerBar pattern.)
+            // First entry into the row (the cold DOWN-from-hero) lands on "All" — .userInitiated outranks
+            // the engine's last-focused restoration. AFTER that, .automatic lets the engine restore the
+            // active pill, so coming back UP from the shelves returns to the decade you're viewing (not a
+            // reset to All). Direction can't be read directly, so we use this once-then-yield approach.
             .backport
-            .defaultFocus($focusedChip, "all", priority: focusedChip == nil ? .userInitiated : .automatic)
+            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .onChange(of: focusedChip) { _, newValue in
+                if newValue != nil { didEnterChipRow = true }
+            }
         }
         // INV-7: flip the appeared guard only after the first paint, so the focus engine's initial
         // assignment to the pill row can't fire a commit (or per-year fetch) on cold enter.
@@ -191,8 +203,9 @@ struct BrunoBoxSetShelvesView: View {
     }
 
     /// Record the focused decade instantly (drives the highlight) and DEBOUNCE the write to the
-    /// committed `selectedDecade` (~150 ms after focus settles), so a fast scrub rebuilds the shelves —
-    /// and fires the per-year fetch — at most once. No-ops before first paint (INV-7) and when unchanged.
+    /// committed `selectedDecade` (~500 ms after focus settles), so scrubbing across years never fires
+    /// the expensive per-year fetch + shelf rebuild + scroll re-frame mid-move — only a deliberate PAUSE
+    /// on a decade commits. No-ops before first paint (INV-7) and when unchanged.
     private func commitFocus(_ decade: String?) {
         guard filterRowAppeared else { return }
         guard focusedDecade != decade || selectedDecade != decade else { return }
@@ -200,7 +213,9 @@ struct BrunoBoxSetShelvesView: View {
         focusedDecade = decade
         commitTask?.cancel()
         commitTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
+            // 500 ms: long enough that quickly tapping through years doesn't bog down (the per-year fetch
+            // and the scrollTo re-frame only run once the user settles), short enough to feel responsive.
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             // Commit only if focus still rests on the same pill (no-op if already committed there).
             guard focusedDecade == decade, selectedDecade != decade else { return }

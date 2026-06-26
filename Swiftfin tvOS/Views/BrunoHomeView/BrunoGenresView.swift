@@ -93,6 +93,11 @@ struct BrunoGenresView: View {
     @FocusState
     private var focusedChip: String?
 
+    /// Flips true once the pill row has been focused. Before: `defaultFocus` forces "All" (.userInitiated);
+    /// after: it yields to restoration (.automatic) so UP-from-shelves returns to the active genre.
+    @State
+    private var didEnterChipRow = false
+
     init(parent: BaseItemDto, core: BrunoCoreGenre?) {
         self.parent = parent
         self.core = core
@@ -184,11 +189,14 @@ struct BrunoGenresView: View {
                 .padding(.vertical, 8)
             }
             .focusSection()
-            // Force DOWN-from-hero to land on "All" (not the restored middle pill). .userInitiated while
-            // focus is outside the row overrides the engine's last-focused restoration; .automatic once
-            // inside so left/right scrubbing isn't fought. (LetterPickerBar pattern.)
+            // First entry into the row (cold DOWN-from-hero) lands on "All" (.userInitiated outranks the
+            // engine's last-focused restoration); after that .automatic yields to restoration so UP from
+            // the shelves returns to the active genre rather than resetting to All.
             .backport
-            .defaultFocus($focusedChip, "all", priority: focusedChip == nil ? .userInitiated : .automatic)
+            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .onChange(of: focusedChip) { _, newValue in
+                if newValue != nil { didEnterChipRow = true }
+            }
         }
         // INV-7: flip the appeared guard only after the first paint, so the focus engine's initial
         // assignment to the pill row can't fire a commit on cold enter (hero shows the unfiltered set).
@@ -196,8 +204,9 @@ struct BrunoGenresView: View {
     }
 
     /// Record the focused core instantly (drives the highlight) and DEBOUNCE the write to the
-    /// committed `selectedCore` (~150 ms after focus settles), so a fast scrub across the row rebuilds
-    /// the shelf stack at most once. No-ops before first paint (INV-7) and when nothing changed.
+    /// committed `selectedCore` (~500 ms after focus settles), so scrubbing across the row never rebuilds
+    /// the shelf stack mid-move — only a deliberate PAUSE on a genre commits. No-ops before first paint
+    /// (INV-7) and when nothing changed.
     private func commitFocus(_ core: BrunoCoreGenre?) {
         guard filterRowAppeared else { return }
         guard focusedCore?.id != core?.id || selectedCore?.id != core?.id else { return }
@@ -205,7 +214,8 @@ struct BrunoGenresView: View {
         focusedCore = core
         commitTask?.cancel()
         commitTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
+            // 500 ms: scrubbing across genres doesn't rebuild shelves until the user settles.
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             // Commit only if focus still rests on the same pill (no-op if already committed there).
             guard focusedCore?.id == core?.id, selectedCore?.id != core?.id else { return }
