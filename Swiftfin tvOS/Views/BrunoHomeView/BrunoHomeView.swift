@@ -79,7 +79,12 @@ struct BrunoHomeView: View {
                 }
             }
         }
-        .ignoresSafeArea()
+        // Drop only the TOP edge so MainTabView's pinned menu bar (a .safeAreaInset on this tab's
+        // container) keeps its reserved top inset: ignoring .top here cancelled that inset, so the bar
+        // rode the focus-driven scroll downward into the shelves (UP no longer reached it). The ambient
+        // backdrop still bleeds to the physical top behind the translucent pills because
+        // BrunoAmbientBackground self-ignores all edges. Matches SearchView / ProgramsView.
+        .ignoresSafeArea(edges: [.horizontal, .bottom])
         .onFirstAppear {
             viewModel.send(.refresh)
         }

@@ -237,10 +237,11 @@ struct BrunoCategoryShelves: View {
         // Let the ScrollView fill the screen (matching BrunoHomeView) so the hero's full-bleed
         // backdrop reaches the physical edges instead of being clipped at the title-safe inset. The
         // ScrollView still re-insets its own content to the safe area, so shelves stay title-safe.
-        .ignoresSafeArea()
-        // This surface is always presented as a fullScreenCover (Decades/Genres), which occludes the
-        // tab bar — re-pin the Bruno top menu bar here so it's available on every hero-banner view.
-        .brunoHeroMenuBar()
+        // Drop only the TOP edge: a pinned top bar (MainTabView's on the Collections tab root, or the
+        // cover's own .brunoHeroMenuBar() on Decades/Genres) reserves the top inset, and ignoring .top
+        // here would cancel that inset and let the bar ride the focus-driven scroll downward. The
+        // ambient layer (BrunoAmbientBackground self-ignores all edges) still bleeds behind the pills.
+        .ignoresSafeArea(edges: [.horizontal, .bottom])
     }
 
     private var scrollContent: some View {
