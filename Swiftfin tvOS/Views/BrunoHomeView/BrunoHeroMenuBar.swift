@@ -39,10 +39,19 @@ private struct BrunoHeroMenuBar: ViewModifier {
     private var namespace
 
     func body(content: Content) -> some View {
-        content
-            .focusSection()
-            .prefersDefaultFocus(in: namespace)
-            .safeAreaInset(edge: .top, spacing: 0) {
+        // Same peer-sibling shape as MainTabView: content + bar are two `.focusSection()` peers under one
+        // `.focusScope`, the bar floating over the hero's background spill via `ZStack(alignment: .top)`. The
+        // content's `Color.clear` barHeight inset pushes the cover's focusable cells below the bar so UP
+        // traverses into it (without this inset the cover's first shelf sits under the bar and UP re-breaks
+        // here). The bar layer reserves barHeight even before the bridge resolves, so the inset and the bar
+        // frame never desync on first paint. No onExitCommand — in a cover, Menu dismisses (the natural back).
+        ZStack(alignment: .top) {
+            content
+                .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: BrunoMenuBar.barHeight) }
+                .focusSection()
+                .prefersDefaultFocus(in: namespace)
+
+            Group {
                 if let coordinator = bridge.coordinator {
                     BrunoMenuBar(
                         tabs: coordinator.tabs.map(\.item),
@@ -57,10 +66,12 @@ private struct BrunoHeroMenuBar: ViewModifier {
                         ),
                         focus: $barFocus
                     )
-                    .focusSection()
                 }
             }
-            .focusScope(namespace)
+            .frame(height: BrunoMenuBar.barHeight, alignment: .top)
+            .focusSection()
+        }
+        .focusScope(namespace)
     }
 }
 
