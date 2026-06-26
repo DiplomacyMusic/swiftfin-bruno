@@ -24,8 +24,28 @@ struct BrunoKidsView: View {
     @StateObject
     private var viewModel = BrunoKidsViewModel()
 
+    /// Committed filter — drives the grid. Updated ~500 ms after focus settles so scrubbing the chips
+    /// doesn't rebuild the poster grid mid-move (matches Decades/Genres).
     @State
     private var filter: KidsFilter = .all
+
+    /// Instant highlight target (the focused chip), so the pill highlight is immediate while the grid
+    /// settles via the debounced `filter`.
+    @State
+    private var focusedFilter: KidsFilter = .all
+
+    /// Which chip holds focus (its rawValue) — drives `defaultFocus` so DOWN-from-hero lands on "All",
+    /// then yields to engine restoration so UP-from-grid returns to the active filter.
+    @FocusState
+    private var focusedChip: String?
+
+    /// One-shot: force "All" on the first entry (.userInitiated), then .automatic (see Decades/Genres).
+    @State
+    private var didEnterChipRow = false
+
+    /// Pending debounced commit of `focusedFilter -> filter`.
+    @State
+    private var commitTask: Task<Void, Never>?
 
     @State
     private var spotlightIndex = 0
@@ -37,10 +57,6 @@ struct BrunoKidsView: View {
 
     @Router
     private var router
-
-    /// INV-9: collapse the filter-select scroll-jump to an instant move when reduce-motion is on.
-    @Environment(\.accessibilityReduceMotion)
-    private var reduceMotion
 
     /// Scroll anchor for the filter chip row — selecting a filter jumps the view here.
     private enum ScrollAnchor: Hashable {
@@ -92,6 +108,10 @@ struct BrunoKidsView: View {
         .onFirstAppear {
             Task { await viewModel.load() }
         }
+        .onDisappear {
+            commitTask?.cancel()
+            commitTask = nil
+        }
     }
 
     // Hero + filter chips + grid share ONE scroll plane (Movies/TV pattern), so the spotlight
@@ -137,16 +157,12 @@ struct BrunoKidsView: View {
                         .onChange(of: geo.size.height) { _, height in viewportHeight = height }
                 }
             }
-            // Jump the pills to the top when the (committed) filter changes — same framing as Decades.
-            // INV-9: instant under reduce-motion. Re-scrolls land on the already-pinned anchor (no-op),
-            // so a fast chip scrub doesn't thrash.
-            .onChange(of: filter) { _, _ in
-                let jump = { proxy.scrollTo(ScrollAnchor.filter, anchor: .top) }
-                if reduceMotion {
-                    jump()
-                } else {
-                    withAnimation(.easeInOut(duration: 0.35)) { jump() }
-                }
+            // Snap the chips to the top when the row GAINS focus (token nil -> non-nil), INSTANT so it
+            // never battles the focus engine (the old animated re-frame on every filter change threw the
+            // hero in and out of view). Chips stay pinned while you scrub; the grid changes beneath.
+            .onChange(of: focusedChip) { oldValue, newValue in
+                guard oldValue == nil, newValue != nil else { return }
+                proxy.scrollTo(ScrollAnchor.filter, anchor: .top)
             }
         }
     }
@@ -160,18 +176,41 @@ struct BrunoKidsView: View {
             ForEach(KidsFilter.allCases) { option in
                 BrunoSelectorCard(
                     title: option.rawValue,
-                    isSelected: option == filter,
+                    // Highlight off FOCUSED (instant); the grid follows ~500 ms later via `filter`.
+                    isSelected: option == focusedFilter,
                     style: .toggle,
                     // Move-to-select: landing the cursor on a chip applies it, no Select press.
                     selectsOnFocus: true
                 ) {
-                    filter = option
+                    commitFocus(option)
                 }
+                .focused($focusedChip, equals: option.id)
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 50)
         .focusSection()
+        // First entry (cold DOWN-from-hero) lands on "All"; after, .automatic restores the active chip.
+        .backport
+        .defaultFocus($focusedChip, KidsFilter.all.id, priority: didEnterChipRow ? .automatic : .userInitiated)
+        .onChange(of: focusedChip) { _, newValue in
+            if newValue != nil { didEnterChipRow = true }
+        }
+    }
+
+    /// Record the focused chip instantly (drives the highlight) and DEBOUNCE the write to the committed
+    /// `filter` (~500 ms after focus settles), so scrubbing the chips rebuilds the poster grid at most
+    /// once on settle rather than per chip.
+    private func commitFocus(_ option: KidsFilter) {
+        guard focusedFilter != option || filter != option else { return }
+        focusedFilter = option
+        commitTask?.cancel()
+        commitTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            guard focusedFilter == option, filter != option else { return }
+            filter = option
+        }
     }
 
     private var notFound: some View {
