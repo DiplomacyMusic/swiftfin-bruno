@@ -87,6 +87,17 @@ struct BrunoGenresView: View {
     @State
     private var featuredItem: BaseItemDto?
 
+    /// Which pill currently holds focus ("all" or a core id). Drives `defaultFocus` so entering the row
+    /// from the hero (DOWN) lands on the leftmost "All" pill, not whatever was last focused/selected —
+    /// the focus engine otherwise restores the previously-focused (middle) pill.
+    @FocusState
+    private var focusedChip: String?
+
+    /// Flips true once the pill row has been focused. Before: `defaultFocus` forces "All" (.userInitiated);
+    /// after: it yields to restoration (.automatic) so UP-from-shelves returns to the active genre.
+    @State
+    private var didEnterChipRow = false
+
     init(parent: BaseItemDto, core: BrunoCoreGenre?) {
         self.parent = parent
         self.core = core
@@ -115,7 +126,11 @@ struct BrunoGenresView: View {
                     // INV-7 / decoupled hero: the FIXED item from the full set, never re-derived per
                     // pill, so a filter change can't reload the hero backdrop (heroEyebrow may still vary).
                     featured: featuredItem,
-                    heroEyebrow: selectedCore.map { "\($0.title) Pick" } ?? "Featured Film"
+                    heroEyebrow: selectedCore.map { "\($0.title) Pick" } ?? "Featured Film",
+                    // Snap the pills to the top when the row gains focus (instant) so the genre shelves
+                    // are fully visible beneath and you watch them change. Stable token (not the pill id)
+                    // to avoid re-evaluating the shelf view per scrub.
+                    pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
             }
         }
@@ -158,6 +173,7 @@ struct BrunoGenresView: View {
                     ) {
                         commitFocus(nil)
                     }
+                    .focused($focusedChip, equals: "all")
 
                     ForEach(BrunoCoreGenre.all) { coreGenre in
                         BrunoSelectorCard(
@@ -170,12 +186,21 @@ struct BrunoGenresView: View {
                         ) {
                             commitFocus(coreGenre)
                         }
+                        .focused($focusedChip, equals: coreGenre.id)
                     }
                 }
                 .padding(.horizontal, 50)
                 .padding(.vertical, 8)
             }
             .focusSection()
+            // First entry into the row (cold DOWN-from-hero) lands on "All" (.userInitiated outranks the
+            // engine's last-focused restoration); after that .automatic yields to restoration so UP from
+            // the shelves returns to the active genre rather than resetting to All.
+            .backport
+            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .onChange(of: focusedChip) { _, newValue in
+                if newValue != nil { didEnterChipRow = true }
+            }
         }
         // INV-7: flip the appeared guard only after the first paint, so the focus engine's initial
         // assignment to the pill row can't fire a commit on cold enter (hero shows the unfiltered set).
@@ -183,8 +208,9 @@ struct BrunoGenresView: View {
     }
 
     /// Record the focused core instantly (drives the highlight) and DEBOUNCE the write to the
-    /// committed `selectedCore` (~150 ms after focus settles), so a fast scrub across the row rebuilds
-    /// the shelf stack at most once. No-ops before first paint (INV-7) and when nothing changed.
+    /// committed `selectedCore` (~500 ms after focus settles), so scrubbing across the row never rebuilds
+    /// the shelf stack mid-move — only a deliberate PAUSE on a genre commits. No-ops before first paint
+    /// (INV-7) and when nothing changed.
     private func commitFocus(_ core: BrunoCoreGenre?) {
         guard filterRowAppeared else { return }
         guard focusedCore?.id != core?.id || selectedCore?.id != core?.id else { return }
@@ -192,7 +218,8 @@ struct BrunoGenresView: View {
         focusedCore = core
         commitTask?.cancel()
         commitTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
+            // 500 ms: scrubbing across genres doesn't rebuild shelves until the user settles.
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             // Commit only if focus still rests on the same pill (no-op if already committed there).
             guard focusedCore?.id == core?.id, selectedCore?.id != core?.id else { return }

@@ -54,6 +54,17 @@ struct BrunoBoxSetShelvesView: View {
     @State
     private var featuredItem: BaseItemDto?
 
+    /// Which pill currently holds focus ("all" or a decade name). Drives `defaultFocus` so entering the
+    /// row from the hero (DOWN) lands on the leftmost "All" pill, not whatever was last focused/selected.
+    @FocusState
+    private var focusedChip: String?
+
+    /// Flips true once the pill row has been focused at least once. Before that, `defaultFocus` forces
+    /// "All" (.userInitiated); after, it yields to engine restoration (.automatic) so UP-from-shelves
+    /// returns to the active pill.
+    @State
+    private var didEnterChipRow = false
+
     private var isDecades: Bool {
         parent.displayTitle.lowercased() == "decades"
     }
@@ -103,9 +114,10 @@ struct BrunoBoxSetShelvesView: View {
                     heroEyebrow: "Featured Film",
                     // Decade surface opts in to per-poster release dates; Genres/Curated keep the default.
                     showsDate: isDecades,
-                    // Decades only: scroll the pills to the top on a COMMITTED decade change (the
-                    // debounced value, so a fast scrub scrolls once on settle). Other groups pass nil.
-                    pillScrollKey: isDecades ? selectedDecade : nil
+                    // Keyed on pill-row FOCUS (a stable token, not the focused pill id, so the shelf view
+                    // isn't re-evaluated per scrub): when you move INTO the pills it snaps them to the top
+                    // (instant) so the decade shelves are fully visible beneath and you watch them change.
+                    pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
             }
         }
@@ -151,6 +163,7 @@ struct BrunoBoxSetShelvesView: View {
                     ) {
                         commitFocus(nil)
                     }
+                    .focused($focusedChip, equals: "all")
 
                     // Keep iterating viewModel.categories (NOT shownCategories) so pills never vanish
                     // when a specific decade swaps the shelves to per-year.
@@ -166,12 +179,22 @@ struct BrunoBoxSetShelvesView: View {
                         ) {
                             commitFocus(category.name)
                         }
+                        .focused($focusedChip, equals: category.name)
                     }
                 }
                 .padding(.horizontal, 50)
                 .padding(.vertical, 8)
             }
             .focusSection()
+            // First entry into the row (the cold DOWN-from-hero) lands on "All" — .userInitiated outranks
+            // the engine's last-focused restoration. AFTER that, .automatic lets the engine restore the
+            // active pill, so coming back UP from the shelves returns to the decade you're viewing (not a
+            // reset to All). Direction can't be read directly, so we use this once-then-yield approach.
+            .backport
+            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .onChange(of: focusedChip) { _, newValue in
+                if newValue != nil { didEnterChipRow = true }
+            }
         }
         // INV-7: flip the appeared guard only after the first paint, so the focus engine's initial
         // assignment to the pill row can't fire a commit (or per-year fetch) on cold enter.
@@ -179,8 +202,9 @@ struct BrunoBoxSetShelvesView: View {
     }
 
     /// Record the focused decade instantly (drives the highlight) and DEBOUNCE the write to the
-    /// committed `selectedDecade` (~150 ms after focus settles), so a fast scrub rebuilds the shelves —
-    /// and fires the per-year fetch — at most once. No-ops before first paint (INV-7) and when unchanged.
+    /// committed `selectedDecade` (~500 ms after focus settles), so scrubbing across years never fires
+    /// the expensive per-year fetch + shelf rebuild + scroll re-frame mid-move — only a deliberate PAUSE
+    /// on a decade commits. No-ops before first paint (INV-7) and when unchanged.
     private func commitFocus(_ decade: String?) {
         guard filterRowAppeared else { return }
         guard focusedDecade != decade || selectedDecade != decade else { return }
@@ -188,7 +212,9 @@ struct BrunoBoxSetShelvesView: View {
         focusedDecade = decade
         commitTask?.cancel()
         commitTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
+            // 500 ms: long enough that quickly tapping through years doesn't bog down (the per-year fetch
+            // and the scrollTo re-frame only run once the user settles), short enough to feel responsive.
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             // Commit only if focus still rests on the same pill (no-op if already committed there).
             guard focusedDecade == decade, selectedDecade != decade else { return }

@@ -38,9 +38,23 @@ struct BrunoMenuBar: View {
                 .focused(focus, equals: tab.id)
             }
         }
-        .padding(.horizontal, EdgeInsets.edgePadding)
-        .padding(.top, 24)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 12)
+        // Floating dark-glass pill group (the stock-bar look) so the hero art reads through and around
+        // it. The bar is pinned via safeAreaInset, so this capsule sits over the bled-up backdrop.
+        .background {
+            Capsule(style: .continuous)
+                .fill(.black.opacity(0.4))
+                .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                .overlay {
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.bruno.fg.opacity(0.10), lineWidth: 1)
+                }
+        }
+        // Centre the hugged capsule and float it just below the title-safe top edge; the hero backdrop
+        // fills the strip above and behind it.
+        .padding(.top, 8)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
     }
 }

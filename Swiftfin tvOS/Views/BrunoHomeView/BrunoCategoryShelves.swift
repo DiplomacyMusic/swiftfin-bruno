@@ -193,10 +193,11 @@ struct BrunoCategoryShelves: View {
     /// Decade surface only: show each poster's full release date on line 2. Default false ⇒ every
     /// other surface (Home / Genres / Kids / Collections) renders the shared label byte-identically.
     var showsDate: Bool = false
-    /// When this key changes, the surface scroll-jumps so the selector/pill region sits at the top —
-    /// the "pills near top, first shelf in full view" framing you otherwise only reach by focusing a
-    /// shelf. Driven by the COMMITTED selection (e.g. the debounced `selectedDecade`), so a fast pill
-    /// scrub scrolls once on settle rather than per pill. nil (the default) ⇒ no scroll-jumps.
+    /// Drives the "pills near top, shelves in full view beneath" framing. The caller passes a non-nil
+    /// token while the pill row HOLDS FOCUS (and nil otherwise), so when it transitions nil → non-nil we
+    /// snap the selector region to the top once. INSTANT (never animated) so it never battles the focus
+    /// engine. Staying non-nil while scrubbing means the pills stay pinned at top and you watch the shelf
+    /// library change beneath them. nil (the default) ⇒ no scroll-jumps.
     var pillScrollKey: String?
 
     @Router
@@ -204,10 +205,6 @@ struct BrunoCategoryShelves: View {
 
     @Namespace
     private var namespace
-
-    /// INV-9: collapse the pill-select scroll-jump to an instant move when reduce-motion is on.
-    @Environment(\.accessibilityReduceMotion)
-    private var reduceMotion
 
     /// Scroll anchor for the selector/pill region — `pillScrollKey` jumps the view here.
     private enum ScrollAnchor: Hashable {
@@ -240,6 +237,9 @@ struct BrunoCategoryShelves: View {
         // backdrop reaches the physical edges instead of being clipped at the title-safe inset. The
         // ScrollView still re-insets its own content to the safe area, so shelves stay title-safe.
         .ignoresSafeArea()
+        // This surface is always presented as a fullScreenCover (Decades/Genres), which occludes the
+        // tab bar — re-pin the Bruno top menu bar here so it's available on every hero-banner view.
+        .brunoHeroMenuBar()
     }
 
     private var scrollContent: some View {
@@ -290,13 +290,13 @@ struct BrunoCategoryShelves: View {
             // Jump to the "pills near top, first shelf in full view" framing when the COMMITTED pill
             // selection settles (onChange fires on real changes only, so the cold-enter hero-intro
             // framing — INV-7 — is left untouched). INV-9: instant under reduce-motion.
-            .onChange(of: pillScrollKey) { _, _ in
-                let jump = { proxy.scrollTo(ScrollAnchor.selector, anchor: .top) }
-                if reduceMotion {
-                    jump()
-                } else {
-                    withAnimation(.easeInOut(duration: 0.35)) { jump() }
-                }
+            .onChange(of: pillScrollKey) { oldValue, newValue in
+                // When the pill row GAINS focus (token nil → non-nil), snap the selector/pills to the top
+                // so the shelves below are fully visible and you can watch the library change as you
+                // select. INSTANT (no withAnimation) so it never battles the focus engine — the old
+                // animated re-frame threw the hero in and out of view on every commit.
+                guard oldValue == nil, newValue != nil else { return }
+                proxy.scrollTo(ScrollAnchor.selector, anchor: .top)
             }
             .onChange(of: categories.map(\.id)) { _, _ in
                 visibleShelfCount = 4
