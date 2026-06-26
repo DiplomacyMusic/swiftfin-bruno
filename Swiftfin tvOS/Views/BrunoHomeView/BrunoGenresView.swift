@@ -87,6 +87,12 @@ struct BrunoGenresView: View {
     @State
     private var featuredItem: BaseItemDto?
 
+    /// Which pill currently holds focus ("all" or a core id). Drives `defaultFocus` so entering the row
+    /// from the hero (DOWN) lands on the leftmost "All" pill, not whatever was last focused/selected —
+    /// the focus engine otherwise restores the previously-focused (middle) pill.
+    @FocusState
+    private var focusedChip: String?
+
     init(parent: BaseItemDto, core: BrunoCoreGenre?) {
         self.parent = parent
         self.core = core
@@ -158,6 +164,7 @@ struct BrunoGenresView: View {
                     ) {
                         commitFocus(nil)
                     }
+                    .focused($focusedChip, equals: "all")
 
                     ForEach(BrunoCoreGenre.all) { coreGenre in
                         BrunoSelectorCard(
@@ -170,12 +177,18 @@ struct BrunoGenresView: View {
                         ) {
                             commitFocus(coreGenre)
                         }
+                        .focused($focusedChip, equals: coreGenre.id)
                     }
                 }
                 .padding(.horizontal, 50)
                 .padding(.vertical, 8)
             }
             .focusSection()
+            // Force DOWN-from-hero to land on "All" (not the restored middle pill). .userInitiated while
+            // focus is outside the row overrides the engine's last-focused restoration; .automatic once
+            // inside so left/right scrubbing isn't fought. (LetterPickerBar pattern.)
+            .backport
+            .defaultFocus($focusedChip, "all", priority: focusedChip == nil ? .userInitiated : .automatic)
         }
         // INV-7: flip the appeared guard only after the first paint, so the focus engine's initial
         // assignment to the pill row can't fire a commit on cold enter (hero shows the unfiltered set).
