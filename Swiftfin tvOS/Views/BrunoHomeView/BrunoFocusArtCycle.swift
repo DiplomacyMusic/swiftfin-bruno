@@ -127,9 +127,16 @@ struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
     // `key` forces a fresh ImageView identity per frame: ImageView holds its sources in @State, so
     // without a changing id it would freeze on the first image.
     private func frame(_ source: [ImageSource], key: Int) -> some View {
-        ImageView(source)
-            .aspectRatio(contentMode: .fill)
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // fill the card, don't adopt the art's size
+        // Color.clear drives layout (flexible, zero ideal size); the art paints as a zero-layout-
+        // influence overlay. ImageView reports the decoded image's dimensions, so sizing the view FROM
+        // it (aspectRatio.fill + maxWidth/maxHeight) leaked each frame's intrinsic size into the
+        // un-pinned category row — the card grew/shifted as frames cross-faded ("position movement on
+        // the first BG cycle"). As an overlay the art never changes the card's poster-shaped size.
+        Color.clear
+            .overlay {
+                ImageView(source)
+                    .aspectRatio(contentMode: .fill)
+            }
             .clipped()
             .overlay(Color.black.opacity(dim)) // dim so the foreground stays legible
             .id(key)
