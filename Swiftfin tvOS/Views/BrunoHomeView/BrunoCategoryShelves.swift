@@ -237,6 +237,9 @@ struct BrunoCategoryShelves: View {
         // backdrop reaches the physical edges instead of being clipped at the title-safe inset. The
         // ScrollView still re-insets its own content to the safe area, so shelves stay title-safe.
         .ignoresSafeArea()
+        // This surface is always presented as a fullScreenCover (Decades/Genres), which occludes the
+        // tab bar — re-pin the Bruno top menu bar here so it's available on every hero-banner view.
+        .brunoHeroMenuBar()
     }
 
     private var scrollContent: some View {

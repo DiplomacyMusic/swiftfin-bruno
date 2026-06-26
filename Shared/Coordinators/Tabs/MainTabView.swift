@@ -18,6 +18,11 @@ struct MainTabView: View {
     @InjectedObject(\.deepLinkHandler)
     private var deepLinkHandler
 
+    // Live reference published to pushed hero covers (Decades/Genres) so their in-cover menu bar can
+    // reach the tab list/selection. tvOS only; harmless elsewhere.
+    @Injected(\.brunoTabBridge)
+    private var brunoTabBridge
+
     #if os(iOS)
     @StateObject
     private var tabCoordinator = TabCoordinator {
@@ -138,7 +143,10 @@ struct MainTabView: View {
             recency.removeAll { $0 == newValue }
             recency.append(newValue)
         }
-        .onAppear(perform: landOnHomeThenDeepLink)
+        .onAppear {
+            brunoTabBridge.coordinator = tabCoordinator
+            landOnHomeThenDeepLink()
+        }
         .onReceive(deepLinkHandler.$pendingDeepLink.compactMap(\.self)) { _ in
             routePendingDeepLink()
         }
