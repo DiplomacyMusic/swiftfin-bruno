@@ -131,10 +131,10 @@ private struct BrunoCollectionArtImage: View {
     var body: some View {
         // Color.clear drives the layout (infinitely flexible, zero ideal size — identical to the
         // gradient base), with the photo as a zero-layout-influence overlay clipped to its bounds.
-        // Letting the Image size the view instead (resizable + aspectRatio + maxWidth/maxHeight) leaked
-        // each photo's intrinsic dimensions into CollectionHStack's measurement pass, so full-bleed
-        // tiles (Seasonal/Decades/New Releases) measured taller than the gradient-only ones (Studios)
-        // — the "staying big" / "colliding with neighbors" bug.
+        // Letting the Image size the view instead (resizable + aspectRatio + maxWidth/maxHeight) meant
+        // its intrinsic pixel ratio — not the poster frame — governed height inside this ZStack, so
+        // full-bleed tiles (Seasonal/Decades/New Releases) grew past the gradient-only ones (Studios)
+        // — the "staying big" / "colliding with neighbors" bug. As an overlay it never sizes the card.
         Color.clear
             .overlay {
                 Image(asset)

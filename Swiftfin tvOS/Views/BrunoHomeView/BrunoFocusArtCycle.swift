@@ -128,14 +128,14 @@ struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
     // without a changing id it would freeze on the first image.
     private func frame(_ source: [ImageSource], key: Int) -> some View {
         // Color.clear drives layout (flexible, zero ideal size); the art paints as a zero-layout-
-        // influence overlay. ImageView reports the decoded image's dimensions, so sizing the view FROM
-        // it (aspectRatio.fill + maxWidth/maxHeight) leaked each frame's intrinsic size into the
-        // un-pinned category row — the card grew/shifted as frames cross-faded ("position movement on
-        // the first BG cycle"). As an overlay the art never changes the card's poster-shaped size.
+        // influence overlay. Sizing the view FROM the image instead (aspectRatio.fill + maxWidth/
+        // maxHeight) let each frame's intrinsic ratio govern height inside this ZStack, so the card
+        // grew/shifted as frames cross-faded — worst in the un-pinned category row ("position movement
+        // on the first BG cycle"). As an overlay the art never changes the card's poster-shaped size.
         Color.clear
             .overlay {
                 ImageView(source)
-                    .aspectRatio(contentMode: .fill)
+                    .scaledToFill()
             }
             .clipped()
             .overlay(Color.black.opacity(dim)) // dim so the foreground stays legible
