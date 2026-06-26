@@ -68,7 +68,7 @@ struct BrunoLabelArtCard: View {
             switch style {
             case .poster:
                 PosterImage(item: item, type: .portrait)
-                    .overlay(Color.black.opacity(0.5)) // dim so the title reads over any poster
+                    .overlay(Color.black.opacity(0.75)) // dim (0.5 → +50%, owner request) so the title reads
             case let .gradient(top, bottom):
                 LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
             }
