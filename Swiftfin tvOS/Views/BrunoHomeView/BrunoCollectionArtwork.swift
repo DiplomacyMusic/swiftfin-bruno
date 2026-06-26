@@ -142,7 +142,7 @@ private struct BrunoCollectionArtImage: View {
                     .scaledToFill()
             }
             .clipped()
-            .overlay(Color.black.opacity(0.45))
+            .overlay(Color.black.opacity(0.675)) // dim (0.45 → +50%, owner request) so the title reads
     }
 }
 
