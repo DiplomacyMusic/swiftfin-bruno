@@ -18,8 +18,8 @@ import SwiftUI
 //   • The Seasonal category is date-gated to a gapless yearly calendar (Halloween → Christmas →
 //     Winter → …); windows with 2+ images slow cross-fade. See `BrunoCollectionArtBackground`.
 //
-// Asset names map 1:1 to imagesets in Assets.xcassets/BrunoCollections. Categories with no art
-// (e.g. Studios) return nil/empty and keep their gradient.
+// Asset names map 1:1 to imagesets in Assets.xcassets/BrunoCollections. Categories with no mapping
+// return nil/empty and keep their gradient.
 enum BrunoCollectionArtwork {
 
     /// Non-seasonal category (lowercased name) → its bundled art assets, in catalog-name form.
@@ -30,6 +30,7 @@ enum BrunoCollectionArtwork {
         "curated": ["Curated01", "Curated02"],
         "decades": ["Decades01", "Decades02", "Decades03"],
         "genres": ["Genre01", "Genre02"],
+        "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
     ]
 
     static func isSeasonal(_ name: String) -> Bool {
@@ -94,7 +95,7 @@ struct BrunoCollectionArtBackground: View {
 
     var body: some View {
         ZStack {
-            // Brand gradient base — the fallback for categories without art (Studios) and a backstop
+            // Brand gradient base — the fallback for categories without a mapping and a backstop
             // behind every photo so a missing asset still reads as a branded tile.
             LinearGradient(
                 colors: [palette.top, palette.bottom],
@@ -128,10 +129,18 @@ private struct BrunoCollectionArtImage: View {
     let asset: String
 
     var body: some View {
-        Image(asset)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Color.clear drives the layout (infinitely flexible, zero ideal size — identical to the
+        // gradient base), with the photo as a zero-layout-influence overlay clipped to its bounds.
+        // Letting the Image size the view instead (resizable + aspectRatio + maxWidth/maxHeight) meant
+        // its intrinsic pixel ratio — not the poster frame — governed height inside this ZStack, so
+        // full-bleed tiles (Seasonal/Decades/New Releases) grew past the gradient-only ones (Studios)
+        // — the "staying big" / "colliding with neighbors" bug. As an overlay it never sizes the card.
+        Color.clear
+            .overlay {
+                Image(asset)
+                    .resizable()
+                    .scaledToFill()
+            }
             .clipped()
             .overlay(Color.black.opacity(0.45))
     }
