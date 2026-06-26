@@ -114,11 +114,10 @@ struct BrunoBoxSetShelvesView: View {
                     heroEyebrow: "Featured Film",
                     // Decade surface opts in to per-poster release dates; Genres/Curated keep the default.
                     showsDate: isDecades,
-                    // pillScrollKey intentionally nil: the committed-decade scroll-to-top RE-FRAME animated
-                    // the whole page vertically while the focus ring sat on a pill — it fought the focus
-                    // engine (hero jumping in/out) on every decade change. The engine already keeps the
-                    // focused pill on screen, so we drop the re-frame. (The machinery stays, gated off.)
-                    pillScrollKey: nil
+                    // Keyed on pill-row FOCUS (a stable token, not the focused pill id, so the shelf view
+                    // isn't re-evaluated per scrub): when you move INTO the pills it snaps them to the top
+                    // (instant) so the decade shelves are fully visible beneath and you watch them change.
+                    pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
             }
         }

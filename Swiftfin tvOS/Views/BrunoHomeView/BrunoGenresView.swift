@@ -126,7 +126,11 @@ struct BrunoGenresView: View {
                     // INV-7 / decoupled hero: the FIXED item from the full set, never re-derived per
                     // pill, so a filter change can't reload the hero backdrop (heroEyebrow may still vary).
                     featured: featuredItem,
-                    heroEyebrow: selectedCore.map { "\($0.title) Pick" } ?? "Featured Film"
+                    heroEyebrow: selectedCore.map { "\($0.title) Pick" } ?? "Featured Film",
+                    // Snap the pills to the top when the row gains focus (instant) so the genre shelves
+                    // are fully visible beneath and you watch them change. Stable token (not the pill id)
+                    // to avoid re-evaluating the shelf view per scrub.
+                    pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
             }
         }
