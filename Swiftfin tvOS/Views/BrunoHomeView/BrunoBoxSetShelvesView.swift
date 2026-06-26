@@ -507,7 +507,8 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                 title: "\(year)",
                 films: ordered(films),
                 decade: decade,
-                year: year
+                year: year,
+                lens: "A Year in Film" // match Home's yearShelf eyebrow (B2)
             ))
         }
 
@@ -536,12 +537,14 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         title: String,
         films: [BaseItemDto],
         decade: BaseItemDto,
-        year: Int?
+        year: Int?,
+        lens: String? = nil
     ) -> BrunoCollectionCategory {
         BrunoCollectionCategory(
             boxSet: BaseItemDto(id: id, name: title),
             children: films,
             drillStyle: .grid,
+            lens: lens,
             gridParent: decade,
             gridYear: year
         )
