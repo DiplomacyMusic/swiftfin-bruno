@@ -77,9 +77,9 @@ struct BrunoBoxSetShelvesView: View {
 
     /// Decades use a pill selector. "All" (nil) keeps the decade-overview (one shelf per decade).
     /// Selecting a specific decade swaps the SHELVES below to one shelf PER YEAR of that decade
-    /// (memoized in the view model); the catch-all "1950s & Earlier" has no fixed 10-year window, so
-    /// it stays its single overview shelf. The PILLS keep iterating viewModel.categories regardless,
-    /// so they never vanish. Falls back to the single decade shelf until the per-year fetch lands.
+    /// (memoized in the view model); the catch-all "1950s & Earlier" instead gets a Best-of shelf then
+    /// the whole bucket as one grid. The PILLS keep iterating viewModel.categories regardless, so they
+    /// never vanish. Falls back to the single decade shelf until the fetch lands.
     private var shownCategories: [BrunoCollectionCategory] {
         guard isDecades, let selectedDecade, let category = selectedDecadeCategory else {
             return viewModel.categories
@@ -87,7 +87,7 @@ struct BrunoBoxSetShelvesView: View {
         if let id = category.boxSet.id, let perYear = viewModel.yearShelvesByDecadeID[id] {
             return perYear
         }
-        // Not yet fetched (or non-splittable "1950s & Earlier"): show the single decade shelf.
+        // Not yet fetched: show the single decade shelf until loadYearShelves lands.
         return viewModel.categories.filter { $0.name == selectedDecade }
     }
 
@@ -399,13 +399,13 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         !name.localizedCaseInsensitiveContains("earlier")
     }
 
-    /// Fetch a decade's COMPLETE film set and regroup it into one synthetic category per year
-    /// (newest-year-first) plus an "Other" catch-all. Memoized per decade BoxSet id — a no-op once
-    /// loaded, and skipped entirely for the non-splittable "1950s & Earlier". Pure regroup given the
-    /// fetched set (INV-3): the only ordering inputs are premiereDate / productionYear / id.
+    /// Fetch a decade's COMPLETE film set and regroup it into shelves. Splittable decades get one
+    /// synthetic category per year (newest-year-first) plus an "Other" catch-all; the non-splittable
+    /// "1950s & Earlier" bucket gets a Best-of shelf then the whole bucket as one grid (no per-year).
+    /// Memoized per decade BoxSet id — a no-op once loaded. Pure regroup given the fetched set (INV-3):
+    /// the only ordering inputs are significance / premiereDate / productionYear / id.
     func loadYearShelves(for decade: BrunoCollectionCategory) async {
         guard let decadeID = decade.boxSet.id,
-              Self.isSplittableDecade(decade.name),
               yearShelvesByDecadeID[decadeID] == nil,
               let userSession
         else { return }
@@ -440,7 +440,8 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
 
         yearShelvesByDecadeID[decadeID] = Self.yearCategories(
             from: complete,
-            decade: decadeBoxSet
+            decade: decadeBoxSet,
+            splittable: Self.isSplittableDecade(decade.name)
         )
     }
 
@@ -450,7 +451,8 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     /// live year-filtered library correctly.
     private static func yearCategories(
         from items: [BaseItemDto],
-        decade: BaseItemDto
+        decade: BaseItemDto,
+        splittable: Bool
     ) -> [BrunoCollectionCategory] {
         let decadeName = decade.displayTitle
         let decadeStart = leadingYear(decadeName) // e.g. "2000s" → 2000
@@ -497,6 +499,19 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                 decade: decade,
                 year: nil
             ))
+        }
+
+        // Non-splittable catch-all ("1950s & Earlier"): no fixed 10-year window, so no per-year
+        // shelves. Show Best-of (above, when it qualifies) then the whole bucket as one grid shelf.
+        guard splittable else {
+            out.append(yearCategory(
+                id: "decade-\(slug)-all",
+                title: decadeName,
+                films: ordered(items),
+                decade: decade,
+                year: nil
+            ))
+            return out
         }
 
         // Real years, newest-first; skip empty years.
