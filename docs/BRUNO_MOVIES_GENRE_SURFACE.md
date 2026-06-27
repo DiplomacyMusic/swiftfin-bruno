@@ -25,6 +25,15 @@
   `NavigationRoute.brunoMoviesGrid` (a `BrunoMediaView` cover that fetches only on push).
 - **Fallback:** if the Genres group is `nil` (or the snapshot is empty), `BrunoMoviesView` renders
   `BrunoMediaView` (the A–Z grid) so the tab is never blank — *with one hole, see G4.*
+- **Terminal footer ("end pills").** At the *hard end* of the surface — gated on
+  `visibleShelfCount >= categories.count` (every shelf mounted) and appended last — `BrunoCategoryShelves`
+  renders a bottom pill row: **"Show all Movies"** (→ `.brunoMoviesGrid`) + **"Back to Top"** (`scrollTo`
+  the hero `.id(.top)` + pull focus via `heroFocused`). It's gated on the `showAllMoviesAction` param, so
+  **only the Movies tab** gets it (Collections is deferred — passes nil). **Zero UI/layout impact until the
+  user scrolls to the true end** (it isn't in the tree until everything's mounted, and sits below the last
+  shelf). Home has its own equivalent footer (`BrunoHomeView`, gated on `exploreExhausted`): **Show all
+  Movies + Show all TV** (→ `.brunoMoviesGrid` / `.brunoTVGrid`) **+ Back to Top**, beside the collections
+  cards.
 
 ---
 

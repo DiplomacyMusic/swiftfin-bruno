@@ -23,6 +23,9 @@ struct BrunoHomeView: View {
     @StateObject
     private var viewModel = BrunoHomeViewModel()
 
+    @Router
+    private var router
+
     // Bruno custom tab container (MainTabView) keeps every tab mounted, so this view stays alive while
     // hidden. `selectedTabID` tells us whether Home is the ACTIVE tab — used to pause the hero
     // auto-advance offscreen; the publisher fires the per-entry hero reshuffle that onAppear used to.
@@ -174,8 +177,16 @@ struct BrunoHomeView: View {
                         VStack(spacing: 28) {
                             BrunoCategoryCardRow(categories: viewModel.collectionCategories)
 
-                            HStack {
+                            HStack(spacing: 24) {
                                 Spacer()
+                                // A-Z grids, same covers the Movies/TV tab roots show — reachable only here
+                                // at the true bottom of the feed (Home spans both movies + TV).
+                                BrunoSelectorCard(title: "Show all Movies") {
+                                    router.route(to: .brunoMoviesGrid)
+                                }
+                                BrunoSelectorCard(title: "Show all TV") {
+                                    router.route(to: .brunoTVGrid)
+                                }
                                 BrunoSelectorCard(title: "Back to Top") {
                                     viewModel.send(.scrollToTop)
                                     // scrollTo moves content, not focus — pull focus back to the hero.

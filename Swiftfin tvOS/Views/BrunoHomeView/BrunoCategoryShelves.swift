@@ -207,6 +207,10 @@ struct BrunoCategoryShelves: View {
     /// engine. Staying non-nil while scrubbing means the pills stay pinned at top and you watch the shelf
     /// library change beneath them. nil (the default) ⇒ no scroll-jumps.
     var pillScrollKey: String?
+    /// Movies/genre tab only: when non-nil, this surface gets a terminal footer ("Show all Movies" +
+    /// "Back to Top") on its own bottom row, rendered ONLY after every shelf is mounted (so there's zero
+    /// UI until the user reaches the true end). nil ⇒ NO footer at all (Collections — deferred for now).
+    var showAllMoviesAction: (() -> Void)?
 
     @Router
     private var router
@@ -214,9 +218,15 @@ struct BrunoCategoryShelves: View {
     @Namespace
     private var namespace
 
+    /// Back-to-Top focus target: `scrollTo` moves content, not focus, so the footer pill also pulls focus
+    /// to the hero (mirrors BrunoHomeView). Single top target ⇒ Bool.
+    @FocusState
+    private var heroFocused: Bool
+
     /// Scroll anchor for the selector/pill region — `pillScrollKey` jumps the view here.
     private enum ScrollAnchor: Hashable {
         case selector
+        case top // very top of the surface — the "Back to Top" footer pill jumps here
     }
 
     /// Items previewed in each shelf before the trailing "Show all" card. Kept small: a shelf is a
@@ -266,6 +276,11 @@ struct BrunoCategoryShelves: View {
                             // Taller banner shows more of the backdrop (incl. its top), subject centered.
                             extraHeight: 160
                         )
+                        // Back-to-Top: the hero IS the top — `scrollTo(.top)` jumps here, and `.focused`
+                        // pulls focus here after (mirrors BrunoHomeView). The footer is Movies-tab only,
+                        // where `featured` is always present, so this anchor always exists for it.
+                        .focused($heroFocused)
+                            .id(ScrollAnchor.top)
                     }
 
                     if let header {
@@ -292,6 +307,25 @@ struct BrunoCategoryShelves: View {
                         Color.clear
                             .frame(height: 1)
                             .onAppear { visibleShelfCount = min(visibleShelfCount + 4, categories.count) }
+                    }
+
+                    // Terminal footer (Movies/genre tab only — gated on `showAllMoviesAction`; Collections
+                    // is deferred). Renders ONLY once every shelf is mounted (the surface's "exhausted"
+                    // point), on its own bottom row, appended last — so there is zero UI/layout impact
+                    // until the user has scrolled to the true end. "Show all Movies" + "Back to Top".
+                    if let showAllMoviesAction, visibleShelfCount >= categories.count {
+                        HStack(spacing: 24) {
+                            Spacer()
+                            BrunoSelectorCard(title: "Show all Movies") { showAllMoviesAction() }
+                            BrunoSelectorCard(title: "Back to Top") {
+                                proxy.scrollTo(ScrollAnchor.top, anchor: .top)
+                                // scrollTo moves content, not focus — pull focus to the hero (mirrors Home).
+                                Task { @MainActor in heroFocused = true }
+                            }
+                            Spacer()
+                        }
+                        .focusSection()
+                        .padding(.top, 24)
                     }
                 }
                 .padding(.bottom, 60)

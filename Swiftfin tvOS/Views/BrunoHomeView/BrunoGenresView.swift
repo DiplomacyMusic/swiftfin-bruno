@@ -187,7 +187,10 @@ struct BrunoGenresView: View {
                     // Snap the pills to the top when the row gains focus (instant) so the genre shelves
                     // are fully visible beneath and you watch them change. Stable token (not the pill id)
                     // to avoid re-evaluating the shelf view per scrub.
-                    pillScrollKey: focusedChip == nil ? nil : "pills"
+                    pillScrollKey: focusedChip == nil ? nil : "pills",
+                    // Terminal-footer "Show all Movies" pill (Movies tab only) → the A-Z grid, same target
+                    // as the top "All Movies" pill. nil on the pushed cover ⇒ no footer there.
+                    showAllMoviesAction: onShowAll
                 )
                 // As a pushed cover this occludes MainTabView's tab bar — re-pin the Bruno top menu bar
                 // here. Attached at the COVER call site (not inside BrunoCategoryShelves). As the Movies

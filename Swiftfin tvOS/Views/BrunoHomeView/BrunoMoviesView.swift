@@ -99,4 +99,14 @@ extension NavigationRoute {
                 .brunoHeroMenuBar()
         }
     }
+
+    /// The lazy A–Z "All TV" grid, pushed from a "Show all TV" terminal-footer pill (Home). Same
+    /// cover/menu-bar contract as the movies grid; BrunoMediaView loads on first appear.
+    @MainActor
+    static var brunoTVGrid: NavigationRoute {
+        NavigationRoute(id: "bruno-tv-grid") {
+            BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series")
+                .brunoHeroMenuBar()
+        }
+    }
 }
