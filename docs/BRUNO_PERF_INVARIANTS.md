@@ -144,6 +144,41 @@ instant state when `accessibilityReduceMotion` is on.
 **Safe change:** any new entrance/transition you add must branch on `reduceMotion` (it's already an
 `@Environment` in `BrunoHomeView`). Collapse to opacity-only or instant.
 
+### INV-10 — Shelf cells must not retain heavy per-item `@State` while offscreen
+**What:** A shelf cell must not hold heavy per-item `@State` (view models, prefetchers, timers, cycle
+logic) while it is offscreen/unfocused. Per-cell machinery that is more than a pure function of the item
+must be **focus-gated** — mounted only while the cell `isFocused`. The genre cell is the reference example:
+`BrunoFocusArtCycle` moves its `@StateObject BrunoArtCycleViewModel` (+ its `BrunoPosterPrefetcher`) and all
+the art-cycle `@State`/logic into a private `ArtCycleOverlay` that is inserted ONLY inside
+`if isFocused { ArtCycleOverlay(…) }`. An unfocused cell builds a minimal graph (background + foreground).
+The in-repo anchor `// INV-10` belongs at that focus gate in `BrunoFocusArtCycle` (the `if isFocused`
+branch that mounts `ArtCycleOverlay`).
+**Why:** `CollectionHStack` is now the **fork** `DiplomacyMusic/CollectionHStack@bruno-hosting-reuse`
+(commit `466aeb3f`), which **reuses** the cell's `UIHostingController` and swaps its `rootView` on recycle
+instead of rebuilding a fresh controller per dequeue. That reuse is the perf win (it lifts the per-cell
+`UIHostingController`-mint floor that previously sat under every browse/Home shelf — see INV-1, and the
+"snappiness ceiling" backlog item this superseded). But it changes the correctness contract: SwiftUI
+carries `@State` across a same-type `rootView` swap at the same structural slot, so any per-item `@State`
+left alive on a recycled cell could **leak into the next element** the cell is reused for. Today this is
+safe: `PosterButton` is a pure function of its item (no resettable per-item `@State`); `BrunoFocusArtCycle`'s
+heavy state mounts only while focused, and recycled cells are offscreen/unfocused (cells are non-focusable —
+`canFocusItemAt = false`), so the gated state is always torn down before reuse.
+**Break symptom:** stale per-item state appears on a recycled cell (wrong art mid-cycle, a stale highlight,
+a timer ticking for the previous item); or — if you "fix" it the wrong way (see below) — the scroll hitch
+returns because reuse is defeated.
+**Break recipe (don't):** (a) adding per-item `@State` to a shelf cell that must reset between elements
+WITHOUT giving it a stable identity → stale state on reuse. (b) adding `.id(item.id)` *inside* the
+CollectionHStack package (rather than at the Bruno call site) → forces a full subtree rebuild on every
+`rootView` swap, which DEFEATS the reuse win and reintroduces the hitch the fork removed.
+**Safe recipe:** keep heavy/stateful per-cell machinery **focus-gated** (the `ArtCycleOverlay` pattern). If
+a cell genuinely needs per-item `@State` that must reset between elements, attach `.id(item.id)` at the
+**Bruno call site** (e.g. in `BrunoShelfRow`'s cell builder), accepting that it trades away reuse for that
+specific shelf — never patch identity into the package. Cross-ref: INV-1 (the height-pin that lets shelves
+reconcile under focus) and INV-2 (stable, domain-derived shelf identity — INV-10 is the cell-level analogue:
+the cell has NO per-item identity by design, so its art must come from item data, not surviving state).
+**Reference commits:** focus-gating `7985aaf0` (`BrunoFocusArtCycle` → `ArtCycleOverlay`); the
+hosting-controller-reuse fork `466aeb3f` (`DiplomacyMusic/CollectionHStack@bruno-hosting-reuse`).
+
 ---
 
 ## Safe to touch (restyle freely)
@@ -177,3 +212,5 @@ almost always: **keep row height fixed, keep shelf ids stable, and read widths/h
 | Poster prefetch (INV-4) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoPosterPrefetcher.swift` |
 | Ambient layer (INV-6) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoAmbientBackground.swift` |
 | Hero auto-advance gate (INV-8) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHeroView.swift` |
+| Focus-gated cell state — `// INV-10` anchor (INV-10) | `BrunoFocusArtCycle` (the `if isFocused { ArtCycleOverlay(…) }` gate) |
+| Forked cell-reuse package (INV-10) | SPM dep `DiplomacyMusic/CollectionHStack@bruno-hosting-reuse` (`HostingCollectionViewCell`) |
