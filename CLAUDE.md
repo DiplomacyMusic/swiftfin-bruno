@@ -69,9 +69,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 The Bruno tvOS Home is fast because of a handful of non-obvious rules (fixed shelf-row height, stable
 shelf ids, prefetch width == cell width, seed-keyed/source-restricted cache, top-down reveal). **Before
-UX-polishing the shelves, read `docs/BRUNO_PERF_INVARIANTS.md`** — INV-1..9, each with what/why/break/safe
+UX-polishing the shelves, read `docs/BRUNO_PERF_INVARIANTS.md`** — INV-1..10, each with what/why/break/safe
 recipe. The sites are anchored with `// INV-n` comments; the fragile constants live in `BrunoShelfMetrics`.
-Restyle freely — just keep those nine intact.
+Restyle freely — just keep those ten intact.
+
+**Diagnosing a scroll/focus hitch?** Start with `docs/BRUNO_PERF_HANDOFF.md` (current state + open
+levers + go-forward plan) and `docs/BRUNO_PERF_LOGGING.md` (the DEBUG on-disk telemetry: enable
+"Perf logging → disk" in Settings, reproduce, `./Scripts/bruno-pull-perf.command`, correlate the
+`.jsonl` against a screen recording). Don't re-derive the diagnosis from scratch — it's all there.
 
 ---
 
