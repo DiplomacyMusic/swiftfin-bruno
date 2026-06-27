@@ -69,12 +69,10 @@ struct MainTabView: View {
     #if os(tvOS)
 
     // Bruno tvOS: a custom focusable top menu bar (BrunoMenuBar) REPLACES the stock TabView tab bar so
-    // UP from the top content row reaches it via the normal focus engine. See
-    // docs/.../plan — the system bar had no focus binding, so UP did nothing there.
-
-    /// Focus target for the bar's pills — set when Menu is pressed in content to surface the bar.
-    @FocusState
-    private var barFocus: String?
+    // UP from the top content row reaches it via the normal focus engine. The bar is no longer PINNED
+    // here — each Bruno tab root injects it as the FIRST scrolling row of its LazyVStack
+    // (BrunoScrollingMenuBar), so it scrolls up and off-screen like every other shelf and reappears at
+    // the top. MainTabView therefore no longer reserves a top inset or owns the bar's focus.
 
     /// Default-focus scope so launch / DOWN-from-bar land in CONTENT, not the bar.
     @Namespace
@@ -102,54 +100,29 @@ struct MainTabView: View {
     }
 
     private var brunoTabView: some View {
-        // Bar and content are two `.focusSection()` PEERS under one `.focusScope` — the original working
-        // structure (a VStack of bar + content), reconstructed as a ZStack so the bar floats OVER the hero's
-        // edge-to-edge background spill instead of pushing it down. The content's `Color.clear` top inset
-        // re-creates the vertical separation the VStack gave for free: its focusable cells start at
-        // y ≥ barHeight while the pills render at y = 0..~108, so the frames don't overlap and the focus
-        // engine can carry UP from the top content row into the bar. The bar is pinned by
-        // `ZStack(alignment: .top)` — it no longer rides the focus-driven scroll (the safeAreaInset form did,
-        // and inset content is not a focus PEER of the primary content, so UP couldn't reach it).
-        //
-        // REQUIRES every tab's page view to RESPECT the top safe area (they use
-        // `.ignoresSafeArea(edges: [.horizontal, .bottom])`). A page that ignores `.top` cancels this inset
-        // and re-introduces the bar drift + the dimmer-short-of-top strip.
-        ZStack(alignment: .top) {
-            ZStack {
-                ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
-                    if mountedIDs.contains(tab.item.id) {
-                        NavigationInjectionView(coordinator: tab.coordinator) {
-                            tab.item.content
-                        }
-                        .environmentObject(tabCoordinator)
-                        .environment(\.tabItemSelected, tab.publisher)
-                        .environment(\.brunoTabIsActive, tab.item.id == tabCoordinator.selectedTabID)
-                        .opacity(tab.item.id == tabCoordinator.selectedTabID ? 1 : 0)
-                        .allowsHitTesting(tab.item.id == tabCoordinator.selectedTabID)
-                        // Removes inactive subtrees from the focus chain — exactly one tab is focusable.
-                        .disabled(tab.item.id != tabCoordinator.selectedTabID)
+        // The menu bar is no longer a pinned peer here — each Bruno tab root injects it as the first
+        // scrolling row of its own LazyVStack (BrunoScrollingMenuBar), so it scrolls off with the
+        // content. MainTabView therefore reserves no top inset and owns no bar focus: it is just the
+        // mounted-tab switcher. The content stays a `.focusSection()` under the `.focusScope` so
+        // `prefersDefaultFocus` still lands launch focus in CONTENT (the hero), not the bar row.
+        ZStack {
+            ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
+                if mountedIDs.contains(tab.item.id) {
+                    NavigationInjectionView(coordinator: tab.coordinator) {
+                        tab.item.content
                     }
+                    .environmentObject(tabCoordinator)
+                    .environment(\.tabItemSelected, tab.publisher)
+                    .environment(\.brunoTabIsActive, tab.item.id == tabCoordinator.selectedTabID)
+                    .opacity(tab.item.id == tabCoordinator.selectedTabID ? 1 : 0)
+                    .allowsHitTesting(tab.item.id == tabCoordinator.selectedTabID)
+                    // Removes inactive subtrees from the focus chain — exactly one tab is focusable.
+                    .disabled(tab.item.id != tabCoordinator.selectedTabID)
                 }
             }
-            // Reserve barHeight at the TOP of the CONTENT only (Color.clear → invisible, non-focusable): this
-            // starts the focusable cells below the bar so their frames don't overlap the pills.
-            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: BrunoMenuBar.barHeight) }
-            .focusSection()
-            .prefersDefaultFocus(in: rootNamespace)
-            // Menu from content surfaces the bar (focuses the selected pill); the bar itself has no
-            // exit handler, so Menu there falls through to the system and backgrounds the app at root.
-            .onExitCommand { barFocus = tabCoordinator.selectedTabID }
-
-            BrunoMenuBar(
-                tabs: tabCoordinator.tabs.map(\.item),
-                selection: $tabCoordinator.selectedTabID,
-                focus: $barFocus
-            )
-            // alignment:.top so the hugged capsule hugs the box top (keeping BrunoMenuBar's own .top,8 float)
-            // instead of vertical-centering in the reserved height and sinking below the title-safe edge.
-            .frame(height: BrunoMenuBar.barHeight, alignment: .top)
-                .focusSection()
         }
+        .focusSection()
+        .prefersDefaultFocus(in: rootNamespace)
         .focusScope(rootNamespace)
         .background(Color.bruno.page.ignoresSafeArea())
         .onChange(of: tabCoordinator.selectedTabID) { _, newValue in

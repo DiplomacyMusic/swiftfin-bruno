@@ -103,9 +103,10 @@ struct BrunoKidsView: View {
                 content
             }
         }
-        // Drop only the TOP edge so MainTabView's pinned menu bar keeps its reserved top inset (ignoring
-        // .top cancels the inset and lets the bar ride the focus-driven scroll). The ambient backdrop
-        // still bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
+        // Drop only the TOP edge: the menu bar is now a scrolling first ROW (Kids is always a tab root),
+        // not a pinned bar, and the hero's topBleed reserves barHeight off the system top inset — ignoring
+        // .top would cancel that inset and the hero geometry would shift. The ambient backdrop still
+        // bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
@@ -123,6 +124,11 @@ struct BrunoKidsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
+                    // The menu bar is the first scrolling row (Kids is only ever a tab root): it scrolls
+                    // off with the content and reappears at the top.
+                    BrunoScrollingMenuBar()
+                        .zIndex(1) // paint above the hero's upward backdrop spill
+
                     if viewModel.heroItems.isNotEmpty {
                         BrunoHeroView(
                             items: viewModel.heroItems,

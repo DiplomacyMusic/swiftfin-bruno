@@ -82,11 +82,11 @@ struct BrunoHomeView: View {
                 }
             }
         }
-        // Drop only the TOP edge so MainTabView's pinned menu bar (a .safeAreaInset on this tab's
-        // container) keeps its reserved top inset: ignoring .top here cancelled that inset, so the bar
-        // rode the focus-driven scroll downward into the shelves (UP no longer reached it). The ambient
-        // backdrop still bleeds to the physical top behind the translucent pills because
-        // BrunoAmbientBackground self-ignores all edges. Matches SearchView / ProgramsView.
+        // Keep the .top safe-area edge (only .horizontal/.bottom are ignored): there is no pinned inset
+        // to cancel anymore (the menu bar is the first scrolling row of the LazyVStack), but keeping .top
+        // holds the bar row title-safe and lets the hero bleed correctly. The ambient backdrop still
+        // reaches the physical top behind the translucent pills because BrunoAmbientBackground
+        // self-ignores all edges. Matches SearchView / ProgramsView.
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .onFirstAppear {
             viewModel.send(.refresh)
@@ -120,6 +120,11 @@ struct BrunoHomeView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
+                    // The menu bar is now the FIRST scrolling row (was a pinned ZStack peer in
+                    // MainTabView): it scrolls up and off with the content and reappears at the top.
+                    BrunoScrollingMenuBar()
+                        .zIndex(1) // paint above the hero's upward backdrop spill (next row)
+
                     BrunoHeroView(
                         items: viewModel.heroItems,
                         index: $spotlightIndex,

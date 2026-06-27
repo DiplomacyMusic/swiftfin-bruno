@@ -92,7 +92,7 @@ extension TabItem {
             title: L10n.tvShowsCapitalized,
             systemImage: "tv"
         ) {
-            BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series")
+            BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series", isTabRoot: true)
         }
     }
 
@@ -131,6 +131,7 @@ extension TabItem {
             labelStyle: .iconOnly
         ) {
             SearchView()
+                .brunoUtilityTabBar()
         }
         #else
         TabItem(
@@ -152,6 +153,7 @@ extension TabItem {
             labelStyle: .iconOnly
         ) {
             SettingsView()
+                .brunoUtilityTabBar()
         }
         #else
         TabItem(
@@ -164,3 +166,22 @@ extension TabItem {
         #endif
     }
 }
+
+#if os(tvOS)
+private extension View {
+
+    // Bruno: Search/Settings are STOCK Swiftfin views (SearchView, a SettingsView Form) with no Bruno
+    // LazyVStack to host a scrolling menu-bar row. After un-pinning the global bar they had no nav bar
+    // at all → no way to leave the tab. These are hero-less utility tabs (icon-only pills), so a FIXED
+    // top header is acceptable (owner-approved exception): no edge-to-edge hero to preserve, nothing to
+    // scroll the bar away for. BrunoScrollingMenuBar() in tab-root mode reads the tab list + selection
+    // from the @EnvironmentObject TabCoordinator that MainTabView injects onto tab content, so it works
+    // here. No .zIndex: there's no hero backdrop spilling up into the bar's region to paint over.
+    func brunoUtilityTabBar() -> some View {
+        VStack(spacing: 0) {
+            BrunoScrollingMenuBar()
+            self
+        }
+    }
+}
+#endif

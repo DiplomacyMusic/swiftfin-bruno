@@ -21,10 +21,10 @@ import UIKit
 // that routes to the stock item detail (Play-for-the-proto, plan §C4).
 //
 // Focus model (Apple-TV-app feel): the whole hero is ONE chrome-less focusable element — a
-// click down from the top menu lands on it with no button highlight. Left/right move commands
-// cycle the spotlight like a content shelf (the dots are a passive page indicator, not
-// focusable buttons). Select opens the spotlight item. Auto-advance pauses while focused so the
-// backdrop never swaps focus out from under the user.
+// click down from the top menu lands on it with no button highlight. UP/DOWN escape to the focus
+// engine (the menu bar above, the shelves below); manual left/right paging was removed (the dots
+// are a passive page indicator, not focusable buttons). Select opens the spotlight item.
+// Auto-advance pauses while focused so the backdrop never swaps focus out from under the user.
 struct BrunoHeroView: View {
 
     let items: [BaseItemDto]
@@ -74,16 +74,8 @@ struct BrunoHeroView: View {
             }
             .buttonStyle(BrunoHeroButtonStyle())
             .focused($isFocused)
-            .onMoveCommand { direction in
-                switch direction {
-                case .left:
-                    step(by: -1)
-                case .right:
-                    step(by: 1)
-                default:
-                    break
-                }
-            }
+            // Manual left/right spotlight paging was removed so UP/DOWN escape to the focus engine
+            // (the menu bar above and the shelves below). The hero still auto-rotates via its timer.
             .onReceive(autoAdvance) { _ in
                 // Pause while focused (TV-app behaviour) so the swap never yanks focus, and while the
                 // spine is still streaming in (autoAdvanceEnabled — INV-8).
@@ -95,12 +87,13 @@ struct BrunoHeroView: View {
 
     private func heroCard(for item: BaseItemDto) -> some View {
         let insets = UIApplication.shared.brunoOverscanInsets
-        // +barHeight: the content is now inset by the pinned bar's height (MainTabView / BrunoHeroMenuBar
-        // Color.clear inset), so the hero's measured layout box starts barHeight lower. The backdrop is
-        // bottom-pinned, so its upward spill must clear BOTH the overscan strip AND the bar band to reach the
-        // physical top — otherwise a lighter ambient strip shows above the hero (the dimmer-short-of-top
-        // bug). topBleed is pure background overflow (never measured), so growing it moves no sibling;
-        // layoutHeight is untouched (adding barHeight there too would double-count and over-grow the banner).
+        // +barHeight: the menu bar ROW now sits directly above the hero in the LazyVStack (the same
+        // barHeight the old pinned inset used to reserve — geometry preserved), so the hero's measured
+        // layout box starts barHeight lower. The backdrop is bottom-pinned, so its upward spill must clear
+        // BOTH the overscan strip AND the bar band to reach the physical top — otherwise a lighter ambient
+        // strip shows above the hero (the dimmer-short-of-top bug). topBleed is pure background overflow
+        // (never measured), so growing it moves no sibling; layoutHeight is untouched (adding barHeight
+        // there too would double-count and over-grow the banner).
         let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight : 0
         // Three independent knobs (see swift-reference / hero notes):
         //  • layoutHeight  — the ONLY height the parent VStack measures, so it alone fixes the banner's

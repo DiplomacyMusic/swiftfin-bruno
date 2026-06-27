@@ -9,22 +9,25 @@
 import Factory
 import SwiftUI
 
-// MARK: - BrunoHeroMenuBar
+// MARK: - BrunoCoverMenuBarRow (tvOS only)
 
 //
-// Pins the same custom top menu bar (BrunoMenuBar) onto a pushed hero-banner surface (Decades /
-// Genres). Those surfaces are presented as fullScreenCovers OVER the tab bar, so MainTabView's
-// safeAreaInset bar is occluded — this re-creates it inside the cover.
+// The Bruno top menu bar packaged as a SCROLLING ROW for a pushed hero-banner COVER (Decades /
+// pushed Genres / All-Movies / All-TV grids). It is the first row of the cover's LazyVStack, above
+// the hero, and scrolls up and off-screen like every other shelf — just like the tab-root bar
+// (BrunoScrollingMenuBar). Covers no longer PIN their bar.
 //
-// Same shape as MainTabView's bar: `safeAreaInset(.top)` so the hero backdrop bleeds to the physical
-// top behind the pills, both regions `focusSection()` so UP reaches the bar / DOWN returns to content,
-// and `prefersDefaultFocus` so the cover opens with focus on the hero (not the bar). Differences from
-// the tab-root bar:
-//   • No `onExitCommand` override — in a cover, Menu should DISMISS (the natural back), which it does
-//     for free; the bar stays reachable via UP.
-//   • Pressing a pill dismisses the cover and THEN switches the tab (via BrunoTabBridge), so you land
-//     on the chosen tab's root rather than switching the tab hidden behind the cover.
-private struct BrunoHeroMenuBar: ViewModifier {
+// Why a row, not a pinned overlay: pinning put two focusables (the pills + the hero `Button`) in the
+// same vertical region, which the tvOS focus engine resolves badly. As its own row there is one
+// focusable per vertical region, so UP/DOWN are clean vertical moves (shelf ↔ hero ↔ bar). The row
+// occupies the barHeight the old pinned-bar inset used to reserve, so the hero geometry is unchanged.
+//
+// Difference from the tab-root bar (BrunoScrollingMenuBar): a cover is presented as a separate hosting
+// controller that does NOT inherit the environment `TabCoordinator`, so the tab list + selection come
+// from the @Injected `brunoTabBridge`. And pressing a pill DISMISSES the cover and THEN switches the
+// tab (BrunoTabBridge + Router), so you land on the chosen tab's root rather than switching the tab
+// hidden behind the cover.
+struct BrunoCoverMenuBarRow: View {
 
     @Injected(\.brunoTabBridge)
     private var bridge
@@ -35,50 +38,29 @@ private struct BrunoHeroMenuBar: ViewModifier {
     @FocusState
     private var barFocus: String?
 
-    @Namespace
-    private var namespace
-
-    func body(content: Content) -> some View {
-        // Same peer-sibling shape as MainTabView: content + bar are two `.focusSection()` peers under one
-        // `.focusScope`, the bar floating over the hero's background spill via `ZStack(alignment: .top)`. The
-        // content's `Color.clear` barHeight inset pushes the cover's focusable cells below the bar so UP
-        // traverses into it (without this inset the cover's first shelf sits under the bar and UP re-breaks
-        // here). The bar layer reserves barHeight even before the bridge resolves, so the inset and the bar
-        // frame never desync on first paint. No onExitCommand — in a cover, Menu dismisses (the natural back).
-        ZStack(alignment: .top) {
-            content
-                .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: BrunoMenuBar.barHeight) }
-                .focusSection()
-                .prefersDefaultFocus(in: namespace)
-
-            Group {
-                if let coordinator = bridge.coordinator {
-                    BrunoMenuBar(
-                        tabs: coordinator.tabs.map(\.item),
-                        selection: Binding(
-                            get: { coordinator.selectedTabID },
-                            set: { newID in
-                                // Dismiss the cover first, then switch — so we land on the chosen tab's
-                                // root, not the tab sitting behind the cover (BrunoTabBridge notes).
-                                router.dismiss()
-                                if let newID { coordinator.selectedTabID = newID }
-                            }
-                        ),
-                        focus: $barFocus
-                    )
-                }
+    var body: some View {
+        Group {
+            if let coordinator = bridge.coordinator {
+                BrunoMenuBar(
+                    tabs: coordinator.tabs.map(\.item),
+                    selection: Binding(
+                        get: { coordinator.selectedTabID },
+                        set: { newID in
+                            // Dismiss the cover first, then switch — so we land on the chosen tab's
+                            // root, not the tab sitting behind the cover (BrunoTabBridge notes).
+                            router.dismiss()
+                            if let newID { coordinator.selectedTabID = newID }
+                        }
+                    ),
+                    focus: $barFocus
+                )
+            } else {
+                // The bridge hasn't resolved yet — reserve the row's height so the LazyVStack layout
+                // (and the hero geometry below it) doesn't shift when the bar appears.
+                Color.clear.frame(height: BrunoMenuBar.barHeight)
             }
-            .frame(height: BrunoMenuBar.barHeight, alignment: .top)
-            .focusSection()
         }
-        .focusScope(namespace)
-    }
-}
-
-extension View {
-
-    /// Pin the Bruno top menu bar onto a pushed hero-banner surface (see BrunoHeroMenuBar). tvOS only.
-    func brunoHeroMenuBar() -> some View {
-        modifier(BrunoHeroMenuBar())
+        .frame(height: BrunoMenuBar.barHeight) // INV-1: fixed height, independent of focus/content
+        .focusSection()
     }
 }

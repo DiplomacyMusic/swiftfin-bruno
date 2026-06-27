@@ -119,10 +119,9 @@ struct BrunoBoxSetShelvesView: View {
                     // (instant) so the decade shelves are fully visible beneath and you watch them change.
                     pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
-                // This surface is a pushed cover that occludes MainTabView's tab bar — re-pin the Bruno
-                // top menu bar here. Attached at the COVER call site (not inside BrunoCategoryShelves,
-                // which is also the Collections tab root where MainTabView already supplies the bar).
-                .brunoHeroMenuBar()
+                // This surface is a pushed COVER (isTabRoot defaults false), so BrunoCategoryShelves
+                // injects the scrolling BrunoCoverMenuBarRow as its first LazyVStack row — no pinned
+                // bar here; the cover bar scrolls away like every other shelf.
             }
         }
         .toolbar(.hidden, for: .navigationBar)

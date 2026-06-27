@@ -42,7 +42,7 @@
 Two **independent network paths** feed this surface; nothing else documents both together.
 
 ```
-MainTabView (tvOS)                       ← owns the single shared BrunoMenuBar (tab roots get it free)
+MainTabView (tvOS)                       ← mounted-tab switcher (no pinned bar; each tab injects its own row)
   └─ BrunoMoviesView                     (thin pass-through; @StateObject BrunoMoviesViewModel; @Router)
        ├─ .load(): BrunoLibrarySnapshot.loadShared(client,userID)   ← PATH A (snapshot, 300s cache)
        │     └─ resolve group: favoriteGroupBoxSets.first { name?.lowercased() == "genres" }
@@ -54,7 +54,8 @@ MainTabView (tvOS)                       ← owns the single shared BrunoMenuBar
        │           ├─ per row: BrunoRNG.shuffled(children, seed: shuffleSeed+index)    (day-stable item order)
        │           └─ rows: recencyBiased ? BrunoRNG.shuffled(ordered, rowOrderSeed) : ordered  ← row order
        │     → BrunoCategoryShelves(categories: shownCategories, header: corePanel,
-       │                            namesShowAllCards: true, …).if(!isTabRoot){ brunoHeroMenuBar() }
+       │                            namesShowAllCards: true, isTabRoot: isTabRoot, …)
+       │              (injects BrunoScrollingMenuBar [tab root] or BrunoCoverMenuBarRow [cover] as row 0)
        │           └─ BrunoShelfRow(showAllTitle: "<genre>") per category   (height-pinned, INV-1)
        └─ else → BrunoMediaView(itemType:.movie)   (A–Z fallback; rotating hero — differs from happy path)
 ```
@@ -130,29 +131,34 @@ only on `viewModel.categories.map(\.id)` change → fixed for the session (INV-7
 
 ## 6. Fragility surface (What / Why / Break / Safe)
 
-### F1 — Tab-root menu-bar rule: no self-bar AND no `.top`-ignore at a tab root
-**What:** `MainTabView` (tvOS) pins **one** `BrunoMenuBar` as a **focus PEER** of the content `ZStack`
-under a single `.focusScope(rootNamespace)`, and reserves its height on the content via
-`.safeAreaInset(.top){ Color.clear.frame(height: BrunoMenuBar.barHeight) }`. So **every tab root gets the
-bar for free** — it must NOT self-apply `.brunoHeroMenuBar()` (→ double bar) and must NOT
-`.ignoresSafeArea(.top)` (→ cancels the inset → focus-scroll drags the bar down, UP can't reach it). Both
-are the **`e44e1e71`** regression ("double bar + scroll drift").
+### F1 — Menu-bar rule: inject it as the first scrolling ROW, and keep `.top` un-ignored
+**What:** the menu bar is no longer pinned by `MainTabView`. Each surface injects it as the **first row of
+its `LazyVStack`**, above the hero: a tab root injects `BrunoScrollingMenuBar()` (gated by `isTabRoot`); a
+pushed cover injects `BrunoCoverMenuBarRow()`. The row scrolls up and off-screen like every other shelf.
+Each component already applies `.frame(height: BrunoMenuBar.barHeight)` + `.focusSection()` internally, so
+the call site adds only `.zIndex(1)` (paint above the hero's upward backdrop spill). The deepest surface
+must still NOT `.ignoresSafeArea(.top)` — `.top` is kept so the bar row stays title-safe and the hero
+bleeds correctly.
 **Why:** the custom bar exists so UP-from-content focuses the bar (stock `TabView` had no focus binding).
-**Break:** double menu bar on the Movies tab; or the bar rides the scroll / can't be reached by UP.
+As its own `.focusSection()` row there is one focusable per vertical region, so UP/DOWN traverse cleanly
+between rows (shelf ↔ hero ↔ bar) with no special routing.
+**Break:** drop the row at a tab root → no bar / no way to leave the tab; `.ignoresSafeArea(.top)` →
+the bar row and hero geometry shift up off the title-safe band.
 **Safe:** `BrunoMoviesView` and `BrunoGenresView(isTabRoot:true)` stay thin — no ambient `ZStack`, no
 `.ignoresSafeArea`, no `.safeAreaInset` at the wrapper. The deepest surface (`BrunoCategoryShelves`) owns
 ambient + a **partial** drop `.ignoresSafeArea(edges: [.horizontal, .bottom])` (**never `.top`**); the
 behind-the-pills bleed is `BrunoAmbientBackground`'s own all-edge ignore. **`BrunoCollectionsView` is the
-proven precedent** (same `BrunoCategoryShelves`, no self-bar, respects `.top`).
+proven precedent** (same `BrunoCategoryShelves`, respects `.top`).
 
-### F2 — `.if(!isTabRoot)` is safe ONLY because `isTabRoot` is a constant `let`
-**What:** `BrunoGenresView` gates its menu bar with `.if(!isTabRoot) { $0.brunoHeroMenuBar() }`.
-**Why:** the repo's `.if` swaps concrete view type between branches → toggling it at runtime would re-root
-the subtree (lose `@State`, focus, scroll — the INV-7/8 class of bug). `isTabRoot` is set at `init` and
+### F2 — the `isTabRoot` bar branch is safe ONLY because `isTabRoot` is a constant `let`
+**What:** `BrunoGenresView` passes `isTabRoot` down to `BrunoCategoryShelves`, which picks the bar row with
+`if isTabRoot { BrunoScrollingMenuBar() } else { BrunoCoverMenuBarRow() }` as row 0 of its `LazyVStack`.
+**Why:** the two branches are different concrete view subtrees → toggling `isTabRoot` at runtime would
+re-root row 0 (lose `@State`, focus, scroll — the INV-7/8 class of bug). `isTabRoot` is set at `init` and
 **never mutated**, so the branch is fixed for the instance's whole life → no identity churn.
-**Break:** if `isTabRoot` ever became a `@State`/dynamic value, flipping it would tear down
-`BrunoCategoryShelves` (shelf state / 720pt hero / reveal) mid-session.
-**Safe:** keep `isTabRoot` a stored `let`. Never drive `.if` here off mutable state.
+**Break:** if `isTabRoot` ever became a `@State`/dynamic value, flipping it would tear down the bar row
+(and risk churning the rows below) mid-session.
+**Safe:** keep `isTabRoot` a stored `let`. Never drive the bar branch off mutable state.
 
 ### F3 — `rowOrderSeed` must be read **exactly once**, in `performLoad`
 **What:** the seed is read once per load and the resulting order is published to `categories`.
@@ -163,10 +169,12 @@ a session" guarantee.
 **Safe:** any new per-launch randomness for this surface is read once in `performLoad`, never in a `var`/body.
 
 ### F4 — `BrunoMenuBar.barHeight` is a single source feeding multiple sites
-**What:** `BrunoMenuBar.barHeight` (= **116**) feeds the content `Color.clear` inset AND the bar frame in
-**both** `MainTabView` and `BrunoHeroMenuBar`, and the hero `topBleed` in `BrunoHeroView`.
-**Break:** if the inset and the bar frame desync (one hard-coded, the other from the constant), UP-focus and
-the hero backdrop drift.
+**What:** `BrunoMenuBar.barHeight` (= **116**) sizes the menu-bar ROW (`.frame(height:)` inside both
+`BrunoScrollingMenuBar` and `BrunoCoverMenuBarRow`) AND feeds the hero `topBleed` in `BrunoHeroView`. The
+bar row now occupies the same barHeight above the hero that the old pinned `Color.clear` inset used to
+reserve, so the hero geometry is unchanged (there is no `Color.clear` inset anymore).
+**Break:** if the row's frame and the hero's `+ barHeight` topBleed desync (one hard-coded, the other from
+the constant), the hero backdrop spill drifts (a lighter strip shows above the hero).
 **Safe:** keep all sites reading `BrunoMenuBar.barHeight`; keep it `>=` the bar's intrinsic height (~108pt).
 
 ### F5 — These View structs rely on the **synthesized memberwise init**
@@ -316,8 +324,10 @@ the same id can't coexist). No live collision today.
 | Genre fan-out, 3 seeds, `recencyBiased`, cache (PATH B) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoBoxSetShelvesView.swift` |
 | Shared browse renderer + `fromSnapshot` (genres-skip) + `brunoFeaturedItem` | `Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryShelves.swift` |
 | Shelf row + `showAllTitle` + height pin (INV-1) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfRow.swift` |
-| The shared menu bar + `barHeight` + tab-root wiring | `Shared/Coordinators/Tabs/MainTabView.swift`, `BrunoMenuBar.swift` |
-| Cover-only menu bar contract | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHeroMenuBar.swift` |
+| The menu-bar pill row + `barHeight` | `Swiftfin tvOS/Views/BrunoHomeView/BrunoMenuBar.swift` |
+| Tab-root scrolling bar row | `Swiftfin tvOS/Views/BrunoHomeView/BrunoScrollingMenuBar.swift` |
+| Cover scrolling bar row | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHeroMenuBar.swift` (`BrunoCoverMenuBarRow`) |
+| Mounted-tab switcher (no pinned bar) | `Shared/Coordinators/Tabs/MainTabView.swift` |
 | Snapshot + group resolution + the 2 genre data models | `Shared/Objects/Bruno/BrunoLibrarySnapshot.swift` |
 | The mid-feed "Browse the Collection" tile shelf (G1) | `Shared/Objects/Bruno/BrunoHomePlan.swift` |
 | `modernCutoff` (Home only — NOT this surface) | `Shared/Objects/Bruno/BrunoRecencyBias.swift` |
