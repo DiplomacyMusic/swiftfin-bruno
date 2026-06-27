@@ -305,7 +305,11 @@ enum BrunoHomePlan {
             ) { name in "Spotlight on \(name)" }
 
         case "curated", "world":
-            return boxSetShelf(snapshot.curatedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed) { name in name }
+            // Strip the structured "Oscar — X" em-dash for display ("Oscar Cinematography"); a no-op
+            // for every other curated name. (BrunoCuratedCard.display is the tvOS-side twin of this.)
+            return boxSetShelf(snapshot.curatedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed) { name in
+                name.replacingOccurrences(of: " — ", with: " ")
+            }
 
         case "seasonal":
             return seasonalShelf(snapshot: snapshot, seed: seed, now: now)
