@@ -2,6 +2,12 @@
 
 _Written 2026-06-26. This is a design to approve before any code. No implementation has been done._
 
+> ⚠️ **Scope:** this doc is about the **Home "IF YOU LIKE" recommendation rows** (raw-TMDB-genre queries via
+> `BrunoHomePlan.genreQuery`) — an **unbuilt** rec lens. It is **NOT** the **Movies-tab genre BROWSE
+> surface** (the curated Genres-group sub-BoxSet shelves), which shipped in PR #19 and is documented in
+> [`BRUNO_MOVIES_GENRE_SURFACE.md`](BRUNO_MOVIES_GENRE_SURFACE.md). Two different systems on two different
+> genre data models — don't conflate them (see that doc §3).
+
 ## Problem
 
 The Home **"IF YOU LIKE `<Genre>`"** shelves recommend by **raw TMDB genre**, which bypasses the owner's

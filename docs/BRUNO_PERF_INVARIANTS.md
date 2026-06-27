@@ -8,6 +8,10 @@
 >
 > If you just want to restyle — see [Safe to touch](#safe-to-touch-restyle-freely) at the bottom. Most
 > visual polish touches none of these invariants.
+>
+> **Sibling doc:** the **Movies tab is now the genre browse surface** — its interconnection + fragility map
+> (menu-bar tab-root rule, the `"genres"` string contract, the three seeds, known gaps) lives in
+> [`BRUNO_MOVIES_GENRE_SURFACE.md`](BRUNO_MOVIES_GENRE_SURFACE.md). Read that before touching the Movies tab.
 
 The rules are anchored in code as `// INV-n:` comments at each load-bearing site. Grep `INV-` to find
 them. The fragile *constants* live in one place — `BrunoShelfMetrics` (`Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfMetrics.swift`)
@@ -83,6 +87,10 @@ key — the cell still misses, and you've wasted bandwidth.
 PosterButton.
 **Safe change:** if you change poster display size, update `BrunoShelfMetrics` to match whatever width
 `PosterImage` ends up requesting. Both the cell and the prefetcher read from there.
+**Gap (genre browse surface):** the prewarm is wired only on the **Home** shelf row (`BrunoShelfView` →
+`BrunoPosterPrefetcher`). The genre browse row (`BrunoShelfRow` / `BrunoCategoryShelves`) — **now the
+primary Movies tab** — has **no** prefetcher. This is a missing *benefit*, not a width-mismatch risk; see
+[`BRUNO_MOVIES_GENRE_SURFACE.md`](BRUNO_MOVIES_GENRE_SURFACE.md) §8 G6.
 
 ### INV-5 — The disk item-cache is seed-keyed and source-restricted
 **What:** `BrunoHomeCache` persists: the library snapshot, the hero *superset pool*, and realized items for
