@@ -41,6 +41,13 @@ struct BrunoShelfRow: View {
     @FocusState
     private var showAllFocused: Bool
 
+    // INV-4: warm this shelf's posters at the exact width the cells request, so the prefetch populates
+    // the same Nuke key the cell later reads (not a different-width miss). BrunoShelfRow is browse-only
+    // (its only caller is BrunoCategoryShelves — the genre/Movies tab + Collections), which had NO
+    // prefetcher; Home's separate BrunoShelfView already warms its own rows (G6 in BRUNO_MOVIES_GENRE_SURFACE.md).
+    @State
+    private var prefetcher = BrunoPosterPrefetcher()
+
     private enum Card: Identifiable, Hashable {
         case item(BaseItemDto)
         case showAll
@@ -105,6 +112,12 @@ struct BrunoShelfRow: View {
         // (see docs/BRUNO_PERF_INVARIANTS.md); clipsToBounds(false) keeps the focus-scaled poster from
         // clipping against this frame.
         .frame(height: BrunoShelfMetrics.shelfRowHeight)
+        // Fires per-row as the shelf scrolls into / out of view (LazyVStack) — warm the visible/upcoming
+        // shelves' posters, cancel when scrolled away. All BrunoShelfRow cells are portrait. (Tab-hidden:
+        // a kept-alive Movies tab won't fire onDisappear, leaving ≤warmCount posters warm per row — a
+        // small, idempotent, bounded set; re-warmed on return. Not worth tab-active gating at this layer.)
+        .onAppear { prefetcher.warm(items, type: .portrait) }
+        .onDisappear { prefetcher.stop(items, type: .portrait) }
     }
 
     private var showAllCard: some View {
