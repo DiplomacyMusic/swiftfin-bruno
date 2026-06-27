@@ -28,6 +28,15 @@ import SwiftUI
 // the first frame; frames prefetched into the Nuke memory cache (BrunoPosterPrefetcher, same pipeline
 // + width as the cells) so swaps never gap; cycle task cancelled on unfocus/disappear; Reduce Motion
 // holds the static background.
+//
+// PERF (vertical-scroll hitch fix): the WHOLE art-cycle machinery — the `@StateObject
+// BrunoArtCycleViewModel` (which itself allocates a BrunoPosterPrefetcher), the cycle `@State`, and
+// the cycling task — lives in `ArtCycleOverlay`, a child view inserted into the tree ONLY while the
+// card is focused. SwiftUI builds the initial value of a `@StateObject` for every cell as the graph
+// is built (even unfocused ones), and the genre shelves re-mint a UIHostingController per dequeue, so
+// a vertical focus row-step would otherwise rebuild ~7 heavy VM/prefetcher graphs synchronously on the
+// focus frame. With the overlay gated on focus, an unfocused cell builds a MINIMAL graph (just
+// `background()` + `foreground()`) and never touches the view model. See docs/BRUNO_PERF_INVARIANTS.md.
 struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
 
     private let parentID: String?
@@ -55,6 +64,47 @@ struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
 
     @Environment(\.isFocused)
     private var isFocused
+
+    var body: some View {
+        ZStack {
+            background()
+
+            // Art layer — the ONLY animated part, and the ONLY heavy part. Gated on focus so the
+            // `@StateObject` VM + prefetcher it owns are not allocated for unfocused cells (the vast
+            // majority built during a vertical focus row-step). On focus the overlay is inserted and
+            // self-starts; on unfocus it's removed → its `.onDisappear` cancels the task + prefetch.
+            if isFocused {
+                ArtCycleOverlay(
+                    parentID: parentID,
+                    fallbackItems: fallbackItems,
+                    type: type,
+                    dim: dim
+                )
+            }
+
+            foreground() // STATIC — no animation reaches it
+        }
+        .clipped()
+    }
+}
+
+// MARK: - ArtCycleOverlay
+
+//
+// The heavy half of BrunoFocusArtCycle, instantiated ONLY while the card is focused. Owning the
+// `@StateObject` here (rather than on BrunoFocusArtCycle) is the whole point: SwiftUI doesn't
+// construct a `@StateObject`'s initial value until its view is inserted into the tree, so unfocused
+// cells never allocate the BrunoArtCycleViewModel / BrunoPosterPrefetcher.
+//
+// Because the overlay's lifetime IS the focus interval, it drives the cycle from view lifecycle:
+// `.onAppear` (focus gained) loads + starts; `.onDisappear` (focus lost / cell torn down) stops.
+private struct ArtCycleOverlay: View {
+
+    let parentID: String?
+    let fallbackItems: [BaseItemDto]
+    let type: PosterDisplayType
+    let dim: Double
+
     @Environment(\.accessibilityReduceMotion)
     private var reduceMotion
 
@@ -90,10 +140,9 @@ struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
     }
 
     var body: some View {
-        ZStack {
-            background()
-
-            // Art layer — the ONLY animated part. Fades in over the gradient once active.
+        // Fades in over the gradient once active; absent (Color.clear) until the first frame rolls so
+        // the hold reads exactly as before — the rest background shows untouched during the hold.
+        Group {
             if active {
                 ZStack {
                     if let current = art.frames[safe: index] {
@@ -105,21 +154,13 @@ struct BrunoFocusArtCycle<Background: View, Foreground: View>: View {
                 }
                 .transition(.opacity)
             }
-
-            foreground() // STATIC — no animation reaches it
         }
-        .clipped()
-        .onChange(of: isFocused) { _, focused in
-            if focused {
-                index = 0
-                fadingIndex = nil
-                fadeOpacity = 0
-                rolling = false
-                art.load(parentID: parentID, fallbackItems: fallbackItems, type: type)
-                start()
-            } else {
-                stop()
-            }
+        // The overlay only exists while focused (BrunoFocusArtCycle gates it), so appear == focus
+        // gained and disappear == focus lost / cell torn down. Load + start on appear; stop on
+        // disappear cancels the task and the prefetch — no task can outlive the overlay.
+        .onAppear {
+            art.load(parentID: parentID, fallbackItems: fallbackItems, type: type)
+            start()
         }
         .onDisappear(perform: stop)
     }
