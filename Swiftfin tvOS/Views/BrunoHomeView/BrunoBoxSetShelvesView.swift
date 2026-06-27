@@ -300,6 +300,23 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         launchNonce &+ UInt32(truncatingIfNeeded: Int(Date().timeIntervalSince1970 / 21600))
     }
 
+    /// Owner-fixed lead order for the Movies genre rows (matched case-insensitively against the
+    /// sub-genre BoxSet name). These pin to the top in this exact order; every other sub-genre
+    /// follows in its existing per-launch shuffled order. ("Sci Fi" = the "Science Fiction" BoxSet.)
+    private static let priorityGenreOrder = ["action", "comedy", "drama", "romance", "science fiction", "thriller"]
+
+    /// Stable-partition the shuffled genre rows so the six `priorityGenreOrder` names lead (in that
+    /// order); all others keep their incoming (shuffled) order behind them.
+    private static func pinningPriorityGenres(_ rows: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+        let leads = priorityGenreOrder.compactMap { name in
+            rows.first { $0.name.lowercased() == name }
+        }
+        let rest = rows.filter { row in
+            !priorityGenreOrder.contains(row.name.lowercased())
+        }
+        return leads + rest
+    }
+
     func load(parent: BaseItemDto) async {
         // Re-entrancy guard: if a load is already running/done on this instance, await it instead of
         // launching a second fan-out. The `await` on the cache read is the suspension a quick
@@ -394,7 +411,10 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         // Genres surface: reshuffle the ROW order per cold launch (and 6h, but only on a genuine reload —
         // see rowOrderSeed) so the Movies tab feels fresh. The seed is read once here, so the published
         // order is stable for the whole session — INV-7 safe. Decades / Curated keep deterministic order.
-        let result = recencyBiased ? BrunoRNG.shuffled(ordered, seed: Self.rowOrderSeed) : ordered
+        // Then pin the owner's six lead genres to the top in a fixed order; the rest follow shuffled.
+        let result = recencyBiased
+            ? Self.pinningPriorityGenres(BrunoRNG.shuffled(ordered, seed: Self.rowOrderSeed))
+            : ordered
         categories = result
         isLoading = false
 
