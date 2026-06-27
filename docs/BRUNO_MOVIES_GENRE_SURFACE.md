@@ -255,7 +255,10 @@ the same id can't coexist). No live collision today.
 - **G5 (✅ raised to 120) — sub-genre fetch was hard-capped at `limit:100`** (single page, not
   `BrunoItemPaging.fetchAll`). ~80 today, so the bump to **120** is headroom; if the curated set ever
   approaches it, page to completion like `loadYearShelves` (a comment at the site says so).
-- **G6 — No poster prefetcher on this (now primary) surface** — see INV-4 above.
+- **G6 (✅ FIXED) — the genre browse surface had no poster prefetcher** (Home's `BrunoShelfView` warmed
+  its rows; the shared `BrunoShelfRow` did not). **Fixed:** `BrunoShelfRow` now holds a
+  `BrunoPosterPrefetcher` and warms its shelf's posters at portrait width (INV-4) `.onAppear` /
+  cancels `.onDisappear` — fires per-row as shelves scroll in/out. Covers the genre/Movies tab + Collections.
 - **G7 (✅ FIXED) — debounce comment drift:** `commitFocus` sleeps **500 ms** (owner-confirmed intentional),
   but four doc-comments said **"~150 ms"** (3.3× off). **Fixed:** the four comments in `BrunoGenresView` +
   `BrunoBoxSetShelvesView` now say ~500 ms; the code constant is unchanged.

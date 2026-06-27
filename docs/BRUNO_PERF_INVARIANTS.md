@@ -87,9 +87,9 @@ key — the cell still misses, and you've wasted bandwidth.
 PosterButton.
 **Safe change:** if you change poster display size, update `BrunoShelfMetrics` to match whatever width
 `PosterImage` ends up requesting. Both the cell and the prefetcher read from there.
-**Gap (genre browse surface):** the prewarm is wired only on the **Home** shelf row (`BrunoShelfView` →
-`BrunoPosterPrefetcher`). The genre browse row (`BrunoShelfRow` / `BrunoCategoryShelves`) — **now the
-primary Movies tab** — has **no** prefetcher. This is a missing *benefit*, not a width-mismatch risk; see
+**Genre browse surface (resolved):** the prewarm is now wired on **both** the Home shelf row
+(`BrunoShelfView`) and the shared browse row (`BrunoShelfRow`, used by the genre/Movies tab + Collections),
+each warming at the cell width (portrait 200) `.onAppear` / cancelling `.onDisappear`. See
 [`BRUNO_MOVIES_GENRE_SURFACE.md`](BRUNO_MOVIES_GENRE_SURFACE.md) §8 G6.
 
 ### INV-5 — The disk item-cache is seed-keyed and source-restricted
