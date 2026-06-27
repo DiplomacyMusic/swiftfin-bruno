@@ -1387,9 +1387,9 @@
 		};
 		E1A09F732D05935100835265 /* XCRemoteSwiftPackageReference "CollectionHStack" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/LePips/CollectionHStack";
+			repositoryURL = "https://github.com/DiplomacyMusic/CollectionHStack";
 			requirement = {
-				branch = main;
+				branch = "bruno-hosting-reuse";
 				kind = branch;
 			};
 		};

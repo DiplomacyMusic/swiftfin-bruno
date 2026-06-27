@@ -22,10 +22,10 @@
     {
       "identity" : "collectionhstack",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/LePips/CollectionHStack",
+      "location" : "https://github.com/DiplomacyMusic/CollectionHStack",
       "state" : {
-        "branch" : "main",
-        "revision" : "ce86c82ae46ba958d6e7f8459d592a77e1e299c5"
+        "branch" : "bruno-hosting-reuse",
+        "revision" : "127a737f175dde3186c9c67f5f06b6b2ee6a9e57"
       }
     },
     {
