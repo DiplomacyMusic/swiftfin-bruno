@@ -55,11 +55,16 @@ enum BrunoPerfLog {
     /// call off the toggle change — the actual open happens on the writer's serial queue.
     static func start() {
         Writer.shared.start()
+        // Arm raw-input capture (UIPress swizzle) alongside the file session. Lazily installs once;
+        // inert while !isEnabled. Called from the SwiftUI sync() path (main thread), which UIKit
+        // metadata mutation requires.
+        BrunoInputMonitor.start()
     }
 
     /// Flush any buffered lines and close the current session file. Idempotent.
     static func stop() {
         Writer.shared.stop()
+        BrunoInputMonitor.stop()
     }
 
     /// Append one event. Builds `["t": clock, "f": frameIndex, "kind": kind]` merged with `payload`,

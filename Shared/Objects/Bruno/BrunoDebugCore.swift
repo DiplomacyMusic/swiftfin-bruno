@@ -8,6 +8,7 @@
 
 #if DEBUG
 
+import CollectionHStack
 import os
 import OSLog
 import QuartzCore
@@ -371,12 +372,18 @@ final class BrunoFrameMonitor: NSObject, ObservableObject {
         // Memory + live-counts sample (~1 Hz). `mem` = physical footprint (the figure Xcode's gauge
         // shows, a cheap task_info read). `counts` = realized shelves (cap-and-grow window) + alive
         // cell-content views — the "how much is mounted right now" signal to read against a hitch.
-        // (A sibling task adds a separate `hosts` event for collection-view reuse; not here.)
-        // Only while recording.
+        // `hosts` = the CollectionHStack hosting-controller reuse tally (mints vs reuseSwaps vs
+        // prepareForReuse) from the bruno-hosting-reuse fork — proves the reuse fix recycles rather
+        // than re-mints. Only while recording.
         if BrunoPerfLog.isEnabled, ts - lastMemSample >= 1.0 {
             lastMemSample = ts
             BrunoPerfLog.event("mem", ["footprintMB": brunoPerfPhysFootprintMB()])
             BrunoPerfLog.event("counts", ["shelves": BrunoPerfCounts.shelves, "cells": BrunoPerfCounts.cells])
+            BrunoPerfLog.event("hosts", [
+                "mints": CollectionHStackPerfCounters.mints,
+                "reuseSwaps": CollectionHStackPerfCounters.reuseSwaps,
+                "prepareForReuse": CollectionHStackPerfCounters.prepareForReuse,
+            ])
         }
 
         // Redraw-rate flush (~1 Hz) → counts-per-second per tracked view.
