@@ -144,40 +144,48 @@ instant state when `accessibilityReduceMotion` is on.
 **Safe change:** any new entrance/transition you add must branch on `reduceMotion` (it's already an
 `@Environment` in `BrunoHomeView`). Collapse to opacity-only or instant.
 
-### INV-10 — Shelf cells must not retain heavy per-item `@State` while offscreen
-**What:** A shelf cell must not hold heavy per-item `@State` (view models, prefetchers, timers, cycle
-logic) while it is offscreen/unfocused. Per-cell machinery that is more than a pure function of the item
-must be **focus-gated** — mounted only while the cell `isFocused`. The genre cell is the reference example:
-`BrunoFocusArtCycle` moves its `@StateObject BrunoArtCycleViewModel` (+ its `BrunoPosterPrefetcher`) and all
-the art-cycle `@State`/logic into a private `ArtCycleOverlay` that is inserted ONLY inside
-`if isFocused { ArtCycleOverlay(…) }`. An unfocused cell builds a minimal graph (background + foreground).
-The in-repo anchor `// INV-10` belongs at that focus gate in `BrunoFocusArtCycle` (the `if isFocused`
-branch that mounts `ArtCycleOverlay`).
-**Why:** `CollectionHStack` is now the **fork** `DiplomacyMusic/CollectionHStack@bruno-hosting-reuse`
-(commit `466aeb3f`), which **reuses** the cell's `UIHostingController` and swaps its `rootView` on recycle
-instead of rebuilding a fresh controller per dequeue. That reuse is the perf win (it lifts the per-cell
-`UIHostingController`-mint floor that previously sat under every browse/Home shelf — see INV-1, and the
-"snappiness ceiling" backlog item this superseded). But it changes the correctness contract: SwiftUI
-carries `@State` across a same-type `rootView` swap at the same structural slot, so any per-item `@State`
-left alive on a recycled cell could **leak into the next element** the cell is reused for. Today this is
-safe: `PosterButton` is a pure function of its item (no resettable per-item `@State`); `BrunoFocusArtCycle`'s
-heavy state mounts only while focused, and recycled cells are offscreen/unfocused (cells are non-focusable —
-`canFocusItemAt = false`), so the gated state is always torn down before reuse.
-**Break symptom:** stale per-item state appears on a recycled cell (wrong art mid-cycle, a stale highlight,
-a timer ticking for the previous item); or — if you "fix" it the wrong way (see below) — the scroll hitch
-returns because reuse is defeated.
-**Break recipe (don't):** (a) adding per-item `@State` to a shelf cell that must reset between elements
-WITHOUT giving it a stable identity → stale state on reuse. (b) adding `.id(item.id)` *inside* the
-CollectionHStack package (rather than at the Bruno call site) → forces a full subtree rebuild on every
-`rootView` swap, which DEFEATS the reuse win and reintroduces the hitch the fork removed.
-**Safe recipe:** keep heavy/stateful per-cell machinery **focus-gated** (the `ArtCycleOverlay` pattern). If
-a cell genuinely needs per-item `@State` that must reset between elements, attach `.id(item.id)` at the
-**Bruno call site** (e.g. in `BrunoShelfRow`'s cell builder), accepting that it trades away reuse for that
-specific shelf — never patch identity into the package. Cross-ref: INV-1 (the height-pin that lets shelves
-reconcile under focus) and INV-2 (stable, domain-derived shelf identity — INV-10 is the cell-level analogue:
-the cell has NO per-item identity by design, so its art must come from item data, not surviving state).
-**Reference commits:** focus-gating `7985aaf0` (`BrunoFocusArtCycle` → `ArtCycleOverlay`); the
-hosting-controller-reuse fork `466aeb3f` (`DiplomacyMusic/CollectionHStack@bruno-hosting-reuse`).
+### INV-10 — Shelf cells: structurally stable across focus, no stale per-item state on reuse
+**What:** A shelf cell's view-tree **structure must not change when it gains/loses focus**, and it must not
+carry per-item state that survives into the next element it's recycled for. Heavy per-cell machinery
+(view models, prefetchers, timers, cycle logic) must be gated by **work**, not by **view presence**: keep
+the layer permanently in the tree and start/stop its work via `.onChange(of: isFocused)` / `.task(id:)`.
+The genre cell is the reference example: `BrunoFocusArtCycle` keeps its `artLayer` (and its `@StateObject
+BrunoArtCycleViewModel`) **always present**; gaining focus only flips an internal `active`/`rolling` Bool and
+kicks the cycle via `.onChange(of: isFocused)`, and the art set is loaded **key-aware** (clears + reloads
+when the card's `parentID`/fallback identity changes), with visibility gated on the *current* item's frames
+so a recycled cell can never flash the previous item's art. The in-repo anchor `// INV-10` belongs at the
+always-present `artLayer` + `.onChange(of: isFocused)` site in `BrunoFocusArtCycle`.
+**Why (two independent reasons, both load-bearing):**
+1. **Reuse correctness.** `CollectionHStack` is the **fork** `DiplomacyMusic/CollectionHStack@bruno-hosting-reuse`
+   (`466aeb3f`), which **reuses** the cell's `UIHostingController` and swaps its `rootView` on recycle instead
+   of rebuilding a fresh controller per dequeue (the perf win — it lifts the per-cell `UIHostingController`-mint
+   floor; see INV-1). SwiftUI carries `@State` across a same-type `rootView` swap at the same slot, so per-item
+   state left alive on a recycled cell can **leak into the next element**. Key-aware loading (clear+reload on
+   item change) is what makes the always-present view model safe.
+2. **tvOS focus auto-repeat.** Press-and-hold scrolling is a paced sequence of discrete focus updates; the
+   engine only continues the repeat if the focused branch is **settled** each tick. If a cell mutates its own
+   subtree *during* its focus update (e.g. `if isFocused { SomeView() }` inserting a node as focus lands), it
+   invalidates the self-sizing UICollectionView cell and the engine resolves it as a reset-in-place
+   (`setNeedsFocusUpdate` → preferred focus, not the next row) — so a held scroll **stalls after a few rows**.
+   The bridged UICollectionView nesting amplifies this. Keeping the focused subtree structurally constant is
+   what keeps held-scroll advancing.
+**Break symptom:** (a) stale per-item state on a recycled cell (wrong art mid-cycle, stale highlight, a timer
+for the previous item); (b) **held/press-and-hold scroll advances only a few rows then stops** (must lift and
+re-press); (c) if you "fix" reuse the wrong way, the per-cell hitch returns.
+**Break recipe (don't):** (a) per-item `@State` that must reset between elements WITHOUT keying/identity →
+stale on reuse. (b) `.id(item.id)` *inside* the CollectionHStack package → forces a full subtree rebuild per
+`rootView` swap, DEFEATING the reuse win. (c) **`if isFocused { HeavyView() }` (conditional view insertion on
+focus)** → structurally mutates the focused cell mid-focus-update and stalls held-scroll auto-repeat. This was
+shipped (`7985aaf0`) and reverted (`86acd5f5`) precisely because it broke held-scroll — do not reintroduce it.
+**Safe recipe:** keep the heavy layer **always in the tree**; gate its *work* via `.onChange(of: isFocused)` /
+`.task(id:)` and its *visibility* via a Bool (`active`); load per-item data **key-aware** (clear+reload on
+item change) so reuse shows the right item with no stale flash; never add `.id` in the package. If a cell
+genuinely needs resettable per-item `@State`, attach `.id(item.id)` at the **Bruno call site** (e.g. in
+`BrunoShelfRow`'s cell builder), accepting it trades away reuse for that shelf. Cross-ref: INV-1 (height-pin)
+and INV-2 (stable shelf identity — INV-10 is the cell-level analogue: the cell has NO per-item identity by
+design, so its art must come from item data + keyed load, not surviving state).
+**Reference commits:** hosting-controller-reuse fork `466aeb3f`; structurally-stable + key-aware design
+`86acd5f5` (which **supersedes** the focus-gated-insertion approach `7985aaf0` that stalled held-scroll).
 
 ---
 
@@ -212,5 +220,5 @@ almost always: **keep row height fixed, keep shelf ids stable, and read widths/h
 | Poster prefetch (INV-4) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoPosterPrefetcher.swift` |
 | Ambient layer (INV-6) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoAmbientBackground.swift` |
 | Hero auto-advance gate (INV-8) | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHeroView.swift` |
-| Focus-gated cell state — `// INV-10` anchor (INV-10) | `BrunoFocusArtCycle` (the `if isFocused { ArtCycleOverlay(…) }` gate) |
+| Structurally-stable, work-gated cell state — `// INV-10` anchor (INV-10) | `BrunoFocusArtCycle` (always-present `artLayer` + `.onChange(of: isFocused)` + key-aware `BrunoArtCycleViewModel.load`) |
 | Forked cell-reuse package (INV-10) | SPM dep `DiplomacyMusic/CollectionHStack@bruno-hosting-reuse` (`HostingCollectionViewCell`) |
