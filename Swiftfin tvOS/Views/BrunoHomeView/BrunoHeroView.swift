@@ -21,10 +21,10 @@ import UIKit
 // that routes to the stock item detail (Play-for-the-proto, plan §C4).
 //
 // Focus model (Apple-TV-app feel): the whole hero is ONE chrome-less focusable element — a
-// click down from the top menu lands on it with no button highlight. Left/right move commands
-// cycle the spotlight like a content shelf (the dots are a passive page indicator, not
-// focusable buttons). Select opens the spotlight item. Auto-advance pauses while focused so the
-// backdrop never swaps focus out from under the user.
+// click down from the top menu lands on it with no button highlight. UP/DOWN escape to the focus
+// engine (the menu bar above, the shelves below); manual left/right paging was removed (the dots
+// are a passive page indicator, not focusable buttons). Select opens the spotlight item.
+// Auto-advance pauses while focused so the backdrop never swaps focus out from under the user.
 struct BrunoHeroView: View {
 
     let items: [BaseItemDto]
@@ -74,16 +74,8 @@ struct BrunoHeroView: View {
             }
             .buttonStyle(BrunoHeroButtonStyle())
             .focused($isFocused)
-            .onMoveCommand { direction in
-                switch direction {
-                case .left:
-                    step(by: -1)
-                case .right:
-                    step(by: 1)
-                default:
-                    break
-                }
-            }
+            // Manual left/right spotlight paging was removed so UP/DOWN escape to the focus engine
+            // (the menu bar above and the shelves below). The hero still auto-rotates via its timer.
             .onReceive(autoAdvance) { _ in
                 // Pause while focused (TV-app behaviour) so the swap never yanks focus, and while the
                 // spine is still streaming in (autoAdvanceEnabled — INV-8).
