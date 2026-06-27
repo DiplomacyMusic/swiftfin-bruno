@@ -355,7 +355,7 @@ struct BrunoCategoryShelves: View {
                     .tracking(3)
                     .foregroundStyle(Color.bruno.accent)
 
-                Text(category.name)
+                Text(BrunoCuratedCard.display(category.name))
                     .font(.brunoDisplay(36, weight: .semibold))
                     .foregroundStyle(Color.bruno.fg)
             }
