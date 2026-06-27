@@ -6,6 +6,102 @@ before touching the shelf/scroll path.
 
 ---
 
+## How to work this — read before anything else
+
+**1. Measure before you change. This is the whole discipline that was missing.** Across 7 threads the
+failure mode was *change-and-hope* — landing structural fixes without a measured before/after. **Both
+structural fixes currently on `main` (the CollectionHStack fork reuse, the art-cycle rework) are
+UNMEASURED** (see Honest status below). Your **first** move is not a code change — it's to capture a
+baseline on the current `main` with the telemetry (`BRUNO_PERF_LOGGING.md`) + a screen recording, and
+establish the real numbers. Every subsequent change needs a measured delta against that baseline. If
+you can't measure it, don't land it.
+
+**2. Use subagents and the experts — this is not optional, it's how this work succeeds.** This whole
+investigation was driven by orchestration, and the two best findings came from experts, not from
+first-principles guessing:
+- **`bruno-expert`** — the project/Swiftfin/Jellyfin authority. Use it to ground in the codebase
+  ("where does X live", how Bruno differs from stock), to mine the **prior-attempt/regression history**
+  (it produced the dead-end list this session), to keep changes compliant with INV-1..10 and the
+  F1–F9 map, and to update `docs/PROJECT_TRACKER.md`. Invoke it at the *start* of any unit of work.
+- **`swift-xcode-expert`** — the Swift/SwiftUI/tvOS-focus-engine/UIKit/Instruments/SPM authority. The
+  held-scroll regression root cause (focused-subtree mutation stalling press-and-hold auto-repeat) came
+  from it citing Apple focus docs — not from inference. Use it for focus-engine mechanics, profiling
+  strategy, the fork patch, and anything language/toolchain.
+- **Orchestration model that worked:** you (orchestrator) spawn one focused subagent per task in an
+  **isolated worktree**; each implements exactly its task, compile-verifies (headless `xcodebuild` tvOS
+  sim, `CODE_SIGNING_ALLOWED=NO -skipMacroValidation`, symlink the gitignored `Carthage` first),
+  commits on its own branch, and returns a structured report; you **review the actual diff** (don't
+  trust the report alone) and cherry-pick onto your integration branch when it's architecturally sound;
+  land on `main` only after a combined build. Keep changes surgical and reversible.
+
+**3. Ground, don't guess.** Before acting on a hypothesis, confirm it — with a profiler trace, a
+`_printChanges()` reading, or an expert citing docs. Several "facts" this session turned out softer
+than stated (the `@StateObject` allocation was assumed dominant but lightening it barely moved the
+needle; `posterStyle` adds no shadow on tvOS). Verify before you build on a claim.
+
+## Honest status: known unknowns (answers to the obvious questions)
+
+Be skeptical of this handoff's confident phrasing — here is what was and was **not** actually done:
+
+1. **Was the fork fix (`466aeb3f`) measured?** No. The device test was a deliberate *land-blind* call —
+   the owner said "don't stop for my checks, go to the end of perf" to keep momentum, not because of a
+   device gap. The owner **is running on the sim now**, so a capture setup exists (sim + the new
+   telemetry + screen recording). Lever 0 = measure it.
+2. **Is the redraw-churn reading (Movies shelves redraw 1–2×/sec, Home `—`) still live?** Unknown — it
+   was taken on the **wave-1 build (Step 0 + the now-REVERTED conditional-insertion Step 1), BEFORE the
+   fork reuse and BEFORE the art-cycle rework**. So it predates *both* structural fixes and was measured
+   on code that no longer exists. Treat it as a **stale, pre-fix reading** — re-measure on current `main`
+   before treating lever 1 as real. (Also: 1–2×/sec is *continuous*, but `visibleShelfCount` grows are
+   *occasional* — so there is likely a continuous redraw source separate from the grow. Find it.)
+3. **What drives `visibleShelfCount += 4`?** Scroll-position: a `Color.clear.frame(height:1).onAppear`
+   sentinel at the bottom of the `LazyVStack` bumps it (`BrunoCategoryShelves`). `visibleShelfCount` is
+   `@State` on the container, so a grow re-evaluates `BrunoCategoryShelves.body` → `ForEach(prefix)`
+   reconciles existing shelves by stable id and appends new ones. The open question (untested): does that
+   body re-eval re-feed the EXISTING `BrunoShelfRow`s (→ `CollectionHStack.updateUIView` → `reload`)?
+   Likely yes — that's the prime redraw-churn hypothesis. Confirm with `_printChanges()`.
+4. **Did anyone run `Self._printChanges()` on the shelf bodies?** No. Genuinely untried. It's your first
+   cheap static step.
+5. **What concretely makes `BrunoLabelArtCard` heavier than `PosterButton`?** We have only the aggregate
+   fps gap + inference. There is **no per-component breakdown** and **no profile** attributing the
+   143 ms. The leading guess (the art-cycle `@StateObject` + prefetcher alloc) is *suspect* because
+   lightening it (wave-1 Step 1) barely helped. Note `posterStyle(.portrait)` adds **no** shadow/corner
+   on tvOS, so those aren't cell costs. Where the 143 ms actually goes is **unknown** — profile it.
+6. **Any real Instruments trace?** No. Everything to date is the on-screen HUD (`BrunoFrameMonitor`) +
+   frame-difference analysis of screen recordings — *inference*, not attribution. No `.trace` exists. A
+   **Time Profiler / SwiftUI / Animation Hitches** capture on device or sim is the single highest-value
+   thing missing; it would tell you where the 143 ms goes instead of guessing. Do this early.
+7. **Per-thread dead-end list?** This session's reverts: the conditional-insertion art-cycle
+   (`if isFocused { ArtCycleOverlay }`, broke held-scroll, net-reverted). Earlier threads (from
+   `bruno-expert`'s history mining + git + `PROJECT_TRACKER.md`): `ceba7e18` content-inset/full-bleed
+   ambient (reverted, menu-bar drift); hero `.onMoveCommand` removal (reverted). For the **complete**
+   list, ask `bruno-expert` to re-mine `git log -p` + `docs/PROJECT_TRACKER.md` + the memory files —
+   that's the canonical source, not this doc.
+8. **Were the declined levers declined on UX or perf-ineffective grounds?** Mixed, mostly **without
+   measurement**: brand-shadow-on-browse = UX/brand (and moot — no tvOS shadow on the genre cell);
+   `.hoverEffect` removal = deferred on unverified focus-appearance risk ("measure first" — never
+   measured); item-level pop-in = UX; `drawingGroup()` = functional (breaks focus); `dataPrefix` =
+   measured-ineffective (already `== cards.count`). So if a profile proves one of the *unmeasured* ones
+   is the dominant cost, it is **not** permanently off-limits — bring the data to the owner and let them
+   make the UX call. Don't unilaterally reattempt; don't treat them as eternally sacred either.
+9. **Acceptance bar for "smooth"?** Never formally set — that's a gap. Propose one and **confirm with
+   the owner** before declaring done. Reasonable: match Home (~45 fps / `drag ~54 ms`), or a hard
+   ceiling like ≤2 dropped frames (~33 ms) per row-step with no visible hitch on a held up-scroll. Get a
+   verifiable number agreed up front.
+10. **Reuse-correctness contract + sample data?** Contract = INV-10 (cells must not hold per-item
+    `@State` offscreen, must not mutate the focused subtree on focus, per-item art must be key-aware).
+    Known cells are believed safe (`PosterButton` pure; `BrunoFocusArtCycle` now key-aware) but this is
+    **not runtime-verified**. **Critically: the telemetry has never actually been run** — it compiles,
+    but no `BrunoPerfLog` session has been captured and `bruno-pull-perf.command` has never been
+    confirmed end-to-end. **Your literal first action: smoke-test the telemetry** (enable it, capture a
+    short session, run the pull script, confirm the JSONL is well-formed) before relying on it. No sample
+    JSONL exists yet.
+
+**The one-line version:** lots was built, almost nothing was measured. Thread #8's job is to *measure
+first* (smoke-test telemetry → baseline current `main` → profile the 143 ms), using `bruno-expert` and
+`swift-xcode-expert` to ground each step, and only then change code — with a measured delta for every change.
+
+---
+
 ## The problem
 
 Holding the remote **up** to scroll the **Movies** tab (genre surface: `BrunoCategoryShelves` →
@@ -61,10 +157,13 @@ The hosting-controller reuse (`466aeb3f`) + the regression fix are on `main` but
 and re-record **Movies + Home** held/repeated up-scroll. Compare per-step `drag` ms and the `hosts`
 counters (`reuseSwaps` should dominate `mints`). This tells you how much the floor fix bought.
 
-### 1. Redraw churn (CONFIRMED lever — most promising)
+### 1. Redraw churn (most promising — but RE-MEASURE first; the reading is stale)
 The wave-1 HUD showed **Movies genre shelves redraw 1–2×/sec during scroll** (`redraws/s 2×
 genre-shelf:…`) while **Home shows `—`** (no body re-eval). That SwiftUI body churn drives
-`CollectionHStack.updateUIView → reload(using:)` that Home never pays.
+`CollectionHStack.updateUIView → reload(using:)` that Home never pays. **Caveat (see Honest status
+#2): that reading was taken on the wave-1 build — before the fork reuse AND before the art-cycle
+rework — so it predates both structural fixes. Re-measure on current `main` to confirm it's still
+live before investing in this lever.**
 - **Hypothesis:** `visibleShelfCount` grow re-evaluating the whole `BrunoCategoryShelves` body, or a
   per-scroll `@Published`/state publish feeding the shelves.
 - **How to confirm:** with perf logging on, look at `redraw` (teed `nav`) + `counts` + `frame` events
