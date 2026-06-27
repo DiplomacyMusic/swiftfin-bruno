@@ -252,9 +252,9 @@ the same id can't coexist). No live collision today.
   `BrunoGenresView`'s empty-state with no path to any film (the "All Movies" pill lived only in the populated
   branch). **Fixed:** the empty-state now renders an **"All Movies" escape button** when `onShowAll != nil`
   (the tab root), so the Movies tab is never a dead end.
-- **G5 — Sub-genre fetch hard-capped at `limit:100`** (single page, not `BrunoItemPaging.fetchAll`). ~80
-  today (headroom), but sub-genres past the 100th **silently never render** as rows (reachable only via the
-  by-title "All Movies" grid). *Safe:* page to completion like `loadYearShelves`, or raise + justify the cap.
+- **G5 (✅ raised to 120) — sub-genre fetch was hard-capped at `limit:100`** (single page, not
+  `BrunoItemPaging.fetchAll`). ~80 today, so the bump to **120** is headroom; if the curated set ever
+  approaches it, page to completion like `loadYearShelves` (a comment at the site says so).
 - **G6 — No poster prefetcher on this (now primary) surface** — see INV-4 above.
 - **G7 (✅ FIXED) — debounce comment drift:** `commitFocus` sleeps **500 ms** (owner-confirmed intentional),
   but four doc-comments said **"~150 ms"** (3.3× off). **Fixed:** the four comments in `BrunoGenresView` +
@@ -262,11 +262,15 @@ the same id can't coexist). No live collision today.
 - **G8 — Long `Show all · <genre>` labels** rely on `lineLimit(2)` + `minimumScaleFactor(0.7)`; past 70%
   scale they **truncate with an ellipsis** (latent, not a confirmed live clip — depends on the longest genre
   name).
-- **G9 — `BrunoCoreGenre` covers only 5 pill buckets (21 keywords).** 8 of the 16 broad TMDB genres and
-  essentially all curated/personal sub-genres (Courtroom, Noir, Heist, Coming of Age, Biopic…) match **no
-  pill**; once any pill is tapped they vanish, reachable again only via "All" (or the by-title "All Movies"
-  grid). Far more prominent now that Genres is a primary tab. Substring matching also **double-buckets** some
-  (e.g. "Romantic Comedy" under both Romance and Comedy). *Safe:* expand `BrunoCoreGenre.keywords`.
+- **G9 (✅ FIXED) — the pills covered only 5 keyword buckets**, so 8 of the 16 broad genres and ~all
+  colloquial sub-genres (Noir, Heist, Coming of Age, Biopic…) vanished the moment any pill was tapped.
+  **Fixed:** `BrunoCoreGenre` is now **11 owner-curated pill buckets** (Action & Adventure · Sci-Fi &
+  Fantasy · Comedy · Drama · Romance · Crime · Thriller · Horror · History · Family · International) with an
+  **explicit, exact-match `members: Set<String>`** map (hand-assigned in the G9 bucket sheet) instead of
+  substring keywords — so every one of the 80 genres lands under ≥1 pill (nothing invisible), duplication is
+  intentional (e.g. Heist under Action/Comedy/Crime/Thriller), and there are no accidental substring matches.
+  **Maintenance note:** exact-name match — if a genre BoxSet is renamed on the server, add the new name to
+  its bucket(s) in `BrunoCoreGenre.all` (else it falls out of the pills, still reachable via "All").
 - **G10 — Decades-only machinery is dead weight on this VM.** `BrunoGenresView` reuses
   `BrunoBoxSetShelvesViewModel` and inherits `yearShelvesByDecadeID` / `loadYearShelves` / `leadingYear` /
   the Best-of significance shelf — never exercised from the genre Movies tab. Also: the entire `.genres`

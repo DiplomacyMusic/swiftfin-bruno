@@ -15,33 +15,78 @@ import SwiftUI
 // MARK: - BrunoCoreGenre
 
 //
-// A curated "core" genre bucket shown as the first line of the Genres page. Each maps to several
-// fine-grain server genres by keyword, so it works without hardcoding the server's exact genre
-// names. Selecting one opens a page of only that bucket's fine-grain genre shelves.
+// A curated "core" genre bucket shown as the first line of the Genres page (the pill row). Membership is
+// an EXPLICIT, hand-curated map of server genre BoxSet names (owner-authored in the G9 bucket sheet) —
+// matched EXACTLY (case-insensitive), NOT by substring keyword. So placement is precise and a sub-genre
+// appearing under several pills (e.g. "Heist" under Action / Comedy / Crime / Thriller) is intentional
+// duplication, not an accident. A sub-genre not listed in any bucket still shows under the "All" chip.
+// Selecting a pill filters the shelves to that bucket. The G3 guard (`shownCoreGenres`) hides a pill that
+// matches no loaded category, so an empty bucket is never shown.
+// NOTE: exact-name match — if a genre BoxSet is RENAMED on the server, add the new name to its bucket(s)
+// here, or it falls out of the pills (still reachable via "All"). Names are the live BoxSet titles.
 struct BrunoCoreGenre: Identifiable, Hashable {
 
     let id: String
     let title: String
-    let keywords: [String]
+    /// Lowercased server genre/sub-genre BoxSet names assigned to this pill.
+    let members: Set<String>
 
-    /// Does a fine-grain server genre (e.g. "Science Fiction", "Adventure") belong to this bucket?
+    /// Does a server genre BoxSet belong to this bucket? Exact, case-insensitive.
     func matches(_ genreName: String) -> Bool {
-        let lowered = genreName.lowercased()
-        return keywords.contains { lowered.contains($0) }
+        members.contains(genreName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
 
     static let all: [BrunoCoreGenre] = [
-        .init(id: "action", title: "Action", keywords: ["action", "adventure", "martial", "war", "western", "spy", "superhero"]),
-        .init(
-            id: "scifi-fantasy",
-            title: "Sci-Fi & Fantasy",
-            keywords: ["sci-fi", "scifi", "science fiction", "fantasy", "supernatural"]
-        ),
-        // "romcom"/"rom-com" so the curated "RomCom All-Timers" shelf lands in this bucket
-        // (its name contains neither "romance" nor "romantic").
-        .init(id: "romance", title: "Romance", keywords: ["romance", "romantic", "romcom", "rom-com"]),
-        .init(id: "comedy", title: "Comedy", keywords: ["comedy", "comedies", "sitcom", "stand-up"]),
-        .init(id: "drama", title: "Drama", keywords: ["drama"]),
+        .init(id: "action-adventure", title: "Action & Adventure", members: [
+            "action", "action hero", "adventure", "ancient war", "buddy cop", "disaster",
+            "heist", "modern war", "on the run", "revenge", "sailing & high seas",
+            "space opera", "spy", "superhero", "survival", "vigilante",
+        ]),
+        .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
+            "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
+            "monster movies", "science fiction", "space opera", "superhero", "time travel",
+        ]),
+        .init(id: "comedy", title: "Comedy", members: [
+            "buddy cop", "college", "comedy", "coming of age", "cubicle",
+            "dude approved romance", "ensemble", "fish out of water", "heist", "lgbtq",
+            "obsession", "road trip", "romantic comedy", "romcom all-timers", "satire",
+            "snl stars", "sports movies", "teen romance", "twee",
+        ]),
+        .init(id: "drama", title: "Drama", members: [
+            "biopics", "courtroom", "drama", "drug movies", "dystopia", "ensemble",
+            "foreign film", "french cinema", "grief & loss", "journalism", "mind blowers",
+            "music", "obsession", "oscar bait", "romantic drama", "sports movies", "survival",
+            "twee",
+        ]),
+        .init(id: "romance", title: "Romance", members: [
+            "classic romance", "dude approved romance", "erotic thriller", "lgbtq", "romance",
+            "romantic comedy", "romantic drama", "romcom all-timers", "teen romance", "twee",
+        ]),
+        .init(id: "crime", title: "Crime", members: [
+            "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
+            "on the run", "prison", "vigilante", "whodunits",
+        ]),
+        .init(id: "thriller", title: "Thriller", members: [
+            "con artists", "courtroom", "cubicle", "dystopia", "ensemble", "erotic thriller",
+            "gangster", "heist", "isolation", "journalism", "mind blowers", "monster movies",
+            "mystery", "noir", "obsession", "on the run", "paranoia", "political thriller",
+            "prison", "revenge", "spy", "thriller", "twist", "whodunits",
+        ]),
+        .init(id: "horror", title: "Horror", members: [
+            "horror", "horror sub-genres", "isolation", "monster movies",
+        ]),
+        .init(id: "history", title: "History", members: [
+            "ancient war", "biopics", "historical war", "history", "modern war",
+            "period pieces", "political thriller", "sailing & high seas", "vietnam war", "war",
+            "world war i & ii",
+        ]),
+        .init(id: "family", title: "Family", members: [
+            "animation", "fairy tales", "family",
+        ]),
+        .init(id: "international", title: "International", members: [
+            "foreign film", "french cinema", "italian cinema", "japanese cinema",
+            "korean cinema",
+        ]),
     ]
 }
 

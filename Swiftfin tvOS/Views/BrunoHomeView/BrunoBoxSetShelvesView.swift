@@ -345,7 +345,9 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             client: client,
             userID: userID,
             parentID: parentID,
-            limit: 100
+            // Headroom over the ~80 sub-genre BoxSets under "Genres" (was 100). Still a single page —
+            // if the curated set ever approaches this, page to completion like loadYearShelves (G5).
+            limit: 120
         )
 
         // Fetch each sub-group's children concurrently; preserve server order via the index.

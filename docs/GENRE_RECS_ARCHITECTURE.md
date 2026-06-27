@@ -24,9 +24,11 @@ only modern oddball was *True Romance*). The curated layer — which is the actu
     raw per-item Genres field**). It does **not** touch any BoxSet.
 - **Genre name universe** = `snapshot.genres`, from `GET /Genres` (TMDB names) — `BrunoLibrarySnapshot.fetchGenres`
   (L135-146).
-- **Genre PILLS** (`Swiftfin tvOS/Views/BrunoHomeView/BrunoGenresView.swift`) are 5 hardcoded cores
-  (`BrunoCoreGenre.all`, L34-44) that keyword-substring-match the names of `snapshot.genreBoxSets` (the 80
-  children of the "Genres" group BoxSet `c37ce5607799e0c37e307c6203b32cf2`).
+- **Genre PILLS** (`Swiftfin tvOS/Views/BrunoHomeView/BrunoGenresView.swift`) are **11 owner-curated
+  buckets** (`BrunoCoreGenre.all`) with an **explicit exact-match `members` map** of the
+  `snapshot.genreBoxSets` names (the 80 children of the "Genres" group BoxSet
+  `c37ce5607799e0c37e307c6203b32cf2`). (Was 5 keyword-substring cores until the G9 fix — see
+  `BRUNO_MOVIES_GENRE_SURFACE.md` §8 G9.)
 - **The curated BoxSets already exist** (`snapshot.genreBoxSets`), but they are **flattened**: the ~16 broad ones
   (Crime, Drama, Comedy, Action, Fantasy, Mystery, Romance, Science Fiction, Thriller, Adventure, Family,
   Animation, History, War, Music, Horror) are built from **raw TMDB genres** by `Build-Jellyfin-Collections.command`;
