@@ -119,9 +119,10 @@ extension Defaults.Keys {
             UserKey("itemViewType", default: .compactLogo)
         }
 
-        static var showPosterLabels: Key<Bool> {
-            UserKey("showPosterLabels", default: true)
-        }
+        // `static let` (built once), not `static var` (rebuilds the Key — and re-hashes/re-registers
+        // in UserDefaults — on EVERY access). `showTitle` reads this per poster per render; the
+        // recomputed-Key churn was the #1 main-thread cost on every scroll surface (Time Profiler).
+        static let showPosterLabels: Key<Bool> = UserKey("showPosterLabels", default: true)
 
         static var nextUpPosterType: Key<PosterDisplayType> {
             UserKey("nextUpPosterType", default: .portrait)
@@ -168,21 +169,15 @@ extension Defaults.Keys {
 
         enum Indicators {
 
-            static var showFavorited: Key<Bool> {
-                UserKey("showFavoritedIndicator", default: true)
-            }
+            // `static let` (built once) — see showPosterLabels above. PosterButton.DefaultOverlay
+            // reads all four per poster per render; recomputed-Key churn dominated busy main-thread time.
+            static let showFavorited: Key<Bool> = UserKey("showFavoritedIndicator", default: true)
 
-            static var showProgress: Key<Bool> {
-                UserKey("showProgressIndicator", default: true)
-            }
+            static let showProgress: Key<Bool> = UserKey("showProgressIndicator", default: true)
 
-            static var showUnplayed: Key<UnplayedIndicatorType> {
-                UserKey("showUnplayedIndicator", default: .indicator)
-            }
+            static let showUnplayed: Key<UnplayedIndicatorType> = UserKey("showUnplayedIndicator", default: .indicator)
 
-            static var showPlayed: Key<Bool> {
-                UserKey("showPlayedIndicator", default: true)
-            }
+            static let showPlayed: Key<Bool> = UserKey("showPlayedIndicator", default: true)
         }
 
         enum Library {
