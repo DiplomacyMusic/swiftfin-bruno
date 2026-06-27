@@ -47,8 +47,8 @@ struct BrunoMoviesView: View {
                 )
             } else {
                 // No Genres group (or an empty/failed snapshot): fall back to the A–Z movie grid so
-                // the tab is never blank.
-                BrunoMediaView(itemType: .movie, heroEyebrow: "Featured Film")
+                // the tab is never blank. Still the Movies TAB ROOT → inject the scrolling menu bar.
+                BrunoMediaView(itemType: .movie, heroEyebrow: "Featured Film", isTabRoot: true)
             }
         }
         .onFirstAppear {

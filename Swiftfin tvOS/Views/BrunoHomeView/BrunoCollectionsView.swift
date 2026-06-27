@@ -38,7 +38,9 @@ struct BrunoCollectionsView: View {
                     categories: viewModel.categories,
                     eyebrow: "Browse the Library",
                     featured: brunoFeaturedItem(in: viewModel.categories),
-                    heroEyebrow: "Featured"
+                    heroEyebrow: "Featured",
+                    // Collections TAB ROOT → inject the scrolling menu bar as the first row.
+                    isTabRoot: true
                 )
             }
         }

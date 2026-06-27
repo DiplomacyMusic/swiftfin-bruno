@@ -24,6 +24,12 @@ struct BrunoMediaView: View {
     let itemType: BaseItemKind
     let heroEyebrow: String
 
+    /// True when this view is a Bruno TAB ROOT (TV Shows tab, or the Movies tab's A–Z fallback): inject
+    /// the scrolling menu bar as the first row. False (default) for the pushed A–Z grid COVERS
+    /// (`brunoMoviesGrid` / `brunoTVGrid`), which keep their own pinned `.brunoHeroMenuBar()` — injecting
+    /// here too would double-bar them. Mirrors the `isTabRoot` precedent in BrunoGenresView.
+    let isTabRoot: Bool
+
     @StateObject
     private var viewModel: BrunoMediaViewModel
 
@@ -33,9 +39,10 @@ struct BrunoMediaView: View {
     @Router
     private var router
 
-    init(itemType: BaseItemKind, heroEyebrow: String) {
+    init(itemType: BaseItemKind, heroEyebrow: String, isTabRoot: Bool = false) {
         self.itemType = itemType
         self.heroEyebrow = heroEyebrow
+        self.isTabRoot = isTabRoot
         _viewModel = StateObject(wrappedValue: BrunoMediaViewModel(itemType: itemType))
     }
 
@@ -67,6 +74,15 @@ struct BrunoMediaView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 36) {
+                // Tab-root only: the menu bar is the first scrolling row (covers keep their own pinned
+                // .brunoHeroMenuBar()). Scrolls off with the content and reappears at the top.
+                if isTabRoot {
+                    BrunoScrollingMenuBar()
+                        .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
+                        .zIndex(1) // paint above the hero's upward backdrop spill
+                        .focusSection()
+                }
+
                 if viewModel.heroItems.isNotEmpty {
                     BrunoHeroView(
                         items: viewModel.heroItems,

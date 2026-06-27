@@ -190,7 +190,10 @@ struct BrunoGenresView: View {
                     pillScrollKey: focusedChip == nil ? nil : "pills",
                     // Terminal-footer "Show all Movies" pill (Movies tab only) → the A-Z grid, same target
                     // as the top "All Movies" pill. nil on the pushed cover ⇒ no footer there.
-                    showAllMoviesAction: onShowAll
+                    showAllMoviesAction: onShowAll,
+                    // Movies TAB ROOT (isTabRoot) → inject the scrolling menu bar as the first row; the
+                    // pushed Genres cover keeps its own pinned .brunoHeroMenuBar() below instead.
+                    isTabRoot: isTabRoot
                 )
                 // As a pushed cover this occludes MainTabView's tab bar — re-pin the Bruno top menu bar
                 // here. Attached at the COVER call site (not inside BrunoCategoryShelves). As the Movies

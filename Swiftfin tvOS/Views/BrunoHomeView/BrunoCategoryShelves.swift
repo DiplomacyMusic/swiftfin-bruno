@@ -211,6 +211,11 @@ struct BrunoCategoryShelves: View {
     /// "Back to Top") on its own bottom row, rendered ONLY after every shelf is mounted (so there's zero
     /// UI until the user reaches the true end). nil ⇒ NO footer at all (Collections — deferred for now).
     var showAllMoviesAction: (() -> Void)?
+    /// True when this surface is a Bruno TAB ROOT (Collections tab, Movies/Genres tab root): inject the
+    /// scrolling menu bar as the first row. False (default) for the pushed COVERS (Decades / Curated /
+    /// Genres-cover via BrunoBoxSetShelvesView / BrunoGenresView), which keep their own pinned
+    /// `.brunoHeroMenuBar()` — injecting here too would double-bar them. Mirrors BrunoGenresView.isTabRoot.
+    var isTabRoot: Bool = false
 
     @Router
     private var router
@@ -265,6 +270,15 @@ struct BrunoCategoryShelves: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
+                    // Tab-root only: the menu bar is the first scrolling row (covers keep their own pinned
+                    // .brunoHeroMenuBar()). Scrolls off with the content and reappears at the top.
+                    if isTabRoot {
+                        BrunoScrollingMenuBar()
+                            .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
+                            .zIndex(1) // paint above the hero's upward backdrop spill
+                            .focusSection()
+                    }
+
                     // Full-bleed cinematic hero (Home pattern): a row in the same scroll plane as the
                     // shelves, so vertical focus traverses hero <-> content with no special handling.
                     if let featured {

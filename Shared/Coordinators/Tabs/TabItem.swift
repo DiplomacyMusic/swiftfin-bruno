@@ -92,7 +92,7 @@ extension TabItem {
             title: L10n.tvShowsCapitalized,
             systemImage: "tv"
         ) {
-            BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series")
+            BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series", isTabRoot: true)
         }
     }
 

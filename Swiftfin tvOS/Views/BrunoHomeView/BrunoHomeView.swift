@@ -120,6 +120,13 @@ struct BrunoHomeView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
+                    // The menu bar is now the FIRST scrolling row (was a pinned ZStack peer in
+                    // MainTabView): it scrolls up and off with the content and reappears at the top.
+                    BrunoScrollingMenuBar()
+                        .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
+                        .zIndex(1) // paint above the hero's upward backdrop spill (next row)
+                        .focusSection()
+
                     BrunoHeroView(
                         items: viewModel.heroItems,
                         index: $spotlightIndex,
