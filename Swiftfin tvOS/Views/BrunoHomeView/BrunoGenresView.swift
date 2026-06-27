@@ -56,6 +56,14 @@ struct BrunoGenresView: View {
     let parent: BaseItemDto
     let core: BrunoCoreGenre?
 
+    /// True when this view is the Movies tab ROOT (not a pushed cover): suppress the self-applied
+    /// menu bar (MainTabView already supplies one to tab roots; re-pinning would double-bar — the
+    /// e44e1e71 regression). Default false keeps the existing `.brunoGenres` cover bar.
+    let isTabRoot: Bool
+    /// When non-nil, the core panel appends a trailing "All Movies" pill running this action (pushes
+    /// the lazy A–Z grid). Pure navigation — it never commits a genre filter.
+    let onShowAll: (() -> Void)?
+
     @StateObject
     private var viewModel = BrunoBoxSetShelvesViewModel()
 
@@ -98,9 +106,11 @@ struct BrunoGenresView: View {
     @State
     private var didEnterChipRow = false
 
-    init(parent: BaseItemDto, core: BrunoCoreGenre?) {
+    init(parent: BaseItemDto, core: BrunoCoreGenre?, isTabRoot: Bool = false, onShowAll: (() -> Void)? = nil) {
         self.parent = parent
         self.core = core
+        self.isTabRoot = isTabRoot
+        self.onShowAll = onShowAll
         _selectedCore = State(initialValue: core)
         _focusedCore = State(initialValue: core)
     }
@@ -123,6 +133,8 @@ struct BrunoGenresView: View {
                     eyebrow: "If You Like",
                     header: AnyView(corePanel),
                     showCategoryRow: false,
+                    // Name each shelf's "Show all" card with its genre ("Show all · Time Travel").
+                    namesShowAllCards: true,
                     // INV-7 / decoupled hero: the FIXED item from the full set, never re-derived per
                     // pill, so a filter change can't reload the hero backdrop (heroEyebrow may still vary).
                     featured: featuredItem,
@@ -132,10 +144,11 @@ struct BrunoGenresView: View {
                     // to avoid re-evaluating the shelf view per scrub.
                     pillScrollKey: focusedChip == nil ? nil : "pills"
                 )
-                // This surface is a pushed cover that occludes MainTabView's tab bar — re-pin the Bruno
-                // top menu bar here. Attached at the COVER call site (not inside BrunoCategoryShelves,
-                // which is also the Collections tab root where MainTabView already supplies the bar).
-                .brunoHeroMenuBar()
+                // As a pushed cover this occludes MainTabView's tab bar — re-pin the Bruno top menu bar
+                // here. Attached at the COVER call site (not inside BrunoCategoryShelves). As the Movies
+                // TAB ROOT (isTabRoot) MainTabView already supplies the bar, so suppress it to avoid a
+                // double bar — same precedent as the Collections tab root.
+                .if(!isTabRoot) { $0.brunoHeroMenuBar() }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -191,6 +204,20 @@ struct BrunoGenresView: View {
                             commitFocus(coreGenre)
                         }
                         .focused($focusedChip, equals: coreGenre.id)
+                    }
+
+                    // Trailing escape hatch to the full A–Z grid (Movies tab only). PURE navigation:
+                    // selectsOnFocus:false so scrubbing across it doesn't push; it never commits a genre
+                    // (no commitFocus, isSelected always false), so the genre filter is untouched.
+                    if let onShowAll {
+                        BrunoSelectorCard(
+                            title: "All Movies",
+                            isSelected: false,
+                            selectsOnFocus: false
+                        ) {
+                            onShowAll()
+                        }
+                        .focused($focusedChip, equals: "show-all")
                     }
                 }
                 .padding(.horizontal, 50)

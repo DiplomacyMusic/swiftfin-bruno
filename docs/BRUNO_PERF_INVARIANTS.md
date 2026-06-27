@@ -65,6 +65,11 @@ DEBUG). Revealing in completion order, or filtering on a transient set, breaks r
 **Break symptom:** home order flickers or differs run-to-run; the DEBUG self-check assert fires.
 **Safe change:** if you touch the streaming code, keep the reveal append-only in plan order (see
 `streamReveal`). Don't sort by completion time.
+**Carve-out (Genres/Movies surface only):** the genre browse shelves (`BrunoBoxSetShelvesViewModel.performLoad`,
+the Movies tab) intentionally reshuffle their *row order* per launch / every 6h (`rowOrderSeed`) so the
+tab feels fresh — this sub-surface is deliberately NOT deterministic across launches. The seed is read
+once per load, so order is stable within a session (no mid-session reorder; INV-7 safe). This carve-out
+does NOT apply to the Home spine, which stays fully deterministic under the rule above.
 
 ### INV-4 — Prefetch width == cell width
 **What:** The poster prefetcher requests the *same* image width as the poster cell: `portrait 200 /

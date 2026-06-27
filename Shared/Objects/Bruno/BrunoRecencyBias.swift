@@ -7,32 +7,17 @@
 //
 
 import Foundation
-import JellyfinAPI
 
 // MARK: - BrunoRecencyBias
 
 //
-// The single source of truth for Bruno's "modern bias" (owner request). The genre browse shelves
-// were drowning in pre-80s classics (every "If You Like {genre}" row was 1940s–60s), so the genre
-// ROWS are restricted to modern titles; the classics aren't deleted — they sink to the bottom of
-// each genre's full "Show all" grid (newest-first sort) and live in the Classic carve-outs / Eras.
+// The single source of truth for Bruno's "modern cutoff" (owner request). Used by the Home path's
+// standard-genre `genreQuery` (server-side year filter) and the Classic Romance carve-out to split
+// modern titles from classics. The genre BROWSE shelves no longer apply this cutoff — they render
+// each sub-genre's full membership (see BrunoBoxSetShelvesView.performLoad).
 enum BrunoRecencyBias {
 
-    /// First "modern" production year. A title released in this year or later is eligible for the
-    /// "If You Like {genre}" rows; earlier films are the bottom of the barrel (full grid only).
-    /// 1985 matches the existing Classic Romance cutoff, so the whole app uses one line.
+    /// First "modern" production year. Used by `BrunoHomePlan.genreQuery` (year filter) and the
+    /// Classic Romance split. 1985 matches the existing Classic Romance cutoff, so the app uses one line.
     static let modernCutoff = 1985
-
-    /// Modern enough for a genre row? A title with no known production year is treated as NOT modern
-    /// (excluded from rows) — the server-side year filter on the Home path excludes year-less items
-    /// the same way, so both surfaces agree.
-    static func isModern(_ item: BaseItemDto) -> Bool {
-        guard let year = item.productionYear else { return false }
-        return year >= modernCutoff
-    }
-
-    /// Modern titles only, original order preserved — for the genre ROWS (a hard cut).
-    static func modernOnly(_ items: [BaseItemDto]) -> [BaseItemDto] {
-        items.filter(isModern)
-    }
 }

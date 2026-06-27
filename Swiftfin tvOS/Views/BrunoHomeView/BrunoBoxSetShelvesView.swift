@@ -289,6 +289,14 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         UInt32(truncatingIfNeeded: Int(Date().timeIntervalSince1970 / 86400))
     }
 
+    /// Per-process nonce — created once per launch, so each cold start reshuffles the genre row order.
+    private static let launchNonce: UInt32 = .random(in: .min ... .max)
+    /// 6-hour wall-clock bucket (21600s) — also reshuffles every 6h without a relaunch. Read ONCE per
+    /// load (in `performLoad`), never per body pass, so the published order is stable within a session.
+    private static var rowOrderSeed: UInt32 {
+        launchNonce &+ UInt32(truncatingIfNeeded: Int(Date().timeIntervalSince1970 / 21600))
+    }
+
     func load(parent: BaseItemDto) async {
         // Re-entrancy guard: if a load is already running/done on this instance, await it instead of
         // launching a second fan-out. The `await` on the cache read is the suspension a quick
@@ -322,11 +330,11 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             return
         }
 
-        // Genre rows are biased to modern films (owner request): pre-1985 titles are dropped from the
-        // "If You Like {genre}" shelves and the same film can't fill two overlapping genre rows. They
-        // still appear in each genre's full "Show all" grid (sunk to the bottom). Decades / Curated /
-        // any other group are NOT biased — they exist precisely to surface older eras. We fetch a
-        // deeper page when biased so enough modern titles survive the filter to fill a preview row.
+        // Genre rows show each sub-genre's FULL membership (owner request): no modern-year filter and
+        // no cross-row dedup, so a film appears in every genre it belongs to and niche rows fill out.
+        // `recencyBiased` still flags the Genres surface — it drives the per-launch row-order reshuffle
+        // (below) and the newest-first "Show all" sort. Decades / Curated / any other group keep server
+        // order. We fetch a deeper page for genres as headroom for the per-shelf cap.
         let recencyBiased = parent.displayTitle.lowercased() == "genres"
         let childFetch = recencyBiased ? 60 : perShelfFetch
 
@@ -355,10 +363,9 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             }
 
             for await (index, subGroup, children) in group {
-                let modern = recencyBiased ? BrunoRecencyBias.modernOnly(children) : children
                 // Seeded shuffle so shelves read varied rather than alphabetical (owner request).
                 // Day-stable seed + per-shelf offset → stable within a day, fresh the next.
-                let shown = BrunoRNG.shuffled(modern, seed: Self.shuffleSeed &+ UInt32(truncatingIfNeeded: index))
+                let shown = BrunoRNG.shuffled(children, seed: Self.shuffleSeed &+ UInt32(truncatingIfNeeded: index))
                 guard shown.isNotEmpty else { continue }
                 indexed.append((
                     index,
@@ -379,7 +386,10 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             ? baseOrdered.sorted { Self.leadingYear($0.name) > Self.leadingYear($1.name) }
             : baseOrdered
 
-        let result = recencyBiased ? Self.dedupeAcrossCategories(ordered) : ordered
+        // Genres surface: reshuffle the ROW order per launch / 6h so the Movies tab feels fresh (the
+        // seed is read once here, so the published order is stable for the whole session — INV-7 safe).
+        // Decades / Curated keep their deterministic order.
+        let result = recencyBiased ? BrunoRNG.shuffled(ordered, seed: Self.rowOrderSeed) : ordered
         categories = result
         isLoading = false
 
@@ -591,30 +601,6 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     private static func brunoSignificance(_ item: BaseItemDto) -> Int? {
         guard let tag = item.tags?.first(where: { $0.hasPrefix("bruno-sig:") }) else { return nil }
         return Int(tag.dropFirst("bruno-sig:".count))
-    }
-
-    /// Drop a film from every genre shelf after the first that lists it (server order wins), so the
-    /// same title can't fill both "Romantic Comedy" and "Romantic Drama" when the server's genre tags
-    /// overlap. A category emptied by the pass is dropped. Duplicates still resurface in each genre's
-    /// full "Show all" grid — they're only deduped across the preview rows.
-    private static func dedupeAcrossCategories(_ categories: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
-        var seen: Set<String> = []
-        var out: [BrunoCollectionCategory] = []
-        for category in categories {
-            let fresh = category.children.filter { item in
-                guard let id = item.id else { return true }
-                return seen.insert(id).inserted
-            }
-            guard fresh.isNotEmpty else { continue }
-            out.append(BrunoCollectionCategory(
-                boxSet: category.boxSet,
-                children: fresh,
-                drillStyle: category.drillStyle,
-                lens: category.lens,
-                recencyBiased: category.recencyBiased
-            ))
-        }
-        return out
     }
 
     private nonisolated static func fetchChildren(

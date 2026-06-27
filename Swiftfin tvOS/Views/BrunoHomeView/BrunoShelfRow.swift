@@ -23,6 +23,9 @@ struct BrunoShelfRow: View {
     let items: [BaseItemDto]
     let onItem: (BaseItemDto) -> Void
     let onShowAll: () -> Void
+    /// Genre surface only: name the category on the trailing card ("Show all · Time Travel") so it
+    /// reads as a per-genre drill-in. nil ⇒ the generic "Show all" (every other surface).
+    var showAllTitle: String?
     /// Studios / Directors: focus-driven card that cycles the collection's film posters
     /// (BrunoArtCarouselCard). Same card geometry as the PosterButton, so INV-1's row height holds.
     var artCarousel: Bool = false
@@ -121,8 +124,12 @@ struct BrunoShelfRow: View {
                     VStack(spacing: 10) {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 44, weight: .semibold))
-                        Text("Show all")
+                        Text(showAllTitle.map { "Show all · \($0)" } ?? "Show all")
                             .font(.brunoBody(22, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .padding(.horizontal, 8)
                     }
                     .foregroundStyle(Color.bruno.accent)
                 }
