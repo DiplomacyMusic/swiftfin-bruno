@@ -73,15 +73,16 @@ extension TabItem {
     }
 
     #if os(tvOS)
-    // Bruno: Movies / TV Shows get a branded surface — a cinematic spotlight hero for the category
-    // atop the full A–Z poster grid (BrunoMediaView), replacing the bare stock library grid.
+    // Bruno: the Movies tab IS the genre-browse surface (cinematic hero + core-genre pills + a shelf
+    // per sub-genre, via BrunoMoviesView -> BrunoGenresView). The full A–Z poster grid still lives
+    // behind a trailing "All Movies" pill. TV Shows keeps the branded BrunoMediaView spotlight grid.
     static var movies: TabItem {
         TabItem(
             id: "movies",
             title: L10n.movies,
             systemImage: "film"
         ) {
-            BrunoMediaView(itemType: .movie, heroEyebrow: "Featured Film")
+            BrunoMoviesView()
         }
     }
 

@@ -133,6 +133,10 @@ extension BrunoCollectionCategory {
         snapshot.favoriteGroupBoxSets
             .compactMap { boxSet -> BrunoCollectionCategory? in
                 guard let name = boxSet.name else { return nil }
+                // Genres is now the Movies tab (the genre-browse surface), so drop its card from both
+                // the Collections hub and the Home feed footer (this is the shared builder for both).
+                // The Movies tab resolves the Genres BoxSet straight from the snapshot, so it's unaffected.
+                guard name.lowercased() != "genres" else { return nil }
                 let children = snapshot.childrenByGroupName[name] ?? []
                 guard children.isNotEmpty else { return nil }
                 return BrunoCollectionCategory(
@@ -187,6 +191,9 @@ struct BrunoCategoryShelves: View {
     var header: AnyView?
     /// The scroll-jump chip row. Hidden when a header replaces it (e.g. the Genres main page).
     var showCategoryRow: Bool = true
+    /// Genre surface only: name each shelf's category on its trailing "Show all" card ("Show all ·
+    /// Time Travel"). Default false ⇒ the generic "Show all" on every other surface (Collections).
+    var namesShowAllCards: Bool = false
     /// A single featured item for the cinematic hero banner atop the surface (nil → no hero row).
     var featured: BaseItemDto?
     /// Eyebrow shown on the hero banner ("Featured", "Featured Film", …).
@@ -324,6 +331,7 @@ struct BrunoCategoryShelves: View {
                 items: shelfItems(for: category),
                 onItem: { router.route(to: .item(item: $0)) },
                 onShowAll: { brunoRouteToShowAll(category, router: router, namespace: namespace) },
+                showAllTitle: namesShowAllCards ? category.name : nil,
                 artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
                 // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
                 showsDate: showsDate || category.showsDate,
