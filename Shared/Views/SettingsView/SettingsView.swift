@@ -34,6 +34,8 @@ struct SettingsView: View {
     private var brunoDebugNav
     @Default(.brunoDebugLog)
     private var brunoDebugLog
+    @Default(.brunoPerfLog)
+    private var brunoPerfLog
     #endif
 
     @Router
@@ -75,6 +77,7 @@ struct SettingsView: View {
             Toggle("Frame rate", isOn: $brunoDebugFPS)
             Toggle("Nav / layout / redraws", isOn: $brunoDebugNav)
             Toggle("Event log", isOn: $brunoDebugLog)
+            Toggle("Perf logging → disk", isOn: $brunoPerfLog)
         } header: {
             Text("Debug Overlays")
         } footer: {

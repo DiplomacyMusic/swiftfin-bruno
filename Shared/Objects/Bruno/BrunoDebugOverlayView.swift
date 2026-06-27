@@ -36,6 +36,8 @@ struct BrunoDebugOverlayModifier: ViewModifier {
     private var showNav
     @Default(.brunoDebugLog)
     private var showLog
+    @Default(.brunoPerfLog)
+    private var perfLog
 
     func body(content: Content) -> some View {
         content
@@ -57,16 +59,25 @@ struct BrunoDebugOverlayModifier: ViewModifier {
             .onChange(of: showFPS) { _ in sync() }
             .onChange(of: showNav) { _ in sync() }
             .onChange(of: showLog) { _ in sync() }
+            .onChange(of: perfLog) { _ in sync() }
     }
 
     /// Mirror the toggles into the cheap hot-path flags and run the display link only when needed.
     private func sync() {
         BrunoDebugFlags.redrawEnabled = showNav
         BrunoDebugFlags.interactionEnabled = showNav || showLog
-        if showFPS || showNav || showLog {
+        BrunoDebugFlags.perfLogging = perfLog
+        // The on-disk logger and the on-screen HUD both need the frame monitor's clock/frame index;
+        // run the display link if either wants it.
+        if showFPS || showNav || showLog || perfLog {
             BrunoFrameMonitor.shared.start()
         } else {
             BrunoFrameMonitor.shared.stop()
+        }
+        if perfLog {
+            BrunoPerfLog.start()
+        } else {
+            BrunoPerfLog.stop()
         }
         #if os(tvOS)
         BrunoDebugOverlayWindow.shared.update(showFPS: showFPS, showNav: showNav, showLog: showLog)
@@ -201,6 +212,15 @@ private struct FPSPanel: View {
             Text(String(format: "f%d · t %.3fs", monitor.displayFrameIndex, monitor.clock))
                 .font(BrunoDebugStyle.font)
                 .foregroundStyle(.secondary)
+
+            // Recording indicator: shows the JSONL session is live + the file name so the user knows
+            // a pull will find data. Only when perf logging is on.
+            if BrunoDebugFlags.perfLogging, let name = BrunoPerfLog.sessionFileURL?.lastPathComponent {
+                Text("PERF ● \(name)")
+                    .font(BrunoDebugStyle.font)
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
+            }
 
             Sparkline(samples: monitor.samples, budgetMs: 1000.0 / 60.0)
                 .frame(width: BrunoDebugStyle.panelWidth, height: BrunoDebugStyle.sparkHeight)

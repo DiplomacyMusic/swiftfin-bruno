@@ -459,6 +459,10 @@ extension Defaults.Keys {
     static let brunoDebugFPS: Key<Bool> = DebugKey("brunoDebugFPS", default: false)
     static let brunoDebugNav: Key<Bool> = DebugKey("brunoDebugNav", default: false)
     static let brunoDebugLog: Key<Bool> = DebugKey("brunoDebugLog", default: false)
+
+    // On-disk perf telemetry (see Shared/Objects/Bruno/BrunoPerfLog.swift). Writes a JSONL session
+    // file sharing the HUD's clock/frame index for frame-by-frame correlation against a recording.
+    static let brunoPerfLog: Key<Bool> = DebugKey("brunoPerfLog", default: false)
 }
 #else
 extension Defaults.Keys {

@@ -38,6 +38,9 @@ import UIKit
 enum BrunoDebugFlags {
     static var redrawEnabled = false
     static var interactionEnabled = false
+    /// On-disk perf telemetry (BrunoPerfLog) is recording. The hot paths (HUD-event tee, frame-monitor
+    /// memory sampling) check this before doing any logging work. Driven by `.brunoPerfLog`.
+    static var perfLogging = false
 }
 
 // MARK: - BrunoDebugLog
@@ -90,6 +93,17 @@ final class BrunoDebugLog: ObservableObject {
             case .info: "info"
             }
         }
+
+        /// Same lane name as a Swift `String` — used as the `kind` when teeing to the JSONL perf log
+        /// (`signpostName` is a StaticString and isn't payload-friendly).
+        var signpostNameString: String {
+            switch self {
+            case .nav: "nav"
+            case .layout: "layout"
+            case .frame: "frame"
+            case .info: "info"
+            }
+        }
     }
 
     struct Entry: Identifiable {
@@ -130,6 +144,11 @@ final class BrunoDebugLog: ObservableObject {
         }
         // Same `#id text` as the on-screen LOG, so the HUD trace and an Instruments recording match.
         Self.signposter.emitEvent(kind.signpostName, "#\(self.counter, privacy: .public) \(text, privacy: .public)")
+        // Tee to the on-disk perf log so focus/nav/layout/frame-drag events land in the JSONL too.
+        // The kind glyph-name is used as the event kind; structured enrichment of `text` is a later task.
+        if BrunoPerfLog.isEnabled {
+            BrunoPerfLog.event(kind.signpostNameString, ["text": text, "id": counter])
+        }
         // A logged interaction becomes the back-reference target for nearby hitches.
         if kind == .nav || kind == .layout {
             lastInteractionT = t
@@ -203,6 +222,9 @@ final class BrunoFrameMonitor: NSObject, ObservableObject {
 
     private var redrawCounts: [String: Int] = [:]
     private var redrawWindowStart: CFTimeInterval = 0
+
+    /// Last wall-clock at which a memory sample was written to the perf log (~1 Hz throttle).
+    private var lastMemSample: CFTimeInterval = 0
 
     override private init() {
         super.init()
@@ -292,6 +314,24 @@ final class BrunoFrameMonitor: NSObject, ObservableObject {
             window.removeAll(keepingCapacity: true)
             windowWorst = 0
             lastTimingFlush = ts
+
+            // Tee the throttled timing summary to the on-disk log (~4 Hz) so a session has an fps/hitch
+            // trace alongside the event stream without parsing per-frame data.
+            if BrunoPerfLog.isEnabled {
+                BrunoPerfLog.event("fps", [
+                    "fps": fps,
+                    "frameMs": frameMs,
+                    "worstMs": worstMs,
+                    "hitchCount": hitchCount,
+                ])
+            }
+        }
+
+        // Memory sample (~1 Hz) — physical footprint, the same figure Xcode's gauge shows. Cheap
+        // task_info read; only while recording.
+        if BrunoPerfLog.isEnabled, ts - lastMemSample >= 1.0 {
+            lastMemSample = ts
+            BrunoPerfLog.event("mem", ["footprintMB": brunoPerfPhysFootprintMB()])
         }
 
         // Redraw-rate flush (~1 Hz) → counts-per-second per tracked view.
