@@ -133,8 +133,12 @@ private extension BrunoPerfLog {
 
         func event(_ kind: String, _ payload: [String: Any]) {
             // Snapshot the timeline anchors on the *calling* thread so the stamp reflects when the
-            // event happened, not when the queue drains it.
-            let t = BrunoFrameMonitor.shared.clock
+            // event happened, not when the queue drains it. `t` is the EXACT per-event time
+            // (`exactNow` = CACurrentMediaTime - startTime), not the ~4 Hz throttled `clock` the HUD
+            // publishes — so two events in one throttle window get distinct `t`s and the JSONL session
+            // correlates against a screen recording to the sub-frame. `f` stays the published frame
+            // index (frame-grain is fine as a coarse anchor).
+            let t = BrunoFrameMonitor.shared.exactNow
             let f = BrunoFrameMonitor.shared.displayFrameIndex
 
             queue.async { [weak self] in
@@ -188,7 +192,7 @@ private extension BrunoPerfLog {
             let info = bundle.infoDictionary ?? [:]
             let screen = UIScreen.main
 
-            append(kind: "session", t: BrunoFrameMonitor.shared.clock, f: BrunoFrameMonitor.shared.displayFrameIndex, payload: [
+            append(kind: "session", t: BrunoFrameMonitor.shared.exactNow, f: BrunoFrameMonitor.shared.displayFrameIndex, payload: [
                 "bundleID": bundle.bundleIdentifier ?? "",
                 "version": (info["CFBundleShortVersionString"] as? String) ?? "",
                 "build": (info["CFBundleVersion"] as? String) ?? "",

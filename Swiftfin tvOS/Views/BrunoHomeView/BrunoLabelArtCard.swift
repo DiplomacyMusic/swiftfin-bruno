@@ -60,6 +60,9 @@ struct BrunoLabelArtCard: View {
         }
         .buttonStyle(.card)
         .accessibilityLabel(item.displayTitle)
+        // Count this realized genre/decade cell into the live cell tally (perf `counts` event). Inert
+        // unless perf logging is sampling. See Shared/Objects/Bruno/BrunoDebugInstrument.swift.
+        .brunoPerfCell()
     }
 
     @ViewBuilder

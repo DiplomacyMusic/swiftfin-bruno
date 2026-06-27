@@ -41,11 +41,23 @@ final class BrunoPosterPrefetcher {
     }
 
     func warm(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) {
-        prefetcher.startPrefetching(with: posterURLs(items, type: type))
+        let urls = posterURLs(items, type: type)
+        #if DEBUG
+        if BrunoPerfLog.isEnabled {
+            BrunoPerfLog.event("load", ["what": "prefetch", "phase": "start", "count": urls.count])
+        }
+        #endif
+        prefetcher.startPrefetching(with: urls)
     }
 
     func stop(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) {
-        prefetcher.stopPrefetching(with: posterURLs(items, type: type))
+        let urls = posterURLs(items, type: type)
+        #if DEBUG
+        if BrunoPerfLog.isEnabled {
+            BrunoPerfLog.event("load", ["what": "prefetch", "phase": "end", "count": urls.count])
+        }
+        #endif
+        prefetcher.stopPrefetching(with: urls)
     }
 
     private func posterURLs(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) -> [URL] {

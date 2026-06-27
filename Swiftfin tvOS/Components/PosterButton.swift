@@ -58,6 +58,9 @@ struct PosterButton<Item: Poster>: View {
         .matchedContextMenu(for: item) {
             EmptyView()
         }
+        // Bruno perf telemetry: count this realized Home/browse cell into the live cell tally (perf
+        // `counts` event). Release-inert no-op. See Shared/Objects/Bruno/BrunoDebugInstrument.swift.
+        .brunoPerfCell()
     }
 }
 

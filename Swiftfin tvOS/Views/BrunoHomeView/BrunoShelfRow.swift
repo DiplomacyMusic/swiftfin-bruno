@@ -112,6 +112,10 @@ struct BrunoShelfRow: View {
         // (see docs/BRUNO_PERF_INVARIANTS.md); clipsToBounds(false) keeps the focus-scaled poster from
         // clipping against this frame.
         .frame(height: BrunoShelfMetrics.shelfRowHeight)
+        // INV-1 conflict watch (perf telemetry): emit a `conflict` event if the MEASURED row height
+        // ever drifts off the pinned value — that drift IS the scroll/draw "math conflict" the pin
+        // kills. Release-inert no-op. See Shared/Objects/Bruno/BrunoDebugInstrument.swift.
+        .brunoPerfHeightWatch(site: "shelf-row", expected: BrunoShelfMetrics.shelfRowHeight)
         // Fires per-row as the shelf scrolls into / out of view (LazyVStack) — warm the visible/upcoming
         // shelves' posters, cancel when scrolled away. All BrunoShelfRow cells are portrait. (Tab-hidden:
         // a kept-alive Movies tab won't fire onDisappear, leaving ≤warmCount posters warm per row — a

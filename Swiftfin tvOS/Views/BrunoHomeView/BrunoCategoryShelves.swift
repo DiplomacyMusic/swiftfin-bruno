@@ -344,6 +344,15 @@ struct BrunoCategoryShelves: View {
             .onChange(of: categories.map(\.id)) { _, _ in
                 visibleShelfCount = 4
             }
+            // Mirror the cap-and-grow window size into the perf-counts holder so the frame monitor can
+            // sample "shelves mounted right now" into the `counts` event. Observe-only — the windowing
+            // logic (INV-8) still owns the value; we read it on appear and on every change. The helper
+            // is a no-op in release (DEBUG-only counts), so it's safe to call unconditionally. See
+            // Shared/Objects/Bruno/BrunoDebugInstrument.swift.
+            .onAppear { brunoPerfSetShelfCount(visibleShelfCount) }
+            .onChange(of: visibleShelfCount) { _, newValue in
+                brunoPerfSetShelfCount(newValue)
+            }
         }
     }
 

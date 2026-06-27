@@ -107,3 +107,6 @@ XcodeConfig/DevelopmentTeam.xcconfig
 
 # Bruno local Jellyfin creds (never commit)
 bruno_jellyfin.env
+
+# Bruno perf-telemetry sessions pulled off the sim (Scripts/bruno-pull-perf.command)
+PerfLogs/

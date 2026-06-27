@@ -8,6 +8,7 @@
 
 #if DEBUG
 
+import os
 import OSLog
 import QuartzCore
 import SwiftUI
@@ -41,6 +42,38 @@ enum BrunoDebugFlags {
     /// On-disk perf telemetry (BrunoPerfLog) is recording. The hot paths (HUD-event tee, frame-monitor
     /// memory sampling) check this before doing any logging work. Driven by `.brunoPerfLog`.
     static var perfLogging = false
+}
+
+// MARK: - BrunoPerfCounts
+
+/// Live "how much is realized right now" counters the frame monitor samples (~1 Hz) into the `counts`
+/// perf event. Two signals:
+///   • `shelves` — how many shelf rows the cap-and-grow window has mounted (INV-8). Mirrored from
+///     `BrunoCategoryShelves.visibleShelfCount`; the windowing logic still owns the value, we only read it.
+///   • `cells` — how many cell-CONTENT views (`.brunoPerfCell()`) are alive (appeared, not yet
+///     disappeared). Bumped on appear / dropped on disappear from a lock-guarded Int so cells on
+///     different surfaces (genre `BrunoLabelArtCard`, Home `PosterButton`) count into one number.
+/// Both are plain DEBUG state, read on the display-link thread; the cell counter uses an unfair lock
+/// so the SwiftUI appear/disappear callbacks and the sampler never race.
+enum BrunoPerfCounts {
+
+    /// Mounted shelf-row count. Set by `BrunoCategoryShelves` whenever its windowing value changes.
+    static var shelves = 0
+
+    private static let cellsLock = OSAllocatedUnfairLock(initialState: 0)
+
+    /// Number of currently-alive cell-content views (`.brunoPerfCell()`).
+    static var cells: Int {
+        cellsLock.withLock { $0 }
+    }
+
+    static func cellAppeared() {
+        cellsLock.withLock { $0 += 1 }
+    }
+
+    static func cellDisappeared() {
+        cellsLock.withLock { $0 = max(0, $0 - 1) }
+    }
 }
 
 // MARK: - BrunoDebugLog
@@ -202,6 +235,14 @@ final class BrunoFrameMonitor: NSObject, ObservableObject {
     /// Time origin used to render relative timestamps in the log.
     private(set) var startTime: CFTimeInterval = 0
 
+    /// EXACT seconds-since-start at the moment of the call — NOT the ~4 Hz throttled `clock` the HUD
+    /// publishes. The perf log stamps every event with this so two events in the same throttle window
+    /// get distinct `t`s and a JSONL session correlates against a screen recording to the sub-frame.
+    /// Reads `CACurrentMediaTime()` (cheap) against the same `startTime` origin as `clock`.
+    var exactNow: Double {
+        CACurrentMediaTime() - startTime
+    }
+
     /// Monotonic frame counter (every display refresh) — the FRAME panel's `f<n>` and the frame
     /// number a hitch reports, so a drag can be located on the timeline.
     private var frameIndex = 0
@@ -327,11 +368,15 @@ final class BrunoFrameMonitor: NSObject, ObservableObject {
             }
         }
 
-        // Memory sample (~1 Hz) — physical footprint, the same figure Xcode's gauge shows. Cheap
-        // task_info read; only while recording.
+        // Memory + live-counts sample (~1 Hz). `mem` = physical footprint (the figure Xcode's gauge
+        // shows, a cheap task_info read). `counts` = realized shelves (cap-and-grow window) + alive
+        // cell-content views — the "how much is mounted right now" signal to read against a hitch.
+        // (A sibling task adds a separate `hosts` event for collection-view reuse; not here.)
+        // Only while recording.
         if BrunoPerfLog.isEnabled, ts - lastMemSample >= 1.0 {
             lastMemSample = ts
             BrunoPerfLog.event("mem", ["footprintMB": brunoPerfPhysFootprintMB()])
+            BrunoPerfLog.event("counts", ["shelves": BrunoPerfCounts.shelves, "cells": BrunoPerfCounts.cells])
         }
 
         // Redraw-rate flush (~1 Hz) → counts-per-second per tracked view.

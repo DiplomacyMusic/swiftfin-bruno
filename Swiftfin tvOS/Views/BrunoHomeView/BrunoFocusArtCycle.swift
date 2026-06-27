@@ -280,6 +280,14 @@ final class BrunoArtCycleViewModel: ViewModel {
         let width = BrunoShelfMetrics.posterMaxWidth(for: type)
         let quality = BrunoShelfMetrics.posterQuality
         Task {
+            // Perf telemetry: mark this art-cycle GetItems fetch so a `load` start/end pair brackets it
+            // in the JSONL — we can see WHICH parent's art was loading during a hitch. DEBUG/inert.
+            #if DEBUG
+            let loadStart = CACurrentMediaTime()
+            if BrunoPerfLog.isEnabled {
+                BrunoPerfLog.event("load", ["what": "getitems", "phase": "start", "parent": parentID ?? "fallback"])
+            }
+            #endif
             var items: [BaseItemDto] = []
             if let parentID, !parentID.isEmpty {
                 var parameters = Paths.GetItemsParameters()
@@ -294,6 +302,17 @@ final class BrunoArtCycleViewModel: ViewModel {
             if items.isEmpty {
                 items = Array(fallbackItems.shuffled().prefix(10))
             }
+            #if DEBUG
+            if BrunoPerfLog.isEnabled {
+                BrunoPerfLog.event("load", [
+                    "what": "getitems",
+                    "phase": "end",
+                    "parent": parentID ?? "fallback",
+                    "count": items.count,
+                    "ms": (CACurrentMediaTime() - loadStart) * 1000,
+                ])
+            }
+            #endif
             // The cell may have been reused for yet another item while this request was in flight —
             // bail if the key moved on, so we don't paint frames for a stale request.
             guard key == loadedKey else { return }

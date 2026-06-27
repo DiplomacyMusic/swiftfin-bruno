@@ -56,4 +56,56 @@ extension View {
         return self
         #endif
     }
+
+    /// Watch a height-pinned shelf row (INV-1) for a MEASURED height that deviates from the pinned
+    /// `expected` value by more than 1pt — the "scroll/draw math conflict" the pin exists to kill.
+    /// Emits a `conflict` perf event on each new deviation (throttled so a stable row never spams).
+    /// Apply at the pinning site, passing the SAME value used in `.frame(height:)`. Release-inert no-op.
+    func brunoPerfHeightWatch(site: String, expected: CGFloat) -> some View {
+        #if DEBUG
+        return modifier(BrunoPerfHeightWatchModifier(site: site, expected: expected))
+        #else
+        return self
+        #endif
+    }
+
+    /// Count this view as one realized cell-content view: +1 on appear, −1 on disappear, into
+    /// `BrunoPerfCounts.cells` (sampled into the `counts` perf event ~1 Hz). Apply to a cell's content
+    /// ROOT (e.g. `BrunoLabelArtCard.body` / `PosterButton.body`) so the figure tracks how many cells
+    /// are actually realized across surfaces during a hitch. Release-inert no-op.
+    func brunoPerfCell() -> some View {
+        #if DEBUG
+        return modifier(BrunoPerfCellModifier())
+        #else
+        return self
+        #endif
+    }
+}
+
+#if DEBUG
+
+/// Increments the live cell-content counter on appear and decrements on disappear. The counter is an
+/// unfair-lock-guarded Int in `BrunoPerfCounts`, so it's correct even though appear/disappear and the
+/// ~1 Hz sampler touch it from different contexts. No state and no work beyond the two counter calls,
+/// so an unrecorded session pays only the appear/disappear bookkeeping (which would happen anyway).
+struct BrunoPerfCellModifier: ViewModifier {
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { BrunoPerfCounts.cellAppeared() }
+            .onDisappear { BrunoPerfCounts.cellDisappeared() }
+    }
+}
+
+#endif
+
+/// Mirror a view's mounted-shelf-window size into `BrunoPerfCounts.shelves` so the frame monitor can
+/// sample it into the `counts` perf event. Free function (not a modifier) so it's callable from an
+/// `onAppear` / `onChange` closure WITHOUT adding an `init` to the calling view (the F5 trap). Compiles
+/// to a no-op in release, so `BrunoCategoryShelves` (a release-built view) can call it unconditionally.
+@inline(__always)
+func brunoPerfSetShelfCount(_ count: Int) {
+    #if DEBUG
+    BrunoPerfCounts.shelves = count
+    #endif
 }

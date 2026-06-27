@@ -430,6 +430,48 @@ struct BrunoDebugLayoutModifier: ViewModifier {
     }
 }
 
+/// INV-1 height-conflict watch. A shelf row is pinned to `BrunoShelfMetrics.shelfRowHeight(for:)` so
+/// the LazyVStack never re-reads CollectionHStack's intrinsic size on a vertical focus move — the
+/// renegotiation that hard-snaps the row. If the MEASURED row height ever drifts from the pinned
+/// `expected` by > 1pt, the pin is being fought (the conflict we're hunting), so emit one `conflict`
+/// perf event. Throttled by remembering whether we're currently deviating: we log only the first
+/// frame a deviation appears (and again if the deviation amount itself changes meaningfully), never
+/// every frame of a stable-but-wrong row. Reads geometry via `onSizeChanged`; only when recording.
+struct BrunoPerfHeightWatchModifier: ViewModifier {
+
+    let site: String
+    let expected: CGFloat
+
+    /// Last measured height we emitted a conflict for. `nil` while the row is within tolerance, so a
+    /// return to the pinned height re-arms the watch for the next deviation.
+    @State
+    private var lastReported: CGFloat?
+
+    func body(content: Content) -> some View {
+        content.onSizeChanged { size, _ in
+            guard BrunoPerfLog.isEnabled else { return }
+            let measured = size.height
+            let delta = measured - expected
+
+            guard abs(delta) > 1 else {
+                lastReported = nil // back within tolerance — re-arm
+                return
+            }
+            // Only on a NEW deviation (first frame, or the amount shifted > 1pt) so a stable-but-off
+            // row logs once, not every frame.
+            if let lastReported, abs(measured - lastReported) <= 1 { return }
+            lastReported = measured
+
+            BrunoPerfLog.event("conflict", [
+                "site": site,
+                "measured": Double(measured),
+                "expected": Double(expected),
+                "delta": Double(delta),
+            ])
+        }
+    }
+}
+
 /// Logs when a tracked focusable gains focus — a discrete nav-input event.
 struct BrunoDebugNavFocusModifier: ViewModifier {
 

@@ -74,11 +74,17 @@ struct BrunoShelfView: View {
                         }
                     )
                     .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
+                    // INV-1 conflict watch (perf telemetry, release-inert). See BrunoShelfRow / BrunoDebugInstrument.
+                    .brunoPerfHeightWatch(
+                        site: "shelf:recentlyAdded",
+                        expected: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType)
+                    )
                 } else if viewModel.items.first?.type == .boxSet {
                     // Collection shelves (Studios / Directors / Eras / Boxed Sets, …): focus-cycling
                     // carousel cards. Same card geometry as PosterButton, so INV-1's row height holds.
                     carouselRow
                         .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
+                        .brunoPerfHeightWatch(site: "shelf:carousel", expected: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                 } else if viewModel.posterType == .portrait {
                     // Portrait shelves use the Bruno-wide two-line poster title (long titles wrap to a
                     // second line instead of truncating with "…"). Same reserved label height as the
@@ -95,6 +101,7 @@ struct BrunoShelfView: View {
                         }
                     )
                     .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
+                    .brunoPerfHeightWatch(site: "shelf:portrait", expected: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                 } else {
                     PosterHStack(
                         title: nil,
@@ -104,6 +111,7 @@ struct BrunoShelfView: View {
                         router.route(to: .item(item: item))
                     }
                     .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
+                    .brunoPerfHeightWatch(site: "shelf:landscape", expected: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                 }
             }
             .onAppear {
