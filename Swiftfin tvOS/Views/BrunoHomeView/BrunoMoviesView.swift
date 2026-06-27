@@ -89,24 +89,24 @@ final class BrunoMoviesViewModel: ViewModel {
 
 extension NavigationRoute {
 
-    /// The lazy A–Z "All Movies" grid, pushed from the Movies tab's trailing pill. A pushed cover
-    /// occludes MainTabView's bar, so re-pin the Bruno menu bar here (BrunoMediaView itself loads on
-    /// first appear, so the full library is only fetched when this pill is selected).
+    /// The lazy A–Z "All Movies" grid, pushed from the Movies tab's trailing pill. As a pushed cover
+    /// (isTabRoot defaults false), BrunoMediaView injects the scrolling BrunoCoverMenuBarRow as its
+    /// first row — no pinned bar (BrunoMediaView loads on first appear, so the full library is only
+    /// fetched when this pill is selected).
     @MainActor
     static var brunoMoviesGrid: NavigationRoute {
         NavigationRoute(id: "bruno-movies-grid") {
             BrunoMediaView(itemType: .movie, heroEyebrow: "Featured Film")
-                .brunoHeroMenuBar()
         }
     }
 
     /// The lazy A–Z "All TV" grid, pushed from a "Show all TV" terminal-footer pill (Home). Same
-    /// cover/menu-bar contract as the movies grid; BrunoMediaView loads on first appear.
+    /// cover/menu-bar contract as the movies grid (scrolling BrunoCoverMenuBarRow via BrunoMediaView);
+    /// BrunoMediaView loads on first appear.
     @MainActor
     static var brunoTVGrid: NavigationRoute {
         NavigationRoute(id: "bruno-tv-grid") {
             BrunoMediaView(itemType: .series, heroEyebrow: "Featured Series")
-                .brunoHeroMenuBar()
         }
     }
 }

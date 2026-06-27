@@ -25,9 +25,10 @@ struct BrunoMediaView: View {
     let heroEyebrow: String
 
     /// True when this view is a Bruno TAB ROOT (TV Shows tab, or the Movies tab's A–Z fallback): inject
-    /// the scrolling menu bar as the first row. False (default) for the pushed A–Z grid COVERS
-    /// (`brunoMoviesGrid` / `brunoTVGrid`), which keep their own pinned `.brunoHeroMenuBar()` — injecting
-    /// here too would double-bar them. Mirrors the `isTabRoot` precedent in BrunoGenresView.
+    /// the tab-root scrolling menu bar (BrunoScrollingMenuBar, env TabCoordinator) as the first row.
+    /// False (default) for the pushed A–Z grid COVERS (`brunoMoviesGrid` / `brunoTVGrid`), which get the
+    /// scrolling BrunoCoverMenuBarRow (BrunoTabBridge, dismiss-then-select) as their first row instead.
+    /// Either way the bar scrolls. Mirrors the `isTabRoot` precedent in BrunoGenresView.
     let isTabRoot: Bool
 
     @StateObject
@@ -61,9 +62,10 @@ struct BrunoMediaView: View {
                 content
             }
         }
-        // Drop only the TOP edge so MainTabView's pinned menu bar keeps its reserved top inset (ignoring
-        // .top cancels the inset and lets the bar ride the focus-driven scroll). The ambient backdrop
-        // still bleeds behind the pills via BrunoAmbientBackground's own .ignoresSafeArea().
+        // Drop only the TOP edge: the menu bar is now a scrolling first ROW (tab-root or cover), not a
+        // pinned bar, and the hero's topBleed reserves barHeight off the system top inset — ignoring
+        // .top cancels that inset and the hero geometry shifts. The ambient backdrop still bleeds behind
+        // the pills via BrunoAmbientBackground's own .ignoresSafeArea().
         .ignoresSafeArea(edges: [.horizontal, .bottom])
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
@@ -74,10 +76,16 @@ struct BrunoMediaView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 36) {
-                // Tab-root only: the menu bar is the first scrolling row (covers keep their own pinned
-                // .brunoHeroMenuBar()). Scrolls off with the content and reappears at the top.
+                // The menu bar is the first scrolling row — for tab roots (env TabCoordinator) and for
+                // covers alike (dismiss-then-select via BrunoTabBridge). Scrolls off with the content
+                // and reappears at the top.
                 if isTabRoot {
                     BrunoScrollingMenuBar()
+                        .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
+                        .zIndex(1) // paint above the hero's upward backdrop spill
+                        .focusSection()
+                } else {
+                    BrunoCoverMenuBarRow()
                         .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
                         .zIndex(1) // paint above the hero's upward backdrop spill
                         .focusSection()

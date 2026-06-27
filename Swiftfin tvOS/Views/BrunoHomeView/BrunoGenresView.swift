@@ -191,15 +191,11 @@ struct BrunoGenresView: View {
                     // Terminal-footer "Show all Movies" pill (Movies tab only) → the A-Z grid, same target
                     // as the top "All Movies" pill. nil on the pushed cover ⇒ no footer there.
                     showAllMoviesAction: onShowAll,
-                    // Movies TAB ROOT (isTabRoot) → inject the scrolling menu bar as the first row; the
-                    // pushed Genres cover keeps its own pinned .brunoHeroMenuBar() below instead.
+                    // Movies TAB ROOT (isTabRoot) → BrunoCategoryShelves injects the tab-root scrolling
+                    // menu bar as its first row; the pushed Genres cover (isTabRoot false) gets the
+                    // scrolling BrunoCoverMenuBarRow as its first row instead. Either way the bar scrolls.
                     isTabRoot: isTabRoot
                 )
-                // As a pushed cover this occludes MainTabView's tab bar — re-pin the Bruno top menu bar
-                // here. Attached at the COVER call site (not inside BrunoCategoryShelves). As the Movies
-                // TAB ROOT (isTabRoot) MainTabView already supplies the bar, so suppress it to avoid a
-                // double bar — same precedent as the Collections tab root.
-                .if(!isTabRoot) { $0.brunoHeroMenuBar() }
             }
         }
         .toolbar(.hidden, for: .navigationBar)

@@ -212,9 +212,10 @@ struct BrunoCategoryShelves: View {
     /// UI until the user reaches the true end). nil ⇒ NO footer at all (Collections — deferred for now).
     var showAllMoviesAction: (() -> Void)?
     /// True when this surface is a Bruno TAB ROOT (Collections tab, Movies/Genres tab root): inject the
-    /// scrolling menu bar as the first row. False (default) for the pushed COVERS (Decades / Curated /
-    /// Genres-cover via BrunoBoxSetShelvesView / BrunoGenresView), which keep their own pinned
-    /// `.brunoHeroMenuBar()` — injecting here too would double-bar them. Mirrors BrunoGenresView.isTabRoot.
+    /// tab-root scrolling menu bar (BrunoScrollingMenuBar, env TabCoordinator) as the first row. False
+    /// (default) for the pushed COVERS (Decades / Curated / Genres-cover via BrunoBoxSetShelvesView /
+    /// BrunoGenresView), which instead get the scrolling BrunoCoverMenuBarRow (BrunoTabBridge,
+    /// dismiss-then-select) as their first row. Either way the bar scrolls; covers no longer pin a bar.
     var isTabRoot: Bool = false
 
     @Router
@@ -259,10 +260,10 @@ struct BrunoCategoryShelves: View {
         // Let the ScrollView fill the screen (matching BrunoHomeView) so the hero's full-bleed
         // backdrop reaches the physical edges instead of being clipped at the title-safe inset. The
         // ScrollView still re-insets its own content to the safe area, so shelves stay title-safe.
-        // Drop only the TOP edge: a pinned top bar (MainTabView's on the Collections tab root, or the
-        // cover's own .brunoHeroMenuBar() on Decades/Genres) reserves the top inset, and ignoring .top
-        // here would cancel that inset and let the bar ride the focus-driven scroll downward. The
-        // ambient layer (BrunoAmbientBackground self-ignores all edges) still bleeds behind the pills.
+        // Drop only the TOP edge: the menu bar is now a scrolling first ROW (tab-root or cover), not a
+        // pinned bar, and the hero's topBleed reserves barHeight off the system top inset — ignoring
+        // .top here would cancel that inset and the hero geometry would shift. The ambient layer
+        // (BrunoAmbientBackground self-ignores all edges) still bleeds behind the pills.
         .ignoresSafeArea(edges: [.horizontal, .bottom])
     }
 
@@ -270,10 +271,16 @@ struct BrunoCategoryShelves: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
-                    // Tab-root only: the menu bar is the first scrolling row (covers keep their own pinned
-                    // .brunoHeroMenuBar()). Scrolls off with the content and reappears at the top.
+                    // The menu bar is the first scrolling row — for tab roots (env TabCoordinator) and
+                    // for covers alike (dismiss-then-select via BrunoTabBridge). Scrolls off with the
+                    // content and reappears at the top.
                     if isTabRoot {
                         BrunoScrollingMenuBar()
+                            .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
+                            .zIndex(1) // paint above the hero's upward backdrop spill
+                            .focusSection()
+                    } else {
+                        BrunoCoverMenuBarRow()
                             .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
                             .zIndex(1) // paint above the hero's upward backdrop spill
                             .focusSection()
