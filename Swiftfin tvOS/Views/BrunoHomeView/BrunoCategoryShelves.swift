@@ -372,6 +372,11 @@ struct BrunoCategoryShelves: View {
                 labelArt: Self.labelArtStyle(for: category.name)
             )
         }
+        // Debug HUD instrumentation (inert unless a debug overlay is on): mirror BrunoShelfView so the
+        // Movies/genre surface reports per-shelf redraws and vertical movement too. Release-safe no-ops
+        // (see Shared/Objects/Bruno/BrunoDebugInstrument.swift), so no #if DEBUG at the call site.
+        .brunoDebugRedraw("genre-shelf:\(category.name)")
+        .brunoDebugLayout("genre-shelf:\(category.name)")
     }
 
     /// The items rendered in a category's inline shelf. The `shelfCap` is a PREVIEW cap: it only
