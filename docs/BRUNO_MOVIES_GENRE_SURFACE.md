@@ -224,43 +224,41 @@ the same id can't coexist). No live collision today.
 
 ---
 
-## 8. Known gaps & latent issues (recorded; not yet fixed)
+## 8. Known gaps & latent issues
 
 > Each has a concrete safe-recipe. None block the shipped feature; several are owner decisions.
+> **G1–G4 + G7 were fixed in the gap-fixes pass** (owner-directed); the rest remain open/latent.
 
-- **G1 — Genres tile still on Home's mid-feed "Browse the Collection" shelf.** The removal guard is in the
-  shared `fromSnapshot` builder, which covers the **Collections hub** + **Home terminal footer** (exactly
-  owner decision #3). But a **third** group-tile builder — `BrunoHomePlan` `appendItemsShelf(id:"collections",
-  title:"Browse the Collection", items: snapshot.favoriteGroupBoxSets)` (`BrunoHomePlan.swift:174-182`) — is
-  **unguarded**, so a **Genres tile still renders on Home** and routes to the genre cover. *Intent ("Genres
-  lives only on the Movies tab") is not fully achieved.* **Safe:** filter `"genres"` out of that shelf's
-  `items` too (or skip the shelf entry). **Owner decision** — they only specified the terminal footer.
-- **G2 — The "+ every 6h without a relaunch" reshuffle is effectively cold-launch-only on the Movies tab.**
-  `BrunoBoxSetShelvesViewModel` is a `@StateObject`; `performLoad` runs **once per mount** (`onFirstAppear`
-  + `loadTask` guard), and `MainTabView` keeps tabs mounted → the seed is re-read only on **cold launch**
-  (new `launchNonce`) or a rare RAM-eviction remount. The 6h bucket only takes effect on the *next genuine
-  load*. **The comment "also reshuffles every 6h without a relaunch" overstates reality for the always-mounted
-  tab.** *Safe:* fix the comment to "per cold launch" (and the per-genre drill-in cover, which DOES remount,
-  honors 6h), or add a real in-session refresh if a 6h in-session reshuffle is actually wanted.
-- **G3 — A core-genre pill matching zero sub-genres → silent blank surface.** The empty-state guard checks
-  the **unfiltered** `viewModel.categories`; the populated branch hands `BrunoCategoryShelves` the
-  **filtered** `shownCategories`, and `BrunoCategoryShelves` has no empty guard → hero + pills stay, shelves
-  go blank, **no empty-state**. Highest risk: **Drama** (`keywords == ["drama"]` only). *Safe:* add
-  `else if shownCategories.isEmpty { emptyState }` in `BrunoGenresView`, or fall `shownCategories` back to all.
-- **G4 — Genres group present but childless → dead "No genres yet" screen, no escape.** The A–Z fallback
-  fires only when the group is `nil`. If the group resolves but its `fetchChildren(limit:100)` returns empty
-  (server hiccup/permissions/migration), `BrunoGenresView` shows its own empty-state and the "All Movies"
-  pill (which only lives in the populated branch) is unreachable → no path to any film until remount. *Safe:*
-  treat resolved-but-empty like the nil case (fall back to `BrunoMediaView`), or render the escape pill in
-  the empty branch.
+- **G1 (✅ FIXED) — Genres tile was still on Home's mid-feed "Browse the Collection" shelf.** The
+  `fromSnapshot` guard covered the **Collections hub** + **Home terminal footer**, but a **third** builder —
+  `BrunoHomePlan` `appendItemsShelf(id:"collections", title:"Browse the Collection", items: …)` — was
+  unguarded. **Fixed:** that shelf's `items` now `.filter { $0.name?.lowercased() != "genres" }` (matching the
+  other three sites), so Genres lives **only** on the Movies tab.
+- **G2 (✅ comment fixed; behavior accepted) — the reshuffle is effectively cold-launch-only on the Movies
+  tab.** `BrunoBoxSetShelvesViewModel` is a `@StateObject`; `performLoad` runs **once per mount** and
+  `MainTabView` keeps tabs mounted → the seed is re-read only on **cold launch** (new `launchNonce`) or a
+  rare RAM-eviction remount; the 6h bucket only bites on a genuine reload (the per-genre drill-in cover, which
+  remounts). Owner accepted cold-launch-only. **Fixed:** the misleading "also reshuffles every 6h without a
+  relaunch" comment now states the cold-launch-only reality (code unchanged — the 6h bucket still helps the
+  remounting cover).
+- **G3 (✅ FIXED) — a core-genre pill matching zero sub-genres → silent blank surface.** The empty-state guard
+  checked the **unfiltered** `viewModel.categories` while the populated branch handed the **filtered**
+  `shownCategories`, and `BrunoCategoryShelves` has no empty guard → hero + pills over a blank shelf area.
+  **Fixed by prevention:** the pill row now renders only `shownCoreGenres` (core buckets that match ≥1 loaded
+  sub-genre), so a core that would yield zero shelves is **never selectable** — the blank state is
+  unreachable. (Also kills dead pills, e.g. a Romance pill with no romance sub-genre.)
+- **G4 (✅ FIXED) — Genres group present but childless → dead "No genres yet" screen, no escape.** The A–Z
+  fallback fired only when the group was `nil`; a resolved-but-empty group (server hiccup) showed
+  `BrunoGenresView`'s empty-state with no path to any film (the "All Movies" pill lived only in the populated
+  branch). **Fixed:** the empty-state now renders an **"All Movies" escape button** when `onShowAll != nil`
+  (the tab root), so the Movies tab is never a dead end.
 - **G5 — Sub-genre fetch hard-capped at `limit:100`** (single page, not `BrunoItemPaging.fetchAll`). ~80
   today (headroom), but sub-genres past the 100th **silently never render** as rows (reachable only via the
   by-title "All Movies" grid). *Safe:* page to completion like `loadYearShelves`, or raise + justify the cap.
 - **G6 — No poster prefetcher on this (now primary) surface** — see INV-4 above.
-- **G7 — Debounce comment drift:** `commitFocus` sleeps **500 ms** (correct inline), but five doc-comments
-  on `selectedCore`/`selectedDecode`/`isSelected` say **"~150 ms"** (3.3× off, in `BrunoGenresView` +
-  `BrunoBoxSetShelvesView`). *Safe:* make comments say 500 ms (or extract one named constant). **Do NOT
-  "fix" the code to 150 ms** — that would let a fast scrub commit mid-move.
+- **G7 (✅ FIXED) — debounce comment drift:** `commitFocus` sleeps **500 ms** (owner-confirmed intentional),
+  but four doc-comments said **"~150 ms"** (3.3× off). **Fixed:** the four comments in `BrunoGenresView` +
+  `BrunoBoxSetShelvesView` now say ~500 ms; the code constant is unchanged.
 - **G8 — Long `Show all · <genre>` labels** rely on `lineLimit(2)` + `minimumScaleFactor(0.7)`; past 70%
   scale they **truncate with an ellipsis** (latent, not a confirmed live clip — depends on the longest genre
   name).

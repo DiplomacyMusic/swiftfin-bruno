@@ -28,7 +28,7 @@ struct BrunoBoxSetShelvesView: View {
 
     /// Decades only: the COMMITTED decade filter — what `shownCategories` filters on AND what drives
     /// the per-year fetch (the `onChange` below). In-place, no refetch of the base set. Driven by the
-    /// debounced commit ~150 ms after focus settles, so a fast scrub rebuilds the shelves (and fires
+    /// debounced commit ~500 ms after focus settles, so a fast scrub rebuilds the shelves (and fires
     /// the per-year fetch) exactly ONCE, not per pill.
     @State
     private var selectedDecade: String?
@@ -174,7 +174,7 @@ struct BrunoBoxSetShelvesView: View {
                     ForEach(viewModel.categories) { category in
                         BrunoSelectorCard(
                             // Highlight off FOCUSED (cheap/instant); the filter + per-year fetch follow
-                            // ~150 ms later via the committed value.
+                            // ~500 ms later via the committed value.
                             title: category.name,
                             isSelected: focusedDecade == category.name,
                             // Move-to-select: landing the ring focuses the pill; the shelves settle once
@@ -291,8 +291,11 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
 
     /// Per-process nonce — created once per launch, so each cold start reshuffles the genre row order.
     private static let launchNonce: UInt32 = .random(in: .min ... .max)
-    /// 6-hour wall-clock bucket (21600s) — also reshuffles every 6h without a relaunch. Read ONCE per
-    /// load (in `performLoad`), never per body pass, so the published order is stable within a session.
+    /// Row-order seed = launch nonce + a 6h wall-clock bucket. In practice the Movies tab stays mounted
+    /// and `performLoad` runs ONCE per mount, so the row order reshuffles on a COLD LAUNCH (new nonce) —
+    /// the 6h bucket only bites on a genuine reload (the per-genre drill-in COVER remounts, or a rare
+    /// memory-eviction remount). Read ONCE per load (in `performLoad`), never per body pass, so the
+    /// published order is stable within a session.
     private static var rowOrderSeed: UInt32 {
         launchNonce &+ UInt32(truncatingIfNeeded: Int(Date().timeIntervalSince1970 / 21600))
     }
@@ -386,9 +389,9 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             ? baseOrdered.sorted { Self.leadingYear($0.name) > Self.leadingYear($1.name) }
             : baseOrdered
 
-        // Genres surface: reshuffle the ROW order per launch / 6h so the Movies tab feels fresh (the
-        // seed is read once here, so the published order is stable for the whole session — INV-7 safe).
-        // Decades / Curated keep their deterministic order.
+        // Genres surface: reshuffle the ROW order per cold launch (and 6h, but only on a genuine reload —
+        // see rowOrderSeed) so the Movies tab feels fresh. The seed is read once here, so the published
+        // order is stable for the whole session — INV-7 safe. Decades / Curated keep deterministic order.
         let result = recencyBiased ? BrunoRNG.shuffled(ordered, seed: Self.rowOrderSeed) : ordered
         categories = result
         isLoading = false
