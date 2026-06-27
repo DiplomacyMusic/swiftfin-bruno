@@ -69,7 +69,7 @@ struct BrunoGenresView: View {
 
     /// The COMMITTED core-genre filter — the one `shownCategories` actually filters on. Changed IN
     /// PLACE (no navigation push, no refetch) so switching genres is instant — the full set is already
-    /// loaded in `viewModel`. Driven by the debounced commit ~150 ms after focus settles, so a fast
+    /// loaded in `viewModel`. Driven by the debounced commit ~500 ms after focus settles, so a fast
     /// left-right scrub across the pill row rebuilds the shelf stack exactly ONCE, not per pill.
     @State
     private var selectedCore: BrunoCoreGenre?
@@ -171,6 +171,13 @@ struct BrunoGenresView: View {
         return viewModel.categories.filter { selectedCore.matches($0.name) }
     }
 
+    /// Only the core buckets that actually match ≥1 loaded sub-genre — so a pill can never commit to an
+    /// EMPTY shelf set (which would leave the hero + pills over a blank shelf area). `viewModel.categories`
+    /// is fixed for the session, so this is stable (no pills appearing/vanishing mid-use).
+    private var shownCoreGenres: [BrunoCoreGenre] {
+        BrunoCoreGenre.all.filter { core in viewModel.categories.contains { core.matches($0.name) } }
+    }
+
     private var corePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Browse by".uppercased())
@@ -192,9 +199,9 @@ struct BrunoGenresView: View {
                     }
                     .focused($focusedChip, equals: "all")
 
-                    ForEach(BrunoCoreGenre.all) { coreGenre in
+                    ForEach(shownCoreGenres) { coreGenre in
                         BrunoSelectorCard(
-                            // Highlight off FOCUSED (cheap/instant); the filter follows ~150 ms later.
+                            // Highlight off FOCUSED (cheap/instant); the filter follows ~500 ms later.
                             title: coreGenre.title,
                             isSelected: focusedCore?.id == coreGenre.id,
                             // Move-to-select: landing the ring on a pill focuses it; the shelves settle
@@ -266,6 +273,17 @@ struct BrunoGenresView: View {
             Text("Genres from this server will appear here.")
                 .font(.brunoBody(22))
                 .foregroundStyle(Color.bruno.fgMuted)
+
+            // Tab-root escape hatch: if the Genres group resolves but its shelves don't load (server
+            // hiccup / no children), never strand the Movies tab on a dead end with no path to any film —
+            // offer the full A–Z library (same target as the "All Movies" pill). Cover entry has no
+            // onShowAll, so this only shows at the tab root.
+            if let onShowAll {
+                BrunoSelectorCard(title: "All Movies", isSelected: false, selectsOnFocus: false) {
+                    onShowAll()
+                }
+                .padding(.top, 24)
+            }
         }
         .padding(60)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

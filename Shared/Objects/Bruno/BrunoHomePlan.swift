@@ -178,7 +178,10 @@ enum BrunoHomePlan {
             title: "Browse the Collection",
             kind: .collections,
             posterType: .portrait,
-            items: snapshot.favoriteGroupBoxSets
+            // Drop the Genres tile — Genres now lives only on the Movies tab (the genre browse surface).
+            // This is the third group-tile builder; the other two (Collections hub + Home terminal footer)
+            // are de-Genre'd in BrunoCollectionCategory.fromSnapshot. Case-insensitive, matching all sites.
+            items: snapshot.favoriteGroupBoxSets.filter { $0.name?.lowercased() != "genres" }
         )
 
         // Explore tail: 5 seeded generators, no repeated keys (plan §4).
