@@ -276,14 +276,10 @@ struct BrunoCategoryShelves: View {
                     // content and reappears at the top.
                     if isTabRoot {
                         BrunoScrollingMenuBar()
-                            .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
                             .zIndex(1) // paint above the hero's upward backdrop spill
-                            .focusSection()
                     } else {
                         BrunoCoverMenuBarRow()
-                            .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
                             .zIndex(1) // paint above the hero's upward backdrop spill
-                            .focusSection()
                     }
 
                     // Full-bleed cinematic hero (Home pattern): a row in the same scroll plane as the

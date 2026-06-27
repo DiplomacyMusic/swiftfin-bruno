@@ -126,9 +126,7 @@ struct BrunoKidsView: View {
                     // The menu bar is the first scrolling row (Kids is only ever a tab root): it scrolls
                     // off with the content and reappears at the top.
                     BrunoScrollingMenuBar()
-                        .frame(height: BrunoMenuBar.barHeight) // INV-1 fixed height
                         .zIndex(1) // paint above the hero's upward backdrop spill
-                        .focusSection()
 
                     if viewModel.heroItems.isNotEmpty {
                         BrunoHeroView(

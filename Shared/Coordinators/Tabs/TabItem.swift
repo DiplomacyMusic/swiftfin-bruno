@@ -180,8 +180,6 @@ private extension View {
     func brunoUtilityTabBar() -> some View {
         VStack(spacing: 0) {
             BrunoScrollingMenuBar()
-                .frame(height: BrunoMenuBar.barHeight)
-                .focusSection()
             self
         }
     }
