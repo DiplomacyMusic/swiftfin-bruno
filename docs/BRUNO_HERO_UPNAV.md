@@ -1,6 +1,9 @@
 # Bruno tvOS — Hero focus trap: foundational knowledge + resolution record
 
-Status: IN PROGRESS — resolution = un-pin the menu bar so it scrolls away; foundational record below.
+Status: IMPLEMENTED on this branch (pending on-device verification) — resolution = un-pin the menu bar so
+it scrolls away (it is now the first scrolling LazyVStack row via `BrunoScrollingMenuBar` /
+`BrunoCoverMenuBarRow`, the pinned `ZStack(.top)` peer + `Color.clear` inset are removed); foundational
+record below.
 
 > Sits alongside `docs/BRUNO_PERF_HANDOFF.md` and `docs/BRUNO_PERF_INVARIANTS.md`. This is the one
 > document a future engineer (or the owner) reads to resolve the hero UP-nav focus trap without

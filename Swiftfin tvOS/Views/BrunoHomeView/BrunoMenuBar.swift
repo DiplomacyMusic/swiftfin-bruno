@@ -14,7 +14,9 @@ import SwiftUI
 // The Bruno top menu bar — a focusable pill row that REPLACES the stock SwiftUI `TabView` tab bar.
 // The system bar was a UIKit surface with no focus binding, so the only way to reach it from content
 // was Menu/Back; UP did nothing. A real focusable row lets the focus engine carry UP from the top
-// content row straight into the bar (the section parent in MainTabView does the UP/DOWN routing).
+// content row straight into the bar — it is the first `.focusSection()` row of each tab/cover's
+// LazyVStack (via BrunoScrollingMenuBar / BrunoCoverMenuBarRow), so UP/DOWN traverse between rows
+// naturally; no special routing in MainTabView.
 //
 // Pills switch on Select (press), NEVER on focus — traversing the bar must not switch tabs (that would
 // mount/teardown tab state mid-traversal). Label content/icon-only comes from TabItem.labelStyle, so
@@ -26,15 +28,18 @@ struct BrunoMenuBar: View {
     @Binding
     var selection: String?
 
-    /// Owned by MainTabView so it can drive focus onto the selected pill when Menu is pressed in content.
+    /// Focus binding for the pill row. Owned by the wrapping scrolling-row component
+    /// (BrunoScrollingMenuBar / BrunoCoverMenuBarRow) — there is no pinned bar for MainTabView to drive
+    /// focus onto anymore; each tab/cover's bar manages its own focus.
     var focus: FocusState<String?>.Binding
 
-    /// Reserved top inset for the pinned bar. The bar floats as a `ZStack(alignment: .top)` PEER over the
-    /// hero's background spill; the content gets a `Color.clear` inset of this height so its focusable cells
-    /// start BELOW the bar (non-overlapping frames → the tvOS focus engine can traverse UP into the bar).
-    /// Must be ≥ the bar's intrinsic height (~108pt: brunoBody(28) pill + 14·2 + HStack 12·2 + 8/14 bar
-    /// padding) or `.frame(height:)` undersizes the pill box and its focusable frames re-overlap the
-    /// content's top row, re-breaking UP. Read by MainTabView, BrunoHeroView, and BrunoHeroMenuBar.
+    /// Fixed height of the menu bar's SCROLLING ROW. The bar is the first row of each tab/cover's
+    /// LazyVStack (BrunoScrollingMenuBar / BrunoCoverMenuBarRow), not a pinned inset — it scrolls away
+    /// like every shelf. Each component applies `.frame(height: barHeight)` so the row's frame is fixed
+    /// (INV-1: independent of focus/content). Must be ≥ the bar's intrinsic height (~108pt: brunoBody(28)
+    /// pill + 14·2 + HStack 12·2 + 8/14 bar padding) or `.frame(height:)` undersizes the pill box. Also
+    /// read by BrunoHeroView's `topBleed` (the row reserves the same barHeight above the hero the old
+    /// pinned inset used to, so the hero geometry is unchanged).
     static let barHeight: CGFloat = 116
 
     var body: some View {
@@ -49,7 +54,8 @@ struct BrunoMenuBar: View {
         .padding(.horizontal, 22)
         .padding(.vertical, 12)
         // Floating dark-glass pill group (the stock-bar look) so the hero art reads through and around
-        // it. The bar is pinned via safeAreaInset, so this capsule sits over the bled-up backdrop.
+        // it. The bar is the scrolling row above the hero, so this capsule sits over the backdrop that
+        // bleeds up into the bar's region from the hero row below.
         .background {
             Capsule(style: .continuous)
                 .fill(.black.opacity(0.4))
