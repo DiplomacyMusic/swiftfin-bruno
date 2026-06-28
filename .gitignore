@@ -111,3 +111,7 @@ bruno_jellyfin.env
 # Bruno perf-telemetry sessions pulled off the sim (Scripts/bruno-pull-perf.command)
 PerfLogs/
 _perf/
+
+# Bruno cert receipts — per-session, ephemeral (gate config + README + mode stay tracked)
+.claude/.cert/*.md
+!.claude/.cert/README.md

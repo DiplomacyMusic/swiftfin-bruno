@@ -1,9 +1,12 @@
 # Bruno Certification Plan
 
-> **Status: PLAN (not yet built).** A design for a SlateRunner-style pre-change quality gate adapted to
-> Bruno. Implementation (the hook + scaffold command + `.claude/.cert/`) is a discrete next-thread task,
-> gated on owner approval. Modeled on the SlateRunner certification system
-> (`~/Documents/Claude/Projects/SlateRunner`), which the owner finds high-value.
+> **Status: BUILT (shipping in `warn` mode).** The gate is implemented and live. Assets:
+> `.claude/CERTIFICATION.md` (canonical 10-section ritual), `.claude/hooks/pretooluse_cert_gate.sh`
+> (the gate) + `.claude/hooks/sessionstart_cert.sh` (prelude injector), wired in `.claude/settings.json`;
+> `.claude/.cert/{mode,README.md}`; `/bruno-cert` scaffold at `.claude/commands/bruno-cert.md`. Mode is
+> `warn` (advisory) per the rollout plan below — flip `.claude/.cert/mode` to `deny` for hard enforcement.
+> This doc is the original design rationale; `.claude/CERTIFICATION.md` is the operative spec on any drift.
+> Modeled on the SlateRunner certification system (`~/Documents/Claude/Projects/SlateRunner`).
 
 ## Why Bruno needs this
 
