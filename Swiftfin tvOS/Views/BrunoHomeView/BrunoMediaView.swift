@@ -79,27 +79,22 @@ struct BrunoMediaView: View {
                 // The menu bar is the first scrolling row — for tab roots (env TabCoordinator) and for
                 // covers alike (dismiss-then-select via BrunoTabBridge). Scrolls off with the content
                 // and reappears at the top.
-                // Bar + hero flush (VStack spacing 0) so the LazyVStack's 36pt inter-row gap doesn't push
-                // the hero down and leave its topBleed short of the top edge (dimmer-short-of-top strip).
-                // Bar for tab roots (env TabCoordinator) and covers (BrunoCoverMenuBarRow) alike.
-                VStack(spacing: 0) {
-                    if isTabRoot {
-                        BrunoScrollingMenuBar()
-                            .zIndex(1) // paint above the hero's upward backdrop spill
-                    } else {
-                        BrunoCoverMenuBarRow()
-                            .zIndex(1) // paint above the hero's upward backdrop spill
-                    }
+                if isTabRoot {
+                    BrunoScrollingMenuBar()
+                        .zIndex(1) // paint above the hero's upward backdrop spill
+                } else {
+                    BrunoCoverMenuBarRow()
+                        .zIndex(1) // paint above the hero's upward backdrop spill
+                }
 
-                    if viewModel.heroItems.isNotEmpty {
-                        BrunoHeroView(
-                            items: viewModel.heroItems,
-                            index: $spotlightIndex,
-                            eyebrow: heroEyebrow,
-                            bleedsTop: true,
-                            extraHeight: 160
-                        )
-                    }
+                if viewModel.heroItems.isNotEmpty {
+                    BrunoHeroView(
+                        items: viewModel.heroItems,
+                        index: $spotlightIndex,
+                        eyebrow: heroEyebrow,
+                        bleedsTop: true,
+                        extraHeight: 160
+                    )
                 }
 
                 BrunoPosterGrid(items: viewModel.items) { item in

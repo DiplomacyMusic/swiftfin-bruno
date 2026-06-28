@@ -120,43 +120,35 @@ struct BrunoHomeView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
-                    // Bar row + hero as ONE flush group (VStack spacing 0). The LazyVStack's 36pt
-                    // inter-row spacing would otherwise sit between them, pushing the hero down 36pt so its
-                    // topBleed (insets.top + barHeight) stopped short of the physical top — the lighter
-                    // ambient layer showed through (the dimmer-short-of-top strip). Flush, the hero's bleed
-                    // reaches the top edge behind the bar. The bar keeps .zIndex(1) so it paints above the
-                    // hero's upward backdrop spill.
-                    VStack(spacing: 0) {
-                        // showsWordmark: BRUNO sits at the leading edge of the bar, in line / centered
-                        // with the pills (Home only).
-                        BrunoScrollingMenuBar(showsWordmark: true)
-                            .zIndex(1)
+                    // The menu bar is now the FIRST scrolling row (was a pinned ZStack peer in
+                    // MainTabView): it scrolls up and off with the content and reappears at the top.
+                    BrunoScrollingMenuBar()
+                        .zIndex(1) // paint above the hero's upward backdrop spill (next row)
 
-                        BrunoHeroView(
-                            items: viewModel.heroItems,
-                            index: $spotlightIndex,
-                            bleedsTop: true,
-                            // Taller banner: restores the vacated wordmark-row space AND shows more of the
-                            // backdrop (incl. its top) so the subject reads centered below the nav.
-                            extraHeight: 200,
-                            // Also gate on Home being the ACTIVE tab: the custom container keeps Home mounted
-                            // while hidden, so without this the hero would keep crossfading backdrops offscreen.
-                            autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
-                        )
-                        // BRUNO wordmark floats ON TOP of the hero (z-order). The overlay aligns to the
-                        // hero's layout box (title-safe), so the original 50/20 insets place it as before.
-                        .overlay(alignment: .top) {
-                                header
-                                    .padding(.horizontal, 50)
-                                    .padding(.top, 20)
-                            }
-                            // Back-to-Top focus target: setting `homeFocus = .hero` pulls focus here after
-                            // the scroll (the hero stays the natural first-focus element otherwise — INV-7).
-                            .focused($homeFocus, equals: .hero)
-                    }
-                    // Scroll anchor on the GROUP (its top = the bar) so Back-to-Top reveals the bar, not a
-                    // hero scrolled under where the bar sits.
-                    .id("bruno-top")
+                    BrunoHeroView(
+                        items: viewModel.heroItems,
+                        index: $spotlightIndex,
+                        bleedsTop: true,
+                        // Taller banner: restores the vacated wordmark-row space AND shows more of the
+                        // backdrop (incl. its top) so the subject reads centered below the nav.
+                        extraHeight: 200,
+                        // Also gate on Home being the ACTIVE tab: the custom container keeps Home mounted
+                        // while hidden, so without this the hero would keep crossfading backdrops offscreen.
+                        autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
+                    )
+                    // BRUNO wordmark floats ON TOP of the hero (z-order), at the same title-safe
+                    // top-left spot it held as a row — the banner now extends up under it. The overlay
+                    // aligns to the hero's layout box (still title-safe), so the original 50/20 insets
+                    // place it exactly where it was; no overscan compensation needed.
+                    .overlay(alignment: .top) {
+                            header
+                                .padding(.horizontal, 50)
+                                .padding(.top, 20)
+                        }
+                        .id("bruno-top")
+                        // Back-to-Top focus target: setting `homeFocus = .hero` pulls focus here after
+                        // the scroll (the hero stays the natural first-focus element otherwise — INV-7).
+                        .focused($homeFocus, equals: .hero)
 
                     // INV-2: cap-and-grow window — mount only the first `visibleShelfCount` of the
                     // already-revealed sections, keyed on the section's stable id (not array index).
@@ -234,10 +226,16 @@ struct BrunoHomeView: View {
         }
     }
 
-    // The BRUNO wordmark now lives in the menu bar (BrunoScrollingMenuBar showsWordmark), in line with
-    // the pills. This hero overlay keeps only the trailing build-stamp diagnostic.
     private var header: some View {
         HStack(spacing: 8) {
+            Text("BRUNO")
+                .font(.brunoDisplay(40, weight: .bold))
+                .tracking(6)
+                .foregroundStyle(Color.bruno.fg)
+            Circle()
+                .fill(Color.bruno.accent)
+                .frame(width: 12, height: 12)
+
             Spacer()
 
             // Build stamp: the app executable's build time. Auto-updates every build, so it's an
