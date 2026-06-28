@@ -227,6 +227,9 @@ struct BrunoCategoryShelves: View {
     @Router
     private var router
 
+    @Environment(\.accessibilityReduceMotion)
+    private var reduceMotion
+
     @Namespace
     private var namespace
 
@@ -373,12 +376,24 @@ struct BrunoCategoryShelves: View {
             // selection settles (onChange fires on real changes only, so the cold-enter hero-intro
             // framing — INV-7 — is left untouched). INV-9: instant under reduce-motion.
             .onChange(of: pillScrollKey) { oldValue, newValue in
-                // When the pill row GAINS focus (token nil → non-nil), snap the selector/pills to the top
-                // so the shelves below are fully visible and you can watch the library change as you
-                // select. INSTANT (no withAnimation) so it never battles the focus engine — the old
-                // animated re-frame threw the hero in and out of view on every commit.
+                // When the pill row GAINS focus (token nil → non-nil), bring the selector/pills to the top
+                // so the shelves below are fully visible and you can watch the library change as you select.
+                // EASED rather than a hard snap — but DEFERRED one runloop so our scroll runs AFTER the focus
+                // engine's own entry scroll, not concurrent with it (concurrent = two targets interpolating
+                // at once = the old hero bounce). Fires ONCE per entry (the token stays "pills" while you
+                // scrub), so there's a single animation to sequence, never one-per-scrub like the reverted
+                // per-commit version. Anchor stays the selector (never the hero) so the hero leaves upward
+                // once and stays gone. INV-9: collapse to an instant set under reduce-motion.
                 guard oldValue == nil, newValue != nil else { return }
-                proxy.scrollTo(ScrollAnchor.selector, anchor: .top)
+                if reduceMotion {
+                    proxy.scrollTo(ScrollAnchor.selector, anchor: .top)
+                } else {
+                    Task { @MainActor in
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            proxy.scrollTo(ScrollAnchor.selector, anchor: .top)
+                        }
+                    }
+                }
             }
             .onChange(of: categories.map(\.id)) { _, _ in
                 visibleShelfCount = 4

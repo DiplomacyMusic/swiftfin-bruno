@@ -24,6 +24,9 @@ struct BrunoKidsView: View {
     @StateObject
     private var viewModel = BrunoKidsViewModel()
 
+    @Environment(\.accessibilityReduceMotion)
+    private var reduceMotion
+
     /// Committed filter — drives the grid. Updated ~500 ms after focus settles so scrubbing the chips
     /// doesn't rebuild the poster grid mid-move (matches Decades/Genres).
     @State
@@ -167,12 +170,23 @@ struct BrunoKidsView: View {
                         .onChange(of: geo.size.height) { _, height in viewportHeight = height }
                 }
             }
-            // Snap the chips to the top when the row GAINS focus (token nil -> non-nil), INSTANT so it
-            // never battles the focus engine (the old animated re-frame on every filter change threw the
-            // hero in and out of view). Chips stay pinned while you scrub; the grid changes beneath.
+            // Bring the chips to the top when the row GAINS focus (token nil -> non-nil) so the grid below
+            // is fully visible. EASED rather than a hard snap — but DEFERRED one runloop so our scroll runs
+            // AFTER the focus engine's own entry scroll, not concurrent with it (concurrent = the old hero
+            // bounce). Fires ONCE per entry (chips stay pinned while you scrub), so there's a single
+            // animation to sequence. Anchor stays the filter row (never the hero). INV-9: instant under
+            // reduce-motion.
             .onChange(of: focusedChip) { oldValue, newValue in
                 guard oldValue == nil, newValue != nil else { return }
-                proxy.scrollTo(ScrollAnchor.filter, anchor: .top)
+                if reduceMotion {
+                    proxy.scrollTo(ScrollAnchor.filter, anchor: .top)
+                } else {
+                    Task { @MainActor in
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            proxy.scrollTo(ScrollAnchor.filter, anchor: .top)
+                        }
+                    }
+                }
             }
         }
     }
