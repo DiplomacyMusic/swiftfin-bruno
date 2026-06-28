@@ -16,7 +16,7 @@ import JellyfinAPI
 // `exploreGen` L490, `addMore` L533). `build(seed:snapshot:now:)` is PURE over shelf
 // DESCRIPTORS given (seed, snapshot, now) — same inputs ⇒ same home (plan §D). `now` is
 // injected (not read from the wall clock) so the date-aware seasonal shelf stays reproducible
-// and testable. The stable spine (Continue → Up Next → New Releases → A Year #1 → Director →
+// and testable. The stable spine (Continue → Up Next → Just Added → New Releases → A Year #1 → Director →
 // Genre → Classic Romance → Series → A Year #2 → Studio → Eras → Auteurs → A Year #3 →
 // Collections) reseeds its *contents* by seed; the explore tail is fully seed-derived and grows
 // +2 per scroll page (`appendExplore`).
@@ -64,7 +64,7 @@ enum BrunoHomePlan {
             return yearShelf(for: yearPicks[index], seed: BrunoRNG.subSeed(seed, 7, UInt32(index), 19))
         }
 
-        // 2. Continue Watching · 3. Up Next · 4. New Releases (stock libraries)
+        // 2. Continue Watching · 3. Up Next · 4. Just Added (stock libraries)
         shelves.append(.init(
             id: "resume",
             lens: "Pick Up Where You Left Off",
@@ -83,7 +83,12 @@ enum BrunoHomePlan {
             source: .recentlyAdded
         ))
 
-        // 4b. A Year in Film (promoted) — first of the three distinct years, near the top.
+        // 4b. New Releases — newest publicly-premiered films (premiereDate desc) via a derived live
+        // query, NOT a curated group. Distinct from Just Added above, which sorts by dateCreated
+        // (when a film entered the library): "released in the world" vs "added to the shelf".
+        shelves.append(newReleasesShelf())
+
+        // 4c. A Year in Film (promoted) — first of the three distinct years, near the top.
         if let yearShelf = yearSpineShelf(0) { shelves.append(yearShelf) }
 
         // 5. Spotlight on {director} — seeded director group child → its films.
@@ -406,6 +411,27 @@ enum BrunoHomePlan {
             title: "\(year) & Around",
             kind: .year,
             dedupeKey: "year:\(year)",
+            source: .query(query)
+        )
+    }
+
+    /// "New Releases": the newest publicly-released films (server sort `premiereDate` descending).
+    /// A derived LIVE query — deliberately NOT a curated group and NOT seed-shuffled: a premiereDate
+    /// sort must stay ordered (newest first), so `shuffleSeed` is left nil (`BrunoQueryLibrary` only
+    /// shuffles when it's set). Still pure over the descriptor — static id, stable server sort — so
+    /// the spine determinism contract holds. Distinct from Just Added, which sorts by dateCreated.
+    private static func newReleasesShelf() -> BrunoShelf {
+        var query = BrunoQuery()
+        query.includeItemTypes = [.movie] // films only
+        query.sortBy = [.premiereDate] // .premiereDate is a valid, stable ItemSortBy
+        query.sortOrder = [.descending] // newest released first
+        query.limit = 20
+        return .init(
+            id: "new-releases",
+            lens: "Home Premiere",
+            title: "New Releases",
+            kind: .newReleases,
+            dedupeKey: "newReleases",
             source: .query(query)
         )
     }

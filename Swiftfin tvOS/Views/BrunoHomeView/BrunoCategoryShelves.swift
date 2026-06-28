@@ -122,7 +122,7 @@ extension BrunoCollectionCategory {
         case "studios": "From the Vault"
         case "curated": "Hand-Picked"
         case "decades": "Through the Years"
-        case "new releases": "Just Added"
+        case "new releases": "Home Premiere"
         case "seasonal": "In Season"
         default: nil
         }
