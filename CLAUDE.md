@@ -1,83 +1,60 @@
 # CLAUDE.md
 
-Working principles for this repo. These govern how changes get made here.
+How work gets done in this repo. **Read this file, and anything it points you to, in full — do not skim.**
 
-## 1. Think Before Coding
+## Orientation — read before touching code
 
-Don't assume. Don't hide confusion. Surface tradeoffs.
+**Bruno** is an additive, **tvOS-only** fork of Swiftfin (the Jellyfin SwiftUI client) for one private home
+library. Before changing anything, read these in full (no skimming):
 
-Before implementing:
+- **`docs/BRUNO_CODE_MAP.md`** — architecture, the Home data-flow pipeline, key-files index, "where do I
+  change X", and the documentation map.
+- **`docs/BRUNO_NAV_MAP.md`** — every tvOS surface and, per shelf, its data source · title · "show all"
+  destination. Read before touching any shelf, pathway, or routing.
+- **`docs/PROJECT_TRACKER.md`** — current status (the heartbeat). **`BRUNO_NOTES.md`** — verified
+  toolchain / SDK signatures / architecture (wins over older plans on drift).
 
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+**Docs are tiered:** `docs/` = canonical & active · `docs/reference/` = stable specs ·
+`docs/archive/` = superseded (do not treat as current).
 
-## 2. Simplicity First
+**Where code lives:** Bruno UI in `Swiftfin tvOS/Views/BrunoHomeView/`, engine in `Shared/Objects/Bruno/`;
+everything else is upstream Swiftfin — reuse it, don't refactor it. **It is one connected pipeline:** a
+shelf is a seeded descriptor (`BrunoHomePlan`) → realized into a paging view model (`BrunoHomeViewModel`)
+→ rendered (`BrunoShelfView` / `PosterHStack`); all "show all" routing funnels through one function,
+`brunoRouteToShowAll()`. Trace a change through the maps first — a local edit can ripple.
 
-Minimum code that solves the problem. Nothing speculative.
+**Agents:** Swift/SwiftUI/Xcode mechanics → `swift-xcode-expert`; "where/how does Bruno do X" → `bruno-expert`.
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+## 1. Think before coding
+State assumptions; if uncertain, ask. Multiple interpretations → present them, don't pick silently.
+Simpler approach exists → say so, push back when warranted. Unclear → stop, name it, ask.
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+## 2. Simplicity first
+Minimum code that solves the problem; nothing speculative — no unrequested features, abstractions,
+configurability, or handling for impossible cases. If 200 lines could be 50, rewrite it. "Would a senior
+engineer call this overcomplicated?" → simplify.
 
-## 3. Surgical Changes
+## 3. Surgical changes
+Every changed line traces to the request. Don't improve / refactor / reformat adjacent code that isn't
+broken; match existing style. Remove orphans **your** change created; leave pre-existing dead code
+(mention it, don't delete).
 
-Touch only what you must. Clean up only your own mess.
+## 4. Goal-driven execution
+Turn the task into a verifiable goal and loop until met ("fix the bug" → write the failing test first,
+then make it pass). Multi-step work → state a brief plan with one verify step each. Report real results;
+never claim green you didn't see.
 
-When editing existing code:
+## Performance invariants — non-negotiable
+Home/browse scroll is fast because of ten non-obvious rules (fixed shelf-row height, stable shelf ids,
+prefetch-width == cell-width, seed-keyed/source-restricted cache, top-down reveal, …). **Before
+UX-polishing shelves, read `docs/BRUNO_PERF_INVARIANTS.md`** (INV-1..10 + a quick-ref table; code sites
+anchored `// INV-n`; fragile constants in `BrunoShelfMetrics`). Restyle freely — keep the ten intact.
 
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+**Scroll/focus "stall"?** It is a focus-engine held-repeat **freeze**, not a render hitch — see
+`docs/BRUNO_STALL_HANDBOOK.md` + INV-10. Diagnose with `docs/BRUNO_PERF_HANDOFF.md` +
+`docs/BRUNO_PERF_LOGGING.md` (enable "Perf logging → disk", reproduce, run
+`./Scripts/bruno-pull-perf.command`, correlate the `.jsonl` against a screen recording). Don't re-derive
+the diagnosis — it's documented.
 
 ---
-
-## Performance invariants (Home / browse shelves)
-
-The Bruno tvOS Home is fast because of a handful of non-obvious rules (fixed shelf-row height, stable
-shelf ids, prefetch width == cell width, seed-keyed/source-restricted cache, top-down reveal). **Before
-UX-polishing the shelves, read `docs/BRUNO_PERF_INVARIANTS.md`** — INV-1..10, each with what/why/break/safe
-recipe. The sites are anchored with `// INV-n` comments; the fragile constants live in `BrunoShelfMetrics`.
-Restyle freely — just keep those ten intact.
-
-**Diagnosing a scroll/focus hitch?** Start with `docs/BRUNO_PERF_HANDOFF.md` (current state + open
-levers + go-forward plan) and `docs/BRUNO_PERF_LOGGING.md` (the DEBUG on-disk telemetry: enable
-"Perf logging → disk" in Settings, reproduce, `./Scripts/bruno-pull-perf.command`, correlate the
-`.jsonl` against a screen recording). Don't re-derive the diagnosis from scratch — it's all there.
-
----
-
-These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+Working if: fewer stray diffs, fewer overcomplication rewrites, and clarifying questions land before mistakes.

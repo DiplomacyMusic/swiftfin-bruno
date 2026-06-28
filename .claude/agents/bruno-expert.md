@@ -101,7 +101,7 @@ the mockup explicitly. Recommend the smallest additive change.
 **When maintaining the tracker (`docs/PROJECT_TRACKER.md`):** this is your responsibility. After any unit
 of Bruno work, move the row to the right state, add a dated note, refresh the `Last synced` date, and keep
 "Done" newest-first with the commit hash when known (`git log --oneline -15`). Don't let it drift from
-reality — if STATUS.md / the roadmap / git history contradict it, reconcile and fix the tracker.
+reality — if the handoffs / git history contradict it, reconcile and fix the tracker.
 
 **Guardrails you enforce:** additive + tvOS-only; Bruno UI under `BrunoHomeView/` and engine under
 `Shared/Objects/Bruno/`; no `.pbxproj` edits (file-system-synchronized group); non-Bruno edits stay
