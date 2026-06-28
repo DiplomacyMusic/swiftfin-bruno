@@ -108,13 +108,14 @@ struct BrunoHeroView: View {
         let layoutHeight = 720 + extraHeight
         let visualHeight = layoutHeight + topBleed
         return ZStack(alignment: .bottomLeading) {
-            // Left + bottom scrims for legibility (README scrim system), sized to the layout box.
-            LinearGradient(
-                colors: [Color.bruno.page.opacity(0.96), Color.bruno.page.opacity(0.1)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            // DARKENING SCRIM DISABLED (was: bottom→center page→clear gradient).
+            // BOTH SCRIMS DISABLED — zero darkening on the hero.
+            // Left scrim (was: leading→trailing page.opacity 0.96→0.1):
+            // LinearGradient(
+            //     colors: [Color.bruno.page.opacity(0.96), Color.bruno.page.opacity(0.1)],
+            //     startPoint: .leading,
+            //     endPoint: .trailing
+            // )
+            // Darkening scrim (was: bottom→center page→clear):
             // LinearGradient(
             //     colors: [Color.bruno.page, .clear],
             //     startPoint: .bottom,
