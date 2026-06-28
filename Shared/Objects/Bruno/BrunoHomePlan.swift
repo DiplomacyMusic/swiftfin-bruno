@@ -45,6 +45,7 @@ enum BrunoHomePlan {
     /// colliding year.
     static let exploreKeys = [
         "acclaimed", "genre", "subgenre", "studio", "decade", "critics", "world", "spotlight", "curated", "seasonal",
+        "rewatchables",
     ]
 
     /// How many distinct "A Year in Film" shelves the spine surfaces (promoted from the tail).
@@ -340,6 +341,9 @@ enum BrunoHomePlan {
         case "seasonal":
             return seasonalShelf(snapshot: snapshot, seed: seed, now: now)
 
+        case "rewatchables":
+            return rewatchablesShelf(snapshot: snapshot, seed: seed)
+
         default:
             return nil
         }
@@ -495,6 +499,28 @@ enum BrunoHomePlan {
             kind: .seasonal,
             dedupeKey: "parent:\(id)",
             source: .query(parentQuery(parentID: id, seed: seed, salt: 5))
+        )
+    }
+
+    /// "Rewatchable {Genre}": a seeded broad genre's worth of the Rewatchables BoxSet (server-filtered
+    /// parentID ∩ genre, so the plan stays pure over descriptors — no client bucketing here). nil when
+    /// the library has no Rewatchables BoxSet (e.g. the self-check mock); empty/sparse rows are dropped
+    /// by the home VM at realize time, like every other query shelf.
+    private static func rewatchablesShelf(snapshot: BrunoLibrarySnapshot, seed: UInt32) -> BrunoShelf? {
+        guard let boxSet = snapshot.rewatchablesBoxSet, let id = boxSet.id else { return nil }
+        let genres = ["Comedy", "Drama", "Action", "Thriller", "Crime", "Adventure"]
+        guard let genre = seededPick(genres, seed: seed, salt: 17) else { return nil }
+        var query = BrunoQuery()
+        query.parentID = id
+        query.genres = [genre]
+        query.shuffleSeed = seed
+        return .init(
+            id: "x-rewatchables-\(genre)",
+            lens: "The Rewatchables",
+            title: "Rewatchable \(genre)",
+            kind: .rewatchables,
+            dedupeKey: "rewatchables:\(genre)",
+            source: .query(query)
         )
     }
 
