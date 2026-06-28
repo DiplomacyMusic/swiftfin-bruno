@@ -117,7 +117,7 @@ struct BrunoHeroView: View {
             LinearGradient(
                 colors: [Color.bruno.page, .clear],
                 startPoint: .bottom,
-                endPoint: .center
+                endPoint: .top
             )
 
             content(for: item)
