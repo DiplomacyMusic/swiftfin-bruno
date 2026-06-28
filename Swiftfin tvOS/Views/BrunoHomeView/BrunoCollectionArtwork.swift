@@ -27,6 +27,7 @@ enum BrunoCollectionArtwork {
         "new releases": ["NewReleases01", "NewReleases02", "NewReleases03"],
         "directors": ["Directors01", "Directors02", "Directors03", "Directors04"],
         "boxed sets": ["BoxedSets01", "BoxedSets02"],
+        "movie stars": ["MovieStars01"],
         "curated": ["Curated01", "Curated02"],
         "decades": ["Decades01", "Decades02", "Decades03"],
         "genres": ["Genre01", "Genre02"],
