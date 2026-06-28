@@ -32,6 +32,9 @@ enum BrunoCollectionArtwork {
         "decades": ["Decades01", "Decades02", "Decades03"],
         "genres": ["Genre01", "Genre02"],
         "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
+        // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
+        // lockup, with no text overlay, so the tile matches the dimmed-image siblings.
+        "rewatchables": ["RewatchablesCard"],
     ]
 
     static func isSeasonal(_ name: String) -> Bool {
