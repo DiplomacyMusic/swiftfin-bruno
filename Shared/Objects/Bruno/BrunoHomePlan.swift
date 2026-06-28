@@ -39,11 +39,12 @@ enum BrunoHomePlan {
     /// Classic Romance shelf. (The modern-year cutoff itself lives in `BrunoRecencyBias.modernCutoff`.)
     static let romanceGenre = "Romance"
 
-    /// All explore generator keys (mirrors the prototype's pool). `year` is intentionally NOT in
-    /// the random tail pool: the owner promoted "A Year in Film" into the spine (three distinct
-    /// years, placed high — see `build`), so the tail must not surface a fourth, colliding year.
+    /// All explore generator keys (the prototype's pool plus Bruno's `subgenre` lens). `year` is
+    /// intentionally NOT in the random tail pool: the owner promoted "A Year in Film" into the spine
+    /// (three distinct years, placed high — see `build`), so the tail must not surface a fourth,
+    /// colliding year.
     static let exploreKeys = [
-        "acclaimed", "genre", "studio", "decade", "critics", "world", "spotlight", "curated", "seasonal",
+        "acclaimed", "genre", "subgenre", "studio", "decade", "critics", "world", "spotlight", "curated", "seasonal",
     ]
 
     /// How many distinct "A Year in Film" shelves the spine surfaces (promoted from the tail).
@@ -284,6 +285,25 @@ enum BrunoHomePlan {
                 dedupeKey: "genre:\(genre)",
                 // `shuffleSeed = seed` (no salt) preserves the prior explore-tail ordering.
                 source: .query(genreQuery(genre: genre, seed: seed, salt: nil, snapshot: snapshot))
+            )
+
+        case "subgenre":
+            // Walk the "Genres" group's child BoxSets — the owner's sub-genre / mood collections
+            // (e.g. the colloquial genres). Mirrors `boxSetShelf` (seeded pick → its parentID
+            // members) but with a UNIQUE salt and a distinct `.subgenre` kind + `subgenre:` dedupe
+            // namespace, so a sub-genre row never collapses into the genre-NAME shelf (different
+            // Kind ⇒ the adjacency rule keeps both; the key can't collide a `parent:` shelf either).
+            // INV-3/INV-5: `genreBoxSets` is the same fixed-order snapshot accessor the studio /
+            // decade / spotlight generators read — no new shuffle/sort, so no new cache hazard.
+            guard let pick = seededPick(snapshot.genreBoxSets, seed: seed, salt: 97),
+                  let id = pick.id, let name = pick.name else { return nil }
+            return .init(
+                id: "x-subgenre-\(id)",
+                lens: "Deeper Cuts",
+                title: name,
+                kind: .subgenre,
+                dedupeKey: "subgenre:\(id)",
+                source: .query(parentQuery(parentID: id, seed: seed, salt: 97))
             )
 
         case "studio":

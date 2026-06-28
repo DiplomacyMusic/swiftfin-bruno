@@ -28,6 +28,7 @@ struct BrunoShelf: Identifiable {
         case recentlyAdded
         case spotlight
         case genre
+        case subgenre
         case series
         case studio
         case eras
