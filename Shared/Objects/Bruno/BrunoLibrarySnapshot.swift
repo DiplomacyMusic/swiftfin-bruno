@@ -70,6 +70,12 @@ struct BrunoLibrarySnapshot: Codable {
         group("Seasonal")
     }
 
+    /// The favorited "Rewatchables" BoxSet (the podcast films), if present. Its members are MOVIES (not
+    /// sub-collections), so Home queries it via parentID; the Rewatchables cover buckets them by genre.
+    var rewatchablesBoxSet: BaseItemDto? {
+        favoriteGroupBoxSets.first { $0.name?.lowercased() == "rewatchables" }
+    }
+
     var isEmpty: Bool {
         favoriteGroupBoxSets.isEmpty && genres.isEmpty
     }

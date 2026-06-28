@@ -22,11 +22,33 @@ struct BrunoAmbientBackground: View {
     /// The item whose backdrop tints the page — typically the focused hero spotlight.
     let item: BaseItemDto?
 
+    /// Optional bundled brand image shown SHARP and full-bleed instead of the blurred `item` backdrop
+    /// (the Rewatchables surface uses its podcast art). Darkened toward the bottom for shelf legibility.
+    var staticAsset: String?
+
     var body: some View {
         ZStack {
             Color.bruno.page
 
-            if let item {
+            if let staticAsset {
+                Image(staticAsset)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .overlay {
+                        // Darken toward the bottom so shelves/text stay legible over the brand art.
+                        LinearGradient(
+                            colors: [
+                                Color.bruno.page.opacity(0.05),
+                                Color.bruno.page.opacity(0.55),
+                                Color.bruno.page.opacity(0.92),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+            } else if let item {
                 // INV-6: 480 not 1280 — the still is blurred at radius 90 + 50% opacity, so detail
                 // above a few px is destroyed anyway; a 480px decode is visually identical for ~7x
                 // less memory/decode. This view is used as a SIBLING layer (not a ScrollView

@@ -33,6 +33,10 @@ struct BrunoShelfRow: View {
     /// Default false ⇒ every other caller renders the shared TitleSubtitleContentView byte-identically.
     /// Only affects the standard PosterButton cell; the artCarousel branch is untouched.
     var showsDate: Bool = false
+    /// Rewatchables surface only: render each poster's "Episode NN" (from the `rewatchables-ep:NN` tag)
+    /// on line 2 via BrunoRewatchablesContentView. Default false ⇒ the shared label. Takes precedence
+    /// over showsDate; the artCarousel / labelArt branches are untouched. INV-1: geometry-faithful clone.
+    var showsEpisode: Bool = false
     /// Genres / Decades: render each item as a `BrunoLabelArtCard` — the category-tile treatment
     /// (title over the art, film art cycling on focus) — instead of a poster with a title below.
     /// nil ⇒ the standard PosterButton cell. Mutually exclusive with `artCarousel`.
@@ -85,7 +89,9 @@ struct BrunoShelfRow: View {
                     PosterButton(item: item, type: .portrait) {
                         onItem(item)
                     } label: {
-                        if showsDate {
+                        if showsEpisode {
+                            BrunoRewatchablesContentView(item: item)
+                        } else if showsDate {
                             BrunoTitleDateContentView(item: item)
                         } else {
                             BrunoPosterTitleContentView(item: item)

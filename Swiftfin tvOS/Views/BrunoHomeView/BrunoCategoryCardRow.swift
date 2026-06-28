@@ -69,7 +69,10 @@ func brunoRouteToShowAll(
     case .genres:
         router.route(to: .brunoGenres(parent: category.boxSet, core: nil))
     case .shelves:
-        router.route(to: .brunoCategoryShelves(parent: category.boxSet), in: namespace)
+        // Pass the category's own children as the sub-groups so a SYNTHETIC parent (the "Oscars" tile,
+        // a label-only stub with no server children) still renders; real group tiles (Decades/Curated)
+        // pass their snapshot children, which is exactly what the drill-in would otherwise fetch.
+        router.route(to: .brunoCategoryShelves(parent: category.boxSet, subGroups: category.children), in: namespace)
     case .items:
         // Boxed Sets: landscape cards so the franchise names aren't scrunched, with the
         // collection-name / "Collection" / film-count + year-range lockup.
@@ -79,6 +82,20 @@ func brunoRouteToShowAll(
                 items: category.children,
                 posterType: .landscape,
                 collectionLabel: true
+            ),
+            in: namespace
+        )
+    case .rewatchables:
+        // The favorited "Rewatchables" BoxSet: open the broad-genre breakdown with episode captions.
+        router.route(to: .brunoRewatchables(parent: category.boxSet))
+    case .genreGrid:
+        // One broad-genre bucket of Rewatchables: a portrait grid of these exact films (a client-side
+        // genre slice, no server parent), so route a STATIC grid of the children.
+        router.route(
+            to: .brunoBoxSetGrid(
+                title: category.name,
+                items: category.children,
+                posterType: .portrait
             ),
             in: namespace
         )

@@ -73,7 +73,16 @@ struct BrunoCategoryTile: View {
     var body: some View {
         let palette = Self.palette(for: category.name)
         Group {
-            if let asset = BrunoCuratedCard.assetName(for: category.name) {
+            if category.name.lowercased() == "rewatchables" {
+                // Self-titled brand art: the image already reads "THE REWATCHABLES", so no text
+                // overlay. Plum gradient backstop behind the cover (shows only if it can't fill).
+                ZStack {
+                    LinearGradient(colors: [palette.top, palette.bottom], startPoint: .top, endPoint: .bottom)
+                    Color.clear
+                        .overlay { Image("RewatchablesCard").resizable().scaledToFill() }
+                        .clipped()
+                }
+            } else if let asset = BrunoCuratedCard.assetName(for: category.name) {
                 // Oscar / Ebert curated card: a PINNED bundled photo (owner: the image is the point,
                 // so no film-art cross-fade), title overlaid like the collection tiles.
                 ZStack {
@@ -170,6 +179,9 @@ struct BrunoCategoryTile: View {
             (Color(hex: "240A12"), Color(hex: "9C2336"), Color(hex: "E03A5A"))
         case "seasonal":
             (Color(hex: "06191E"), Color(hex: "1E7C8C"), Color(hex: "2EB6CC"))
+        case "rewatchables":
+            // Plum — distinct from every other tile (podcast/rewatch warmth).
+            (Color(hex: "1E0C1A"), Color(hex: "7A2A5A"), Color(hex: "C04A8E"))
         default:
             (Color.bruno.diplomacyDark, Color.bruno.accentAlt, Color.bruno.accent)
         }

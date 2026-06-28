@@ -35,6 +35,12 @@ struct BrunoCollectionCategory: Identifiable, Codable {
         /// A grid of this category's own `children` — for synthetic categories with no parent
         /// BoxSet (e.g. Boxed Sets, a computed set of box sets).
         case items
+        /// The Rewatchables surface: the favorited "Rewatchables" BoxSet bucketed into broad-genre
+        /// shelves with per-poster episode captions (BrunoRewatchablesView).
+        case rewatchables
+        /// A portrait grid of this category's own `children` — a client-side slice with no server
+        /// parent (one broad-genre bucket of the Rewatchables BoxSet). Like `.items` but portrait.
+        case genreGrid
     }
 
     let boxSet: BaseItemDto
@@ -94,11 +100,13 @@ extension BrunoCollectionCategory {
         let order = BrunoCollectionArtwork.seasonalPromoted(on: date)
             ? [
                 "new releases": 0, "seasonal": 1, "genres": 2, "directors": 3,
-                "movie stars": 4, "boxed sets": 5, "decades": 6, "curated": 7, "studios": 8,
+                "movie stars": 4, "boxed sets": 5, "decades": 6, "curated": 7,
+                "rewatchables": 8, "studios": 9,
             ]
             : [
                 "new releases": 0, "genres": 1, "directors": 2, "movie stars": 3,
-                "boxed sets": 4, "decades": 5, "curated": 6, "studios": 7, "seasonal": 8,
+                "boxed sets": 4, "decades": 5, "curated": 6, "rewatchables": 7,
+                "studios": 8, "seasonal": 9,
             ]
         return order[name.lowercased()] ?? .max
     }
@@ -109,6 +117,7 @@ extension BrunoCollectionCategory {
         case "genres": .genres // core-category panel + mixed sub-genre shelves (§4 + core panel)
         case "decades": .shelves // shelf per decade (§4)
         case "curated": .shelves // shelf per curated sub-collection (Asian Cinema, Oscar Buzz, …)
+        case "rewatchables": .rewatchables // broad-genre shelves + episode captions (BrunoRewatchablesView)
         default: .grid // flat full grid (§3)
         }
     }
@@ -124,6 +133,7 @@ extension BrunoCollectionCategory {
         case "decades": "Through the Years"
         case "new releases": "Home Premiere"
         case "seasonal": "In Season"
+        case "rewatchables": "Always Worth Rewatching"
         default: nil
         }
     }
@@ -203,6 +213,9 @@ struct BrunoCategoryShelves: View {
     /// Decade surface only: show each poster's full release date on line 2. Default false ⇒ every
     /// other surface (Home / Genres / Kids / Collections) renders the shared label byte-identically.
     var showsDate: Bool = false
+    /// Rewatchables surface only: render each poster's "Episode NN" caption (from the rewatchables-ep:NN
+    /// tag). Default false ⇒ the shared label. Surface-wide (the whole Rewatchables surface opts in).
+    var showsEpisode: Bool = false
     /// Drives the "pills near top, shelves in full view beneath" framing. The caller passes a non-nil
     /// token while the pill row HOLDS FOCUS (and nil otherwise), so when it transitions nil → non-nil we
     /// snap the selector region to the top once. INSTANT (never animated) so it never battles the focus
@@ -223,6 +236,9 @@ struct BrunoCategoryShelves: View {
     /// re-arm their "DOWN-from-hero lands on All" default-focus: focus returning to the hero means the
     /// next DOWN is a fresh top-down entry, so they reset their `didEnterChipRow` guard. nil ⇒ ignored.
     var onHeroFocused: (() -> Void)?
+    /// Optional bundled brand image used as the surface's full-bleed static background (the Rewatchables
+    /// surface uses its podcast art) instead of the blurred featured-item backdrop. nil ⇒ default ambient.
+    var staticBackgroundAsset: String?
 
     @Router
     private var router
@@ -262,7 +278,7 @@ struct BrunoCategoryShelves: View {
             // .background of the ScrollView. Keeps the radius-90 blur out of the ScrollView's
             // per-frame compositing so it doesn't re-rasterize during the focus-driven
             // scroll-to-reveal animation (the residual vertical-scroll hitch).
-            BrunoAmbientBackground(item: featured)
+            BrunoAmbientBackground(item: featured, staticAsset: staticBackgroundAsset)
 
             scrollContent
         }
@@ -435,6 +451,8 @@ struct BrunoCategoryShelves: View {
                 artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
                 // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
                 showsDate: showsDate || category.showsDate,
+                // Surface-wide (Rewatchables): "Episode NN" caption instead of the shared label.
+                showsEpisode: showsEpisode,
                 labelArt: Self.labelArtStyle(for: category.name)
             )
         }
@@ -478,6 +496,10 @@ struct BrunoCategoryShelves: View {
             return Self.weightedPreview(items, count: shelfCap, salt: 0xC0DE)
         case .shelves:
             // "Show all" opens a richer drill-in (shelf-per-sub-group, e.g. Decades): simple preview.
+            return Array(items.prefix(shelfCap))
+        case .rewatchables, .genreGrid:
+            // Rewatchables tile + its broad-genre buckets: a simple capped movie preview; "Show all"
+            // opens the genre breakdown / the bucket's grid.
             return Array(items.prefix(shelfCap))
         }
     }
