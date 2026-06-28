@@ -16,9 +16,10 @@ import JellyfinAPI
 // `exploreGen` L490, `addMore` L533). `build(seed:snapshot:now:)` is PURE over shelf
 // DESCRIPTORS given (seed, snapshot, now) — same inputs ⇒ same home (plan §D). `now` is
 // injected (not read from the wall clock) so the date-aware seasonal shelf stays reproducible
-// and testable. The stable spine (Continue → Up Next → New Releases → Director → Genre →
-// Series → Studio → Eras → Auteurs → Collections) reseeds its *contents* by seed; the explore
-// tail is fully seed-derived and grows +2 per scroll page (`appendExplore`).
+// and testable. The stable spine (Continue → Up Next → New Releases → A Year #1 → Director →
+// Genre → Classic Romance → Series → A Year #2 → Studio → Eras → Auteurs → A Year #3 →
+// Collections) reseeds its *contents* by seed; the explore tail is fully seed-derived and grows
+// +2 per scroll page (`appendExplore`).
 enum BrunoHomePlan {
 
     static let minItems = 3

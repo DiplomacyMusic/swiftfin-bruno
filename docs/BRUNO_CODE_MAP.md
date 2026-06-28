@@ -115,7 +115,7 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
 | `Shared/Objects/Bruno/BrunoStaticItemsLibrary.swift` | Static items as a paging library (BoxSet children). |
 | `Shared/Objects/Bruno/BrunoItemPaging.swift` | Paging helpers over JellyfinAPI. |
 | `Shared/Objects/Bruno/BrunoRecencyBias.swift` | Recency-bias ordering helper for browse shelves. |
-| `Swiftfin tvOS/Views/BrunoHomeView/BrunoPosterPrefetcher.swift` | Poster image prefetch (prefetch width == cell width, INV-3). |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoPosterPrefetcher.swift` | Poster image prefetch (prefetch width == cell width, INV-4). |
 
 ### Routing
 | File | Role |
@@ -192,6 +192,7 @@ zero dangling):
 | `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active | Movies/genre surface fragility map |
 | `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run (absorbed the old STATUS) |
 | `docs/UI_FIXPASS2_HANDOFF.md` | active | live UI handoff (absorbed UI_DEEP_WORK) |
+| `docs/BRUNO_CERTIFICATION_PLAN.md` | active (plan) | design for a pre-change cert / quality gate (SlateRunner-style) |
 | `README.md` | reference | public-facing readme |
 | `NATIVE_FORK_PLAN.md` | reference | historical one-shot plan (BRUNO_NOTES overrides on drift) |
 | `docs/reference/STUDIO_GRID_HANDOFF.md` | reference | unbuilt Studios-grid redesign spec |

@@ -84,8 +84,10 @@ Spine notes: adjacency rule drops any shelf whose `kind` equals the previous she
 
 ### 2b. Explore tail (seeded generators, +2/page, reseeds per block)
 
-Initial build appends up to 5 distinct keys; `appendExplore` walks `exploreKeys` per scroll page. Same
-18-item cap, same "no Show-all" rule.
+Initial build appends up to 5 distinct keys; `appendExplore` walks `exploreKeys` (shuffled per session —
+this table is in canonical, not execution, order) per scroll page. Same 18-item cap, same "no Show-all"
+rule. `exploreKeys` holds **9** entries: the 8 below plus `world`, which aliases to the same `{Curated}`
+generator (`BrunoHomePlan.swift:307` — `case "curated", "world"`), so the Curated lens can recur.
 
 | Shelf | Lens/eyebrow | Derived from (`explore(key:)`, `BrunoHomePlan.swift:243-320`) | Max |
 |---|---|---|---|
