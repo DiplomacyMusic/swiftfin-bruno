@@ -3,7 +3,7 @@
 Orientation map for the Bruno tvOS fork. If you're landing cold, read this first, then
 `docs/BRUNO_NAV_MAP.md` for shelf/IA detail and `docs/PROJECT_TRACKER.md` for current status.
 
-_Last verified at commit `78dc256f`._
+_Last verified at commit `40da403f` (post #37–#41)._
 
 ---
 
@@ -60,7 +60,7 @@ library snapshot ──▶ BrunoHomePlan.build(seed) ──▶ BrunoHomeViewMode
 | 1. Snapshot | `Shared/Objects/Bruno/BrunoLibrarySnapshot.swift` | Pure facts about the library (genres, studios, decade/director/curated BoxSet IDs, years) the plan reads. Discovered dynamically, never hardcoded. |
 | 2. Plan | `Shared/Objects/Bruno/BrunoHomePlan.swift` | `static func build(seed:snapshot:now:) -> [BrunoShelf]` — the spine + explore tail as **descriptors** (`BrunoShelf` = title + `BrunoQuery`/items source). Pure; seeded via `BrunoRNG`. `appendExplore`/`explore(key:)` grow the tail. |
 | 3. Realize | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeViewModel.swift` | Holds the seed, streams shelves in top-down (INV-8/9), dispatches `.appendExplore`. Each shelf gets a `BrunoShelfViewModel` wrapping a `PagingLibraryViewModel<BrunoQueryLibrary>` (or static `ResumeItemsLibrary`/`NextUpLibrary`/`RecentlyAddedLibrary`). |
-| 4. Render | `BrunoShelfView.swift` (+ `BrunoShelfRow.swift`) | `BrunoShelfView` renders a home shelf via stock tvOS `PosterHStack` (browse-only, no Show-all). `BrunoShelfRow` is the browse-surface variant with a trailing "Show all" card. Mounted under the cap-and-grow `LazyVStack` in `BrunoHomeView.swift`. |
+| 4. Render | `BrunoShelfView.swift` (+ `BrunoShelfRow.swift`) | `BrunoShelfView` renders a home shelf via stock tvOS `PosterHStack`, now with a trailing "Show all" card on **every** shelf (#41, routed by `brunoHomeRouteToShowAll`). `BrunoShelfRow` is the browse-surface variant (same trailing card). Mounted under the cap-and-grow `LazyVStack` in `BrunoHomeView.swift`. |
 
 Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turns that into a
 `retrievePage(environment:pageState:)` paging library. See `BrunoShelf.swift`, `BrunoQuery.swift`.
@@ -78,8 +78,10 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
 | `Shared/Objects/Bruno/BrunoRNG.swift` | Seeded mulberry32 — the determinism core. |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeView.swift` | Home screen: hero + cap-and-grow shelf `LazyVStack` + footer. |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeViewModel.swift` | Realizes the plan, top-down reveal, `.appendExplore`. |
-| `Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfView.swift` | Renders one home shelf via `PosterHStack`. |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfView.swift` | Renders one home shelf via `PosterHStack` + a trailing Show-all card (#41). |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfRow.swift` | Browse-surface shelf with trailing "Show all" card. |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoShowAllCard.swift` | The trailing "Show all" poster card (Home + browse). |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeShowAll.swift` | **`brunoHomeRouteToShowAll()`** — Home Show-all router (#41); off `shelf.kind`/`shelf.source`. |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoShelfViewModel.swift` | Per-shelf façade over `PagingLibraryViewModel`. |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeCache.swift` | Seed-keyed / source-restricted home cache (INV-5). |
 
@@ -96,7 +98,8 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoMediaView.swift` | A–Z movie/TV grids (terminal "All Movies"/"All TV"). |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoKidsView.swift` | Merged kids libraries with All/Movies/TV/studio filters. |
 | `Swiftfin tvOS/Views/BrunoHomeView/BrunoArtCarouselCard.swift` | Portrait art card with focus-cycling artwork. |
-| `Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryTile.swift` / `BrunoCategoryCardRow.swift` | Category tiles + the centralized Show-all router. |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryTile.swift` / `BrunoCategoryCardRow.swift` | Category tiles + the **browse** Show-all router (`brunoRouteToShowAll`). |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoRewatchablesView.swift` / `BrunoRewatchablesContentView.swift` | Rewatchables surface (#40): broad-genre shelves with "Episode NN" captions. |
 
 ### Menu / hero
 | File | Role |
@@ -121,7 +124,8 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
 ### Routing
 | File | Role |
 |---|---|
-| `Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryCardRow.swift` | **`brunoRouteToShowAll()`** — single source of truth for every Show-all destination (drill-style switch). |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryCardRow.swift` | **`brunoRouteToShowAll()`** — **browse** Show-all router (Collections / Genres / footer tiles); `category.drillStyle` switch. |
+| `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeShowAll.swift` | **`brunoHomeRouteToShowAll()`** — **Home** Show-all router (#41); `shelf.kind` / `shelf.source` switch. |
 | `Shared/Coordinators/Tabs/TabItem.swift` | 7-tab IA; tvOS Home → `BrunoHomeView`. |
 | `Shared/Coordinators/Tabs/MainTabView.swift` | Tab host; injects per-tab content. |
 
@@ -139,11 +143,15 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
 
 - **Add a Home shelf** → add a descriptor in `BrunoHomePlan.swift` (`build` for the spine, `explore(key:)`
   for the tail). Keep it pure/seeded. If it needs a new data source, add a `BrunoQuery` shape and let
-  `BrunoQueryLibrary` page it. The DEBUG self-check (`BrunoHomePlan+SelfCheck.swift`) must still pass.
-- **Change a Show-all destination** → `brunoRouteToShowAll()` in `BrunoCategoryCardRow.swift`. This is the
-  *only* place — both shelf-header Show-all and category-tile taps go through it so they can't diverge.
-  Switch on `category.drillStyle` (`.genres` / `.shelves` / `.items` / `.grid`); pass filters via
-  `ItemFilterCollection` in the `ItemLibrary` constructor.
+  `BrunoQueryLibrary` page it. The DEBUG self-check (`BrunoHomePlan+SelfCheck.swift`) must still pass. If
+  the shelf's "Show all" should differ from the default (the full paged version of its own query), add a
+  `shelf.kind` case in `brunoHomeRouteToShowAll` (`BrunoHomeShowAll.swift`).
+- **Change a Show-all destination** → there are **two** routers (#41). **Browse** (Collections / Genres /
+  footer): `brunoRouteToShowAll()` in `BrunoCategoryCardRow.swift`, switching on `category.drillStyle`
+  (`.genres` / `.shelves` / `.items` / `.grid`); both shelf-header Show-all and category-tile taps go
+  through it. **Home shelves:** `brunoHomeRouteToShowAll()` in `BrunoHomeShowAll.swift`, switching on
+  `shelf.kind` / `shelf.source` (stock libraries · the shelf's own paged query · the Decades pill for
+  year/decade/Eras). Pass filters via `ItemFilterCollection` in the `ItemLibrary` constructor.
 - **Tune scroll/focus perf** → **read `docs/BRUNO_PERF_INVARIANTS.md` first** (INV-1..10). Constants live in
   `BrunoShelfMetrics.swift`; reveal cadence/cap-and-grow in `BrunoHomeView.swift`/`BrunoHomeViewModel.swift`;
   prefetch in `BrunoPosterPrefetcher.swift`. Diagnose with `docs/BRUNO_PERF_HANDOFF.md` +
@@ -220,7 +228,7 @@ distinct in code, docs, and prompts:
 | Term | Means | In code |
 |---|---|---|
 | **`BoxSet`** (one word) | The **Jellyfin primitive** — `BaseItemKind.boxSet`, a collection container. Bruno ships *all* curation as BoxSets; the library holds **416** across every tier. Reserve "BoxSet" for the primitive only. | `IncludeItemTypes=[.boxSet]`, `BaseItemDto` |
-| **Group tile** (group BoxSet) | A *favorited* BoxSet whose members are themselves BoxSets — the **8** tiles: New Releases, Directors, Decades, Genres, Studios, Curated, Seasonal, Movie Stars. | `snapshot.favoriteGroupBoxSets`, `BrunoCollectionCategory.fromSnapshot` |
+| **Group tile** (group BoxSet) | A *favorited* BoxSet, usually with BoxSet members — the group tiles: New Releases, Directors, Decades, Genres, Studios, Curated, Seasonal, Movie Stars, plus (since #40) a flat **Rewatchables** group whose members are *movies* (like New Releases). | `snapshot.favoriteGroupBoxSets`, `BrunoCollectionCategory.fromSnapshot` |
 | **Member BoxSet** | A BoxSet belonging to a group (a sub-genre, a director's set, a decade bucket, a studio set); its members are usually movies. | `snapshot.childrenByGroupName` |
 | **Franchise** (the "Boxed Sets" card) | The **user-facing** grouping of *standalone* franchise/series collections (LOTR, Star Wars) — every BoxSet **not** absorbed by a group. Runtime-synthesized, lens **"Franchises"**, `drillStyle .items`. "Boxed Sets" is its **display label only**. | `franchiseBoxSets` — `BrunoCollectionsView.swift:93-122` |
 
