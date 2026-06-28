@@ -28,11 +28,11 @@ enum BrunoHomePlan {
     /// The home reseeds the explore tail into up to this many "blocks" as the user keeps scrolling —
     /// each block a fresh-random set off a DERIVED per-block seed (so it stays deterministic per day /
     /// per Shuffle). Block 0 is the original tail; blocks 1…n-1 are the reseeds.
-    static let exploreBlockCount = 3
+    static let exploreBlockCount = 5
     /// Hard safety ceiling on total mounted sections (spine + every explore block) so a degenerate
     /// append loop can never run away. The tail is normally bounded by `exploreBlockCount` × key-walk;
     /// on a finite library content dedupe usually stops it well before this.
-    static let tailCeiling = 60
+    static let tailCeiling = 120
 
     /// The genre name the Classic carve-out splits on. Matched case-insensitively against the
     /// snapshot's genres so a library without a literal "Romance" genre simply never produces the
