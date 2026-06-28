@@ -28,6 +28,19 @@ struct BrunoBoxSetShelvesView: View {
     /// whose parent is a label-only stub with no server children — we hand it the six Oscar BoxSets directly.
     var subGroups: [BaseItemDto]?
 
+    /// D2 deep-link: when a Home decade/year card routes here, the decade name to pre-select. nil ⇒
+    /// the normal "All" overview entry. Drives the initial pill highlight, filter, focus, and the
+    /// per-year fetch (fired once the base categories land — see the categories `onChange`).
+    private let initialDecade: String?
+
+    init(parent: BaseItemDto, subGroups: [BaseItemDto]? = nil, decade: String? = nil) {
+        self.parent = parent
+        self.subGroups = subGroups
+        self.initialDecade = decade
+        _selectedDecade = State(initialValue: decade)
+        _focusedDecade = State(initialValue: decade)
+    }
+
     @StateObject
     private var viewModel = BrunoBoxSetShelvesViewModel()
 
@@ -165,6 +178,12 @@ struct BrunoBoxSetShelvesView: View {
         // Compute the hero ONCE from the FULL unfiltered set when categories land (and never per pill).
         .onChange(of: viewModel.categories.map(\.id)) { _, _ in
             featuredItem = brunoFeaturedItem(in: viewModel.categories)
+            // D2 deep-link: if we entered with a decade pre-selected (from a Home decade/year card),
+            // run its per-year fetch as soon as the base categories land. The `selectedDecade`
+            // onChange below already fired (before categories existed), so trigger the fetch here.
+            if let category = selectedDecadeCategory {
+                Task { await viewModel.loadYearShelves(for: category) }
+            }
         }
         // Trigger the COMPLETE per-year fetch when a specific decade is COMMITTED (the committed
         // selectedDecade, not the transient focus). Fires at most once per settled focus because the
@@ -231,7 +250,7 @@ struct BrunoBoxSetShelvesView: View {
             // active pill, so coming back UP from the shelves returns to the decade you're viewing (not a
             // reset to All). Direction can't be read directly, so we use this once-then-yield approach.
             .backport
-            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .defaultFocus($focusedChip, initialDecade ?? "all", priority: didEnterChipRow ? .automatic : .userInitiated)
             .onChange(of: focusedChip) { _, newValue in
                 if newValue != nil { didEnterChipRow = true }
             }
@@ -871,12 +890,12 @@ private actor BrunoBoxSetShelvesDiskCache {
 extension NavigationRoute {
 
     @MainActor
-    static func brunoCategoryShelves(parent: BaseItemDto, subGroups: [BaseItemDto]? = nil) -> NavigationRoute {
+    static func brunoCategoryShelves(parent: BaseItemDto, subGroups: [BaseItemDto]? = nil, decade: String? = nil) -> NavigationRoute {
         NavigationRoute(
-            id: "bruno-shelves-\(parent.id ?? parent.displayTitle)",
+            id: "bruno-shelves-\(parent.id ?? parent.displayTitle)" + (decade.map { "-\($0)" } ?? ""),
             withNamespace: { .push(.zoom(sourceID: "item", namespace: $0)) }
         ) {
-            BrunoBoxSetShelvesView(parent: parent, subGroups: subGroups)
+            BrunoBoxSetShelvesView(parent: parent, subGroups: subGroups, decade: decade)
         }
     }
 }
