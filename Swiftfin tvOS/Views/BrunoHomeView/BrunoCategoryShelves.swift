@@ -274,31 +274,38 @@ struct BrunoCategoryShelves: View {
                     // The menu bar is the first scrolling row — for tab roots (env TabCoordinator) and
                     // for covers alike (dismiss-then-select via BrunoTabBridge). Scrolls off with the
                     // content and reappears at the top.
-                    if isTabRoot {
-                        BrunoScrollingMenuBar()
-                            .zIndex(1) // paint above the hero's upward backdrop spill
-                    } else {
-                        BrunoCoverMenuBarRow()
-                            .zIndex(1) // paint above the hero's upward backdrop spill
-                    }
+                    // Bar + hero flush (VStack spacing 0) so the LazyVStack's 36pt inter-row gap doesn't
+                    // push the hero down and leave its topBleed short of the top edge (dimmer-short-of-top
+                    // strip). Bar for tab roots (env TabCoordinator) and covers (BrunoCoverMenuBarRow,
+                    // dismiss-then-select) alike; scrolls off and reappears at the top.
+                    VStack(spacing: 0) {
+                        if isTabRoot {
+                            BrunoScrollingMenuBar()
+                                .zIndex(1) // paint above the hero's upward backdrop spill
+                        } else {
+                            BrunoCoverMenuBarRow()
+                                .zIndex(1) // paint above the hero's upward backdrop spill
+                        }
 
-                    // Full-bleed cinematic hero (Home pattern): a row in the same scroll plane as the
-                    // shelves, so vertical focus traverses hero <-> content with no special handling.
-                    if let featured {
-                        BrunoHeroView(
-                            items: [featured],
-                            index: .constant(0),
-                            eyebrow: heroEyebrow,
-                            bleedsTop: true,
-                            // Taller banner shows more of the backdrop (incl. its top), subject centered.
-                            extraHeight: 160
-                        )
-                        // Back-to-Top: the hero IS the top — `scrollTo(.top)` jumps here, and `.focused`
-                        // pulls focus here after (mirrors BrunoHomeView). The footer is Movies-tab only,
-                        // where `featured` is always present, so this anchor always exists for it.
-                        .focused($heroFocused)
-                            .id(ScrollAnchor.top)
+                        // Full-bleed cinematic hero (Home pattern): a row in the same scroll plane as the
+                        // shelves, so vertical focus traverses hero <-> content with no special handling.
+                        if let featured {
+                            BrunoHeroView(
+                                items: [featured],
+                                index: .constant(0),
+                                eyebrow: heroEyebrow,
+                                bleedsTop: true,
+                                // Taller banner shows more of the backdrop (incl. its top), subject centered.
+                                extraHeight: 160
+                            )
+                            // Back-to-Top focus target (mirrors BrunoHomeView); the scroll anchor is on the
+                            // group below so Back-to-Top reveals the bar.
+                            .focused($heroFocused)
+                        }
                     }
+                    // Back-to-Top anchor on the group (its top = the bar). The footer is Movies-tab only,
+                    // where `featured` is always present, so this anchor always exists for it.
+                    .id(ScrollAnchor.top)
 
                     if let header {
                         header
