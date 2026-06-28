@@ -104,9 +104,9 @@ struct BrunoCollectionArtBackground: View {
             )
 
             if BrunoCollectionArtwork.isSeasonal(categoryName) {
-                BrunoSeasonalArtCycle()
+                BrunoSeasonalArtCycle(palette: palette)
             } else if let asset = BrunoCollectionArtwork.dailyAsset(for: categoryName) {
-                BrunoCollectionArtImage(asset: asset)
+                BrunoCollectionArtImage(asset: asset, palette: palette)
             }
 
             // Legibility wash where the label sits (preserved from the original tile).
@@ -122,11 +122,13 @@ struct BrunoCollectionArtBackground: View {
 // MARK: - BrunoCollectionArtImage
 
 //
-// A single bundled photo, aspect-filled to the tile and uniformly dimmed so white Oswald reads over
-// any image (matches the focus-art dim treatment, lighter so the photo still reads at rest).
+// A single bundled photo, aspect-filled to the tile and dimmed so white Oswald reads over any image.
+// The dim is the category's brand gradient (not flat black) so each tile keeps its per-category color
+// differentiation while the photo still reads through (matches the focus-art dim level).
 private struct BrunoCollectionArtImage: View {
 
     let asset: String
+    let palette: (top: Color, bottom: Color, underline: Color)
 
     var body: some View {
         // Color.clear drives the layout (infinitely flexible, zero ideal size — identical to the
@@ -142,7 +144,16 @@ private struct BrunoCollectionArtImage: View {
                     .scaledToFill()
             }
             .clipped()
-            .overlay(Color.black.opacity(0.675)) // dim (0.45 → +50%, owner request) so the title reads
+            // Brand-tinted dim (was flat Color.black.opacity(0.675)) — restores the per-category color
+            // we lost when the photos went edge-to-edge, while keeping the title legible.
+            .overlay(
+                LinearGradient(
+                    colors: [palette.top, palette.bottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .opacity(0.7)
+            )
     }
 }
 
@@ -153,6 +164,8 @@ private struct BrunoCollectionArtImage: View {
 // asset holds, 2+ slow cross-fade (hold + gentle dissolve). Reduce Motion holds the first frame. The
 // timer is cancelled on disappear so it never runs off-screen.
 private struct BrunoSeasonalArtCycle: View {
+
+    let palette: (top: Color, bottom: Color, underline: Color)
 
     @Environment(\.accessibilityReduceMotion)
     private var reduceMotion
@@ -170,7 +183,7 @@ private struct BrunoSeasonalArtCycle: View {
     var body: some View {
         ZStack {
             ForEach(Array(assets.enumerated()), id: \.offset) { i, asset in
-                BrunoCollectionArtImage(asset: asset)
+                BrunoCollectionArtImage(asset: asset, palette: palette)
                     .opacity(i == index ? 1 : 0)
             }
         }
