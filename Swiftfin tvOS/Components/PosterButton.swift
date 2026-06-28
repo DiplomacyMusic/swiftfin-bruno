@@ -78,13 +78,17 @@ private struct FocusShadowPoster<Content: View>: View {
     @ViewBuilder
     let content: Content
 
-    @ViewBuilder
     var body: some View {
-        if isFocused {
-            content.posterShadow()
-        } else {
-            content
-        }
+        // INV-10: keep the focused cell's subtree STRUCTURALLY STABLE. The old
+        // `if isFocused { content.posterShadow() } else { content }` swapped the focused cell's
+        // subtree (_ConditionalContent) mid-focus-update — the exact pattern commit 86acd5f5 removed
+        // from BrunoFocusArtCycle. On the bridged self-sizing UICollectionView cells that makes the
+        // tvOS focus engine reset-in-place and DROP the press-and-hold auto-repeat after a few rows
+        // (held-scroll freeze, measured on both Home and Movies). Keep the shadow modifier always in
+        // the tree; gate only its opacity, so the shadow stays focus-only (no rasterized shadow on
+        // unfocused posters) without ever changing the subtree shape. posterShadow() == shadow(radius:4,y:2).
+        content
+            .shadow(color: Color(.sRGBLinear, white: 0, opacity: isFocused ? 0.33 : 0), radius: 4, y: 2)
     }
 }
 
