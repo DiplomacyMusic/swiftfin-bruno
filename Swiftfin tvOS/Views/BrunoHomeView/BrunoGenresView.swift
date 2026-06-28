@@ -42,10 +42,6 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "heist", "modern war", "on the run", "revenge", "sailing & high seas",
             "space opera", "spy", "superhero", "survival", "vigilante",
         ]),
-        .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
-            "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
-            "monster movies", "science fiction", "space opera", "superhero", "time travel",
-        ]),
         .init(id: "comedy", title: "Comedy", members: [
             "buddy cop", "college", "comedy", "coming of age", "cubicle",
             "dude approved romance", "ensemble", "fish out of water", "heist", "lgbtq",
@@ -62,15 +58,19 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "classic romance", "dude approved romance", "erotic thriller", "lgbtq", "romance",
             "romantic comedy", "romantic drama", "romcom all-timers", "teen romance", "twee",
         ]),
-        .init(id: "crime", title: "Crime", members: [
-            "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
-            "on the run", "prison", "vigilante", "whodunits",
+        .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
+            "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
+            "monster movies", "science fiction", "space opera", "superhero", "time travel",
         ]),
         .init(id: "thriller", title: "Thriller", members: [
             "con artists", "courtroom", "cubicle", "dystopia", "ensemble", "erotic thriller",
             "gangster", "heist", "isolation", "journalism", "mind blowers", "monster movies",
             "mystery", "noir", "obsession", "on the run", "paranoia", "political thriller",
             "prison", "revenge", "spy", "thriller", "twist", "whodunits",
+        ]),
+        .init(id: "crime", title: "Crime", members: [
+            "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
+            "on the run", "prison", "vigilante", "whodunits",
         ]),
         .init(id: "horror", title: "Horror", members: [
             "horror", "horror sub-genres", "isolation", "monster movies",
@@ -94,7 +94,7 @@ struct BrunoCoreGenre: Identifiable, Hashable {
 
 //
 // The Genres page (roadmap §4 + core panel). With `core == nil`: a core-category panel as the
-// first line (Action · Sci-Fi & Fantasy · Romance · Comedy · Drama), then the mixed-together
+// first line (Action · Comedy · Drama · Romance · Sci-Fi & Fantasy · Thriller · …), then the mixed-together
 // sub-genre shelves. With a `core` set: only the fine-grain genre shelves in that bucket.
 struct BrunoGenresView: View {
 
@@ -194,7 +194,10 @@ struct BrunoGenresView: View {
                     // Movies TAB ROOT (isTabRoot) → BrunoCategoryShelves injects the tab-root scrolling
                     // menu bar as its first row; the pushed Genres cover (isTabRoot false) gets the
                     // scrolling BrunoCoverMenuBarRow as its first row instead. Either way the bar scrolls.
-                    isTabRoot: isTabRoot
+                    isTabRoot: isTabRoot,
+                    // Re-arm the cold-DOWN-lands-on-All default when focus returns to the hero, so every
+                    // fresh DOWN-from-hero re-applies .userInitiated (not just the very first entry).
+                    onHeroFocused: { didEnterChipRow = false }
                 )
             }
         }

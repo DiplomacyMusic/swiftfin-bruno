@@ -219,6 +219,10 @@ struct BrunoCategoryShelves: View {
     /// BrunoGenresView), which instead get the scrolling BrunoCoverMenuBarRow (BrunoTabBridge,
     /// dismiss-then-select) as their first row. Either way the bar scrolls; covers no longer pin a bar.
     var isTabRoot: Bool = false
+    /// Fired when the hero banner GAINS focus. Used by the pill-row surfaces (Genres / Decades) to
+    /// re-arm their "DOWN-from-hero lands on All" default-focus: focus returning to the hero means the
+    /// next DOWN is a fresh top-down entry, so they reset their `didEnterChipRow` guard. nil ⇒ ignored.
+    var onHeroFocused: (() -> Void)?
 
     @Router
     private var router
@@ -301,6 +305,11 @@ struct BrunoCategoryShelves: View {
                         .focused($heroFocused)
                             .id(ScrollAnchor.top)
                             .brunoHeroWordmark()
+                            // Re-arm the pill row's "DOWN lands on All" each time focus returns to the
+                            // hero (a fresh top-down entry follows). No-op on surfaces without a pill row.
+                            .onChange(of: heroFocused) { _, focused in
+                                if focused { onHeroFocused?() }
+                            }
                     }
 
                     if let header {
@@ -350,6 +359,16 @@ struct BrunoCategoryShelves: View {
                 }
                 .padding(.bottom, 60)
             }
+            // Menu/Back while scrolled into the shelves returns to the TOP (and re-seats the hero) instead
+            // of leaving the surface. A nil action lets the press fall through to the system — exit the app
+            // on a tab root, pop on a pushed cover — which is what we want once already at the top (hero
+            // focused) or on a heroless surface. Stable modifier (only the closure swaps) so there's no
+            // view-identity churn. See docs/BRUNO_HERO_UPNAV.md.
+            .onExitCommand(perform: (featured == nil || heroFocused) ? nil : {
+                proxy.scrollTo(ScrollAnchor.top, anchor: .top)
+                // scrollTo moves content, not focus — pull focus to the hero (mirrors Back to Top).
+                Task { @MainActor in heroFocused = true }
+            })
             // Jump to the "pills near top, first shelf in full view" framing when the COMMITTED pill
             // selection settles (onChange fires on real changes only, so the cold-enter hero-intro
             // framing — INV-7 — is left untouched). INV-9: instant under reduce-motion.

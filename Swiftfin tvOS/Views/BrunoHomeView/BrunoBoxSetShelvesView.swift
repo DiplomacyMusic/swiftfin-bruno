@@ -117,7 +117,10 @@ struct BrunoBoxSetShelvesView: View {
                     // Keyed on pill-row FOCUS (a stable token, not the focused pill id, so the shelf view
                     // isn't re-evaluated per scrub): when you move INTO the pills it snaps them to the top
                     // (instant) so the decade shelves are fully visible beneath and you watch them change.
-                    pillScrollKey: focusedChip == nil ? nil : "pills"
+                    pillScrollKey: focusedChip == nil ? nil : "pills",
+                    // Re-arm the cold-DOWN-lands-on-All default when focus returns to the hero, so every
+                    // fresh DOWN-from-hero re-applies .userInitiated (not just the very first entry).
+                    onHeroFocused: { didEnterChipRow = false }
                 )
                 // This surface is a pushed COVER (isTabRoot defaults false), so BrunoCategoryShelves
                 // injects the scrolling BrunoCoverMenuBarRow as its first LazyVStack row — no pinned

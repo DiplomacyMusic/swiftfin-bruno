@@ -51,6 +51,11 @@ struct BrunoScrollingMenuBar: View {
     @FocusState
     private var barFocus: String?
 
+    /// True only for the ACTIVE tab's bar (MainTabView injects this per tab). Gates the pending-focus
+    /// claim so exactly one bar — the newly-selected tab's — grabs focus after a pill press.
+    @Environment(\.brunoTabIsActive)
+    private var isActive
+
     /// TAB-ROOT mode (the only mode used today): the tab list + selection come from the environment
     /// `TabCoordinator`. Inject as the first row of a tab root's `LazyVStack`.
     init() {
@@ -65,13 +70,42 @@ struct BrunoScrollingMenuBar: View {
         self.explicitSelection = selection
     }
 
+    /// Selection binding for the pills. In tab-root mode the setter (which fires ONLY on a pill PRESS —
+    /// pills never switch on focus) also records `pendingBarFocus`, the one-shot intent the newly-active
+    /// tab's bar consumes to keep focus on the selected pill instead of falling to the hero.
+    private var selectionBinding: Binding<String?> {
+        if let explicitSelection { return explicitSelection }
+        return Binding(
+            get: { tabCoordinator.selectedTabID },
+            set: { newID in
+                // Record the intent only on an actual tab CHANGE (selectedTabID is still the old value
+                // here), so re-pressing the current tab's pill leaves no stale pending claim behind.
+                if let newID, newID != tabCoordinator.selectedTabID { tabCoordinator.pendingBarFocus = newID }
+                tabCoordinator.selectedTabID = newID
+            }
+        )
+    }
+
+    /// Consume the one-shot pending-focus intent and claim it on the matching pill — deferred one runloop
+    /// so the pill is enabled + laid out (the new tab is being un-`.disabled()` in this same transaction;
+    /// a synchronous set would be dropped). Mirrors BrunoHomeView's `Task { @MainActor in homeFocus … }`.
+    private func claimPendingBarFocus(active: Bool) {
+        guard active, let target = tabCoordinator.pendingBarFocus else { return }
+        tabCoordinator.pendingBarFocus = nil
+        Task { @MainActor in barFocus = target }
+    }
+
     var body: some View {
         BrunoMenuBar(
             tabs: explicitTabs ?? tabCoordinator.tabs.map(\.item),
-            selection: explicitSelection ?? $tabCoordinator.selectedTabID,
+            selection: selectionBinding,
             focus: $barFocus
         )
         .frame(height: BrunoMenuBar.barHeight) // INV-1: fixed height, independent of focus/content
         .focusSection()
+        // Claim the pending pill focus when THIS tab becomes active: onChange covers switching back to an
+        // already-mounted tab; onAppear covers a first-time lazy mount (isActive already true, no change).
+        .onChange(of: isActive) { _, nowActive in claimPendingBarFocus(active: nowActive) }
+        .onAppear { claimPendingBarFocus(active: isActive) }
     }
 }

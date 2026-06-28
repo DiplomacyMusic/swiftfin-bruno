@@ -39,6 +39,13 @@ final class TabCoordinator: ObservableObject {
     @Published
     var tabs: [TabData] = []
 
+    /// tvOS: one-shot intent set ONLY by a top-menu pill PRESS (BrunoScrollingMenuBar). When the
+    /// newly-selected tab becomes active, its own menu bar consumes this and claims focus on the matching
+    /// pill (deferred a runloop), so a pill press keeps focus on the bar instead of falling to the hero.
+    /// nil on cold launch / deep links, so those still land focus in content (the hero — INV-7).
+    @Published
+    var pendingBarFocus: String?
+
     init(@ArrayBuilder<TabItem> tabs: () -> [TabItem]) {
         let tabs = tabs()
         self.tabs = tabs.map { tab in

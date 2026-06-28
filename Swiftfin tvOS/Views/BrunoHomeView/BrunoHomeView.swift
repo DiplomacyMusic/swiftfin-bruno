@@ -212,6 +212,14 @@ struct BrunoHomeView: View {
                     if !Set(new).isSuperset(of: Set(old)) { visibleShelfCount = 4 }
                 }
             }
+            // Menu/Back while scrolled into the shelves returns to the TOP (and re-seats the hero) rather
+            // than exiting. A nil action once already at the top (hero focused) falls through to the system
+            // so Menu exits the app as usual. Stable modifier (only the closure swaps) — no identity churn.
+            .onExitCommand(perform: homeFocus == .hero ? nil : {
+                viewModel.send(.scrollToTop)
+                // scrollTo moves content, not focus — pull focus back to the hero (mirrors Back to Top).
+                Task { @MainActor in homeFocus = .hero }
+            })
             .onChange(of: viewModel.scrollResetToken) { _, _ in
                 if reduceMotion {
                     proxy.scrollTo("bruno-top", anchor: .top)
