@@ -101,7 +101,8 @@ feed is terminal; drill-in lives only in the bottom footer, below).
 |---|---|---|---|---|---|
 | Continue Watching | Pick Up Where You Left Off | `source:.resume` (ResumeItemsLibrary, live user-state) | live | none | shelf |
 | Up Next | Next Episode | `source:.nextUp` (NextUpLibrary, live) | live | none | shelf |
-| Just Added | New to the Library | `source:.recentlyAdded` (RecentlyAddedLibrary, live; shows date) | live | none | shelf |
+| Just Added | New to the Library | `source:.recentlyAdded` (RecentlyAddedLibrary, live; newest by dateCreated — added to the library) | live | none | shelf |
+| New Releases | Home Premiere | `newReleasesShelf` — `BrunoQuery includeItemTypes=[.movie] sortBy=[.premiereDate] desc, limit 20`, **no shuffle** (ordered, newest publicly-released first); derived live query, distinct from Just Added (dateCreated) | 18 | none | shelf |
 | {Year} & Around | A Year in Film | `yearShelf` — `BrunoQuery years=[year-2…year+2]`, seeded shuffle. 1st of 3 distinct seeded years | 18 | none | shelf |
 | Spotlight on {Director} | Director Spotlight | `seededPick(directorBoxSets)` → `parentQuery(parentID, movie+series)` | 18 | none | shelf |
 | {Genre} | If You Like | `seededPick(genres)` → `genreQuery` (years ≥ `modernCutoff` only) | 18 | none | shelf |
@@ -161,7 +162,7 @@ ranks in during the Halloween→Christmas window. Each header's "Show all" → `
 
 | Shelf | Lens/eyebrow | Derived from | Max items | Show-all destination (filter carried) | shelf/grid |
 |---|---|---|---|---|---|
-| New Releases | Just Added | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
+| New Releases | Home Premiere | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
 | Directors | Auteurs | Directors group's boxSet children; weighted preview (salt `0x91A3`) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` — boxSet children only | shelf |
 | Movie Stars | Movie Stars | Actor group boxSet children | full set | `brunoBoxSetGrid(portrait, artCarousel)` | shelf |
 | Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group (**54 live**, §0); **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted of 54 | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |

@@ -26,6 +26,7 @@ struct BrunoShelf: Identifiable {
         case resume
         case nextUp
         case recentlyAdded
+        case newReleases
         case spotlight
         case genre
         case subgenre
@@ -48,7 +49,7 @@ struct BrunoShelf: Identifiable {
         case resume
         /// Up Next — `NextUpLibrary`.
         case nextUp
-        /// New Releases — `RecentlyAddedLibrary`.
+        /// Just Added — `RecentlyAddedLibrary` (newest by dateCreated, i.e. added to the library).
         case recentlyAdded
         /// A computed/curated query backed by `BrunoQueryLibrary` (stable sort + seeded shuffle).
         case query(BrunoQuery)

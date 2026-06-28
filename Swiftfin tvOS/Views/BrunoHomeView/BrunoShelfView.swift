@@ -52,7 +52,7 @@ struct BrunoShelfView: View {
                 // header (see BrunoShelfMetrics.portraitHeaderBottomInset).
                 .padding(.bottom, viewModel.posterType == .portrait ? BrunoShelfMetrics.portraitHeaderBottomInset : 0)
 
-                // New Releases (the .recentlyAdded spine shelf) shows the full release date in the
+                // Just Added (the .recentlyAdded spine shelf) shows the full release date in the
                 // poster subtitle line — movies' item.subtitle is nil there, so BrunoTitleDateContentView
                 // fills the already-reserved blank line (INV-1 row height unchanged). Every other shelf
                 // omits the label argument and renders PosterHStack's default TitleSubtitleContentView
@@ -62,7 +62,7 @@ struct BrunoShelfView: View {
                 // the up/down "math conflict" that hard-snaps the row with no intervening frames. It
                 // also keeps the spine geometry constant while shelves stream in. Both heights are the
                 // single source of truth in BrunoShelfMetrics (see docs/BRUNO_PERF_INVARIANTS.md). The
-                // pinned height is identical in both branches — the only difference is the New Releases
+                // pinned height is identical in both branches — the only difference is the Just Added
                 // poster label — so the row geometry is unchanged.
                 if viewModel.shelf.kind == .recentlyAdded {
                     PosterHStack(

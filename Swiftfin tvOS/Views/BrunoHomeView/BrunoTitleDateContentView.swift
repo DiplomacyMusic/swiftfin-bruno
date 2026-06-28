@@ -17,7 +17,7 @@ import SwiftUI
 // BrunoShelfMetrics.shelfRowHeight (460) holds with NO height change — same VStack(.leading), same
 // title font/opacity, same .lineLimit(1, reservesSpace: true) on BOTH lines. The only divergence is
 // line 2: the medium-style premiere date ("May 25, 1977") in place of the (blank-for-movies) subtitle.
-// Used by the Decade browse shelves (BrunoShelfRow, showsDate: true) and the Home "New Releases" shelf
+// Used by the Decade browse shelves (BrunoShelfRow, showsDate: true) and the Home "Just Added" shelf
 // (BrunoShelfView, .recentlyAdded). Do NOT modify the shared view.
 struct BrunoTitleDateContentView: View {
 
