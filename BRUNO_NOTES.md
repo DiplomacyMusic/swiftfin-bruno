@@ -149,6 +149,10 @@ a `Defaults.Keys` `Key<Int>` is enough for the day-seed (see T4).
 
 ## §Live library snapshot (validated against http://192.168.50.19:8899 — server Jellyfin 10.10.3)
 
+> **These are the T0 capture numbers — superseded.** For current live sizes and the full group-tile
+> inventory, see `docs/BRUNO_NAV_MAP.md` §0 (the canonical live source). Note #40 added a flat
+> **Rewatchables** favorited group beyond the seven listed below (and Movie Stars, already live).
+
 - **635 movies, 19 series, 162 BoxSets total.**
 - **7 favorited group BoxSets** (these ARE the spec's groups — `IncludeItemTypes=BoxSet & Filters=IsFavorite`):
   `New Releases`, `Directors`, `Decades`, `Genres`, `Studios`, `Curated`, `Seasonal`.
