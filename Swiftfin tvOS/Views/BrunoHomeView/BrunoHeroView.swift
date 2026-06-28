@@ -138,6 +138,19 @@ struct BrunoHeroView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: visualHeight, alignment: imageAnchor)
+            // Top dimming, aligned WITH the bled-up art (part of the visualHeight backdrop, top-anchored):
+            // covers the strip behind the floating menu so the pills stay legible AND the dimming runs to
+            // the physical top edge instead of stopping at the layout box. Height = the bleed + a fade past
+            // the menu band; tunable knobs are `+ 100` (taller/shorter) and `0.65` (darker/lighter).
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [Color.bruno.page.opacity(0.65), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: topBleed + 100)
+                .allowsHitTesting(false)
+            }
             .clipped()
             .id(item.id)
             .transition(.opacity)
