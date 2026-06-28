@@ -28,7 +28,7 @@ first half of this one optimized *render cost* (real, but secondary). Do not rep
 3. **Consult the experts BEFORE you theorize — this is a rule, not a suggestion.** The breakthrough this
    session came from agents, not from me guessing:
    - **`swift-xcode-expert`** for the tvOS focus engine / Swift / SwiftUI / UIKit / Instruments — and it
-     must **cite Apple docs** (`docs/swift-reference.md`), not memory.
+     must **cite Apple docs** (`docs/reference/swift-reference.md`), not memory.
    - **`bruno-expert`** to map the codebase path and reconcile against INV-1..10 / prior commits.
    Invoke them in parallel at the *start* of a hypothesis, with the precise measured symptom. They
    independently converged on the root cause in one round.
@@ -244,7 +244,7 @@ need *File → Packages → Reset Package Caches* to pick up a new fork revision
 - `Shared/Services/SwiftfinDefaults.swift` — Fix #1 (`static let` keys; the SAME computed-`static var`
   anti-pattern remains on many OTHER keys in this file — convert any that show up hot).
 - Docs: `BRUNO_PERF_HANDOFF.md` (render history), `BRUNO_PERF_INVARIANTS.md` (INV-1, **INV-10**),
-  `BRUNO_PERF_LOGGING.md` (telemetry), `BRUNO_HERO_UPNAV.md` (PR#27 focus restructure), `swift-reference.md`.
+  `BRUNO_PERF_LOGGING.md` (telemetry), `BRUNO_HERO_UPNAV.md` (PR#27 focus restructure), `reference/swift-reference.md`.
 
 ## 9. Agents to consult (rule #3)
 - `swift-xcode-expert` — focus engine / Swift / SwiftUI / Instruments, **citing Apple docs**.

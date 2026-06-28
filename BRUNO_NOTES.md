@@ -38,7 +38,7 @@ at `ComputeTargetDependencyGraph` with `Macro "CasePathsMacros"/"StatefulMacrosM
 relaunches, build WITH simulator ad-hoc signing — otherwise the keychain-access-group entitlement is
 stripped, the access token doesn't persist, and the stock upstream `assertionFailure("access token
 missing in keychain")` (`SwiftinStore+UserState.swift:33`) traps on the next launch. See
-`docs/SIM_VIEWING_HANDOFF.md`.
+`docs/archive/SIM_VIEWING_HANDOFF.md`.
 
 **Gotcha after upgrading Xcode:** the iOS sim build's asset-catalog step (`actool`) can fail with
 `No simulator runtime version from ["22G86"] available to use with iphonesimulator SDK version 23C57`

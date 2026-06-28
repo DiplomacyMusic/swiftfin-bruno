@@ -5,7 +5,7 @@
 > a screenshot — and/or render the Bruno GUI from mock data so the owner can *see it working*.
 > **Repo:** `/Users/danielbrunelle/Documents/Claude/Projects/bruno`, branch `bruno` (merged to `main`).
 > Build toolchain: **Xcode 26.3** (Swift 6.2.4, tvOS/iOS 26.2 SDKs). See `BRUNO_NOTES.md` for the
-> full architecture/signature verification and `docs/SIM_VIEWING_HANDOFF.md` for sim basics.
+> full architecture/signature verification and `SIM_VIEWING_HANDOFF.md` for sim basics.
 
 ---
 

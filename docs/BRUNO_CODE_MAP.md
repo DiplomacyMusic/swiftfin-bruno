@@ -161,48 +161,45 @@ For full shelf taxonomy, per-tab surfaces, and Show-all routing detail, see **`d
 
 ## 6. Documentation map
 
-Load-bearing (read/keep current): **`CLAUDE.md`** (working principles + perf-doc pointers),
-**`docs/BRUNO_PERF_INVARIANTS.md`** (INV-1..10, read before any shelf UX work), **`docs/PROJECT_TRACKER.md`**
-(canonical living status board), and the two orientation maps **`docs/BRUNO_NAV_MAP.md`** (IA/shelves/routing)
-and **`docs/BRUNO_CODE_MAP.md`** (this file). Everything else is reference spec or a dated one-off handoff.
+Docs are organized in three tiers (reorg completed 2026-06-28 — every cross-reference repointed, verified
+zero dangling):
 
-| Doc | Status | Recommendation |
+- **`docs/` (top level) — canonical + active.** Read these.
+- **`docs/reference/` — stable specs** (designs, checklists; some unbuilt). Consult when relevant.
+- **`docs/archive/` — superseded one-off handoffs**, kept for history only; not current.
+
+**Load-bearing (always keep current):** `CLAUDE.md`, `docs/PROJECT_TRACKER.md`,
+`docs/BRUNO_PERF_INVARIANTS.md`, `docs/BRUNO_NAV_MAP.md`, `docs/BRUNO_CODE_MAP.md`, `BRUNO_NOTES.md`,
+`prototype/design_handoff_bruno/PRODUCT_SPEC.md`.
+
+| Doc | Tier | Role |
 |---|---|---|
-| `CLAUDE.md` | load-bearing | keep |
-| `docs/PROJECT_TRACKER.md` | load-bearing | keep (the heartbeat) |
-| `docs/BRUNO_PERF_INVARIANTS.md` | load-bearing | keep (add INV quick-ref table at top) |
-| `docs/BRUNO_NAV_MAP.md` | load-bearing | keep (IA/shelf detail) |
-| `docs/BRUNO_CODE_MAP.md` | load-bearing | keep (this file) |
-| `BRUNO_NOTES.md` | load-bearing | keep (verified toolchain/SDK/arch) |
-| `NATIVE_FORK_PLAN.md` | reference | keep (historical plan; BRUNO_NOTES overrides on drift) |
-| `prototype/design_handoff_bruno/PRODUCT_SPEC.md` | load-bearing | keep (product contract) |
-| `README.md` | reference | keep |
-| `docs/BRUNO_PERF_HANDOFF.md` | active handoff | keep (scroll-hitch diagnosis) |
-| `docs/BRUNO_PERF_LOGGING.md` | active handoff | keep (telemetry guide) |
-| `docs/BRUNO_HERO_UPNAV.md` | active handoff | keep (UP-nav focus model) |
-| `docs/BRUNO_HERO_LAYOUT_MAP.md` | active handoff | keep (hero/menu layout knobs) |
-| `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active handoff | keep (Movies/genre fragility map) |
-| `docs/DEPLOYMENT_HANDOFF.md` | active handoff | keep (real-device run) |
-| `docs/UI_FIXPASS2_HANDOFF.md` | active handoff | keep (live UI handoff) |
-| `docs/STUDIO_GRID_HANDOFF.md` | reference spec | keep (unbuilt; move to docs/reference/) |
-| `docs/GENRE_RECS_ARCHITECTURE.md` | reference spec | keep (unbuilt; move to docs/reference/) |
-| `docs/TOP_SHELF_SETUP.md` | reference | keep (owner checklist) |
-| `docs/PERF_SHELVES.md` | reference | keep (scaffold-jank options) |
-| `docs/swift-reference.md` | reference | keep (swift-xcode-expert sources) |
-| `docs/STATUS.md` | stale handoff | merge into DEPLOYMENT_HANDOFF as a prerequisites note |
-| `docs/UI_DEEP_WORK_HANDOFF.md` | stale handoff | merge into UI_FIXPASS2_HANDOFF (superseded) |
-| `docs/SIM_VIEWING_HANDOFF.md` | stale handoff | archive (superseded by DEPLOYMENT) |
-| `docs/OVERNIGHT_TESTING_HANDOFF.md` | stale handoff | archive (one-off T0 testing notes) |
-| `docs/UI_POLISH_ROADMAP.md` | stale handoff | archive (superseded by UI_FIXPASS2) |
-| `docs/overnight-loop-log.md` | noise | delete (historical build log; STATUS was the deliverable) |
+| `CLAUDE.md` | load-bearing | working principles + perf-doc pointers |
+| `docs/PROJECT_TRACKER.md` | load-bearing | canonical status board (the heartbeat) |
+| `docs/BRUNO_NAV_MAP.md` | load-bearing | IA / shelves / show-all routing |
+| `docs/BRUNO_CODE_MAP.md` | load-bearing | architecture + this doc map |
+| `docs/BRUNO_PERF_INVARIANTS.md` | load-bearing | INV-1..10 (+ quick-ref) — read before shelf UX |
+| `BRUNO_NOTES.md` | load-bearing | verified toolchain / SDK / architecture |
+| `prototype/design_handoff_bruno/PRODUCT_SPEC.md` | load-bearing | product contract / mockup |
+| `docs/BRUNO_PERF_HANDOFF.md` | active | scroll-hitch diagnosis & levers |
+| `docs/BRUNO_PERF_LOGGING.md` | active | DEBUG on-disk telemetry guide |
+| `docs/BRUNO_STALL_HANDBOOK.md` | active | held-scroll freeze (focus-engine) handbook |
+| `docs/BRUNO_HERO_UPNAV.md` | active | hero UP-nav focus model |
+| `docs/BRUNO_HERO_LAYOUT_MAP.md` | active | hero/menu layout knobs |
+| `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active | Movies/genre surface fragility map |
+| `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run (absorbed the old STATUS) |
+| `docs/UI_FIXPASS2_HANDOFF.md` | active | live UI handoff (absorbed UI_DEEP_WORK) |
+| `README.md` | reference | public-facing readme |
+| `NATIVE_FORK_PLAN.md` | reference | historical one-shot plan (BRUNO_NOTES overrides on drift) |
+| `docs/reference/STUDIO_GRID_HANDOFF.md` | reference | unbuilt Studios-grid redesign spec |
+| `docs/reference/GENRE_RECS_ARCHITECTURE.md` | reference | unbuilt "IF YOU LIKE" rec-lens design |
+| `docs/reference/TOP_SHELF_SETUP.md` | reference | Top Shelf extension owner checklist |
+| `docs/reference/PERF_SHELVES.md` | reference | scaffold-jank options memo |
+| `docs/reference/swift-reference.md` | reference | swift-xcode-expert doc sources |
+| `docs/archive/SIM_VIEWING_HANDOFF.md` | archive | superseded sim-viewing notes |
+| `docs/archive/OVERNIGHT_TESTING_HANDOFF.md` | archive | one-off T0 testing handoff |
+| `docs/archive/UI_POLISH_ROADMAP.md` | archive | superseded UI roadmap |
 
-> This map only documents the cleanup; per the task it does **not** modify any other doc.
-
-### Ordered cleanup plan
-1. **Delete** `docs/overnight-loop-log.md` (pure historical noise).
-2. **Merge** `docs/STATUS.md` → `DEPLOYMENT_HANDOFF.md` (as a "Prerequisites / already verified" note), then remove STATUS.
-3. **Merge** `docs/UI_DEEP_WORK_HANDOFF.md` → `UI_FIXPASS2_HANDOFF.md`, then remove the old one.
-4. **Archive** the superseded one-offs to `docs/archive/`: `SIM_VIEWING_HANDOFF.md`, `OVERNIGHT_TESTING_HANDOFF.md`, `UI_POLISH_ROADMAP.md`.
-5. **Move** reference specs to `docs/reference/`: `STUDIO_GRID_HANDOFF.md`, `GENRE_RECS_ARCHITECTURE.md`, `TOP_SHELF_SETUP.md`, `PERF_SHELVES.md`, `swift-reference.md`.
-6. **Add** an INV quick-reference table at the top of `BRUNO_PERF_INVARIANTS.md`.
-7. Leave `PROJECT_TRACKER.md`, `BRUNO_NAV_MAP.md`, `BRUNO_CODE_MAP.md`, `CLAUDE.md`, `BRUNO_NOTES.md` front-and-center.
+**Merged/removed in the 2026-06-28 reorg:** `STATUS.md` → folded into `DEPLOYMENT_HANDOFF.md`
+("Already verified" section); `UI_DEEP_WORK_HANDOFF.md` → folded into `UI_FIXPASS2_HANDOFF.md`;
+`overnight-loop-log.md` → deleted (noise).

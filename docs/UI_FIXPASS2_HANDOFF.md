@@ -34,6 +34,8 @@ xcodebuild -project Swiftfin.xcodeproj -scheme "Swiftfin tvOS" \
 ```
 VLC frameworks (`Carthage/`) live in the main checkout. Finish a branch with a **clean** build —
 incremental builds hide `@available` errors; use the repo's `.backport.<api>(…)` for tvOS-18 APIs.
+New `.swift` files auto-compile (project uses **PBXFileSystemSynchronizedRootGroup** — no `.pbxproj`
+edits; just drop files in the synced folders).
 
 ## 3. DONE & on `main` (build-green) — needs ON-DEVICE eyeballing
 - **Tabs:** Search leads, Settings trails, app opens on Home.
@@ -67,6 +69,15 @@ incremental builds hide `@available` errors; use the repo's `.backport.<api>(…
    Show-all card alignment vs poster cards, lazy scroll past ~36, focus, and that Directors really
    shows only directors now.
 3. **Owner feedback still pending** on the big gradient category cards and the Kids filter look.
+4. **System Top Shelf — dynamic previews** (roadmap §1b, "previews like the Apple TV app"; not started).
+   Add a Top Shelf extension target (`TVTopShelfContentProvider`) returning sectioned
+   `TVTopShelfSectionedItem`s — Continue Watching / Recently Added / featured, with poster art. The
+   crux is auth plumbing: the extension is a separate process, so it needs the saved server URL +
+   access token, shared via an **App Group + shared keychain access group** (the keychain access group
+   already declared for on-device sign-in — see `DEPLOYMENT_HANDOFF.md` §1 — is the hook; the main app
+   must write session creds where the extension can read them). Each item's `displayAction` should
+   deep-link into Bruno (the `deepLinkHandler` used in `MainTabView`). Keep the static `BRUNO.`
+   top-shelf image as the fallback when there's no auth/content. See `docs/reference/TOP_SHELF_SETUP.md`.
 
 ## 5. Key files
 - Tabs: `Shared/Coordinators/Tabs/MainTabView.swift`, `TabItem.swift`, `TabCoordinator.swift`
@@ -76,8 +87,12 @@ incremental builds hide `@available` errors; use the repo's `.backport.<api>(…
 - Library grid / perf: `Shared/Objects/Libraries/ItemLibrary.swift`; cards: `Swiftfin tvOS/Components/PosterButton.swift`, `PosterHStack.swift`
 - Data: `Shared/Objects/Bruno/BrunoLibrarySnapshot.swift`
 - Audio: `Shared/Objects/AudioNightMode.swift`, `MediaPlayerProxy+VLC.swift`, `Swiftfin tvOS/Views/SettingsView/VideoPlayerSettingsView.swift`
-- Other docs: `docs/DEPLOYMENT_HANDOFF.md` (signing), `docs/TOP_SHELF_SETUP.md`, `docs/UI_POLISH_ROADMAP.md`
+- Other docs: `docs/DEPLOYMENT_HANDOFF.md` (signing), `docs/reference/TOP_SHELF_SETUP.md`, `docs/archive/UI_POLISH_ROADMAP.md`
 
 ## 6. Server assumptions (owner-curated; adjust if a tab/drill looks wrong)
 - Kids libraries match the keyword `kids`. Collections groups matched by name (`Genres`/`Decades`
   drive the drills). Boxed Sets = box sets not in the 7 groups.
+- Library-name matching is case-insensitive on display name. If a tab/drill shows "Couldn't find …"
+  the server library is named differently than expected — confirm the exact Jellyfin display names
+  with the owner and adjust the matched name(s). (Owner's Kids content has historically been split
+  into separate Movies/Shows libraries rather than one "Kids" user view.)

@@ -30,9 +30,9 @@ UI is tvOS-only. Brand: accent `#A1CCE0` (Apolla sky), Oswald display / Inter bo
 |---|---|
 | **The mockup / product contract** (IA, shelf taxonomy, generators, API mapping, tokens) | `prototype/design_handoff_bruno/PRODUCT_SPEC.md` + `README.md`; the runnable prototype is `prototype/design_handoff_bruno/Bruno_standalone.html` (open in a browser), source-read `Bruno.dc.html` |
 | **Verified architecture & SDK signatures** (file:line, what's real vs planned) | `BRUNO_NOTES.md` — when this disagrees with the plan, this wins |
-| **Project status / what's done / what's next** | `docs/PROJECT_TRACKER.md` (you own it), `docs/UI_POLISH_ROADMAP.md`, `docs/STATUS.md` |
-| **Build / run / sim / device recipes** | `docs/STATUS.md`, `docs/SIM_VIEWING_HANDOFF.md`, `docs/DEPLOYMENT_HANDOFF.md`, `BRUNO_NOTES.md` §Toolchain |
-| **Top Shelf extension wiring** | `docs/TOP_SHELF_SETUP.md`, `BrunoTopShelf/`, `Shared/Objects/Bruno/BrunoTopShelfCredentials.swift` |
+| **Project status / what's done / what's next** | `docs/PROJECT_TRACKER.md` (you own it); UI specifics in `docs/UI_FIXPASS2_HANDOFF.md` |
+| **Build / run / sim / device recipes** | `docs/DEPLOYMENT_HANDOFF.md` (real-device + already-verified facts, absorbed from the old STATUS), `BRUNO_NOTES.md` §Toolchain; historical sim-only notes in `docs/archive/SIM_VIEWING_HANDOFF.md` |
+| **Top Shelf extension wiring** | `docs/reference/TOP_SHELF_SETUP.md`, `BrunoTopShelf/`, `Shared/Objects/Bruno/BrunoTopShelfCredentials.swift` |
 | **Original native plan (historical)** | `NATIVE_FORK_PLAN.md` (superseded where `BRUNO_NOTES.md` overrides) |
 
 ## Bruno code geography (memorize this)
@@ -108,7 +108,7 @@ reality — if STATUS.md / the roadmap / git history contradict it, reconcile an
 DEBUG-gated/inert; never hardcode BoxSet/library IDs; no secrets in the repo; **land finished work on
 `main`** (the owner builds `main` in Xcode).
 
-**Build/run quick reference** (full detail in `BRUNO_NOTES.md` / `docs/STATUS.md`): compile gate uses
+**Build/run quick reference** (full detail in `BRUNO_NOTES.md` / `docs/DEPLOYMENT_HANDOFF.md`): compile gate uses
 `-skipMacroValidation` + `CODE_SIGNING_ALLOWED=NO`; a *runnable* sim build needs ad-hoc signing
 (`CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES`) or the stock keychain
 assertion traps on relaunch. Toolchain: Xcode 26.3 / Swift 6.2.4 / tvOS 26.2 SDK.

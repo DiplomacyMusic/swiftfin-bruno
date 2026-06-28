@@ -3,7 +3,7 @@
 > **Audience:** the next thread, which will walk the owner through installing Bruno on their
 > own **Apple TV** and **iPhone** hardware (not the simulator).
 > **State:** `bruno` is merged to `main`, green on Xcode 26.3 (tvOS + iOS). All sim verification
-> is done (see `docs/STATUS.md`). The remaining work is purely real-device signing + install.
+> is done (see the "Already verified" section below). The remaining work is purely real-device signing + install.
 
 ---
 
@@ -81,11 +81,50 @@ CLI alternative (no Xcode UI): `xcodebuild -scheme "Swiftfin tvOS" -destination 
 - **Stutter on real Apple TV** (shouldn't happen) → then it's transcode/bitrate/network, not the sim;
   check Settings ▸ Playback (Native AVPlayer vs Swiftfin/VLC), direct-play vs server transcode.
 - **A crash on device** → pull the `.ips` and apply the §6 decision rule in
-  `docs/OVERNIGHT_TESTING_HANDOFF.md`: stock frames ⇒ signing/profile; `…/Bruno/…` frames ⇒ real bug.
+  `docs/archive/OVERNIGHT_TESTING_HANDOFF.md`: stock frames ⇒ signing/profile; `…/Bruno/…` frames ⇒ real bug.
+
+## Already verified (prior overnight run)
+
+> One-time snapshot, 2026-06-22 night. Xcode 26.3 (tvOS 26.2 SDK), Apple TV 4K sim.
+> **Bruno is visibly working** on the sim: both the mock-data GUI (Track A) and the real
+> live-library Home (Track B) render, and the post-login keychain crash is gone on an
+> ad-hoc-signed build. Real-device install (§§1-4) is the only remaining work.
+
+**Runnable sim build command** (ad-hoc identity embeds the keychain-access-group entitlement
+so the sign-in token persists across relaunch — this is what fixes the crash; the compile
+gate's `CODE_SIGNING_ALLOWED=NO` strips that entitlement and is for compile-verify only):
+```bash
+xcodebuild -project Swiftfin.xcodeproj -scheme "Swiftfin tvOS" \
+  -destination 'generic/platform=tvOS Simulator' -skipMacroValidation build \
+  CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES
+```
+
+- **Track A (mock GUI, no server/sign-in/keychain):** `./bruno-verify/snapshot.sh ~/Desktop`
+  installs the signed build and screenshots each surface via the `BRUNO_SNAPSHOT=1` gallery
+  (`BRUNO_SNAPSHOT_VIEW` = `home`|`hero`|`shelf`). Committed PNGs: `docs/screenshots/bruno-home.png`,
+  `bruno-hero.png`, `bruno-shelves.png` — wordmark, accent `#A1CCE0`, Oswald/Inter, seeded hero,
+  shelves over the stock `PosterHStack` with native focus (mock items show placeholder glyphs, no
+  server images).
+- **Track B (real end-to-end, headless):** `./bruno-verify/e2e.sh ~/Desktop`. UI typing on the
+  tvOS keyboard is too brittle for unattended runs, so sign-in is driven programmatically by
+  `BrunoAutoSignIn.swift` (`#if DEBUG`, `BRUNO_AUTOSIGNIN=1`) using the app's own
+  `ConnectToServerViewModel`/`UserSignInViewModel`/`UserSessionManager` primitives; creds come from
+  `JF_BASE`/`JF_USER_NAME`/`JF_PASS` env (gitignored `bruno_jellyfin.env`, never compiled in).
+  Confirmed: process **ALIVE after relaunch — keychain persisted**; real Home identical after a
+  clean relaunch (Godfather spotlight 1972 · Drama · ★8.7, real Continue Watching art). Those
+  real-library screenshots were delivered out-of-band and intentionally **not committed** (personal
+  content + public remote).
+- **Crash analysis:** no new crash from any signed run. The pre-existing `.ips` is the stock
+  keychain assertion (`SwiftfinStore.State.User.accessToken.getter` → "access token missing in
+  keychain", via `UserSessionManager.resolveCurrentSession()`) with **zero Bruno frames** — confirms
+  the §5 decision rule (stock frames ⇒ signing/env, not a Bruno bug). Ad-hoc signing eliminates it.
+- Guardrails honored: additive only; new files under `Swiftfin tvOS/Views/BrunoHomeView/` (tvOS-only,
+  file-system-synchronized group → no pbxproj edits); the only non-Bruno edits are DEBUG-gated, inert
+  branches in `SwiftfinApp.swift`. swiftformat + swiftlint clean; `./bruno-verify/run.sh` green; both
+  compile gates green.
 
 ## 6. Reference
 
-- Sim verification + exact build commands: `docs/STATUS.md`.
-- Architecture / crash root-cause / guardrails: `docs/OVERNIGHT_TESTING_HANDOFF.md`.
+- Architecture / crash root-cause / guardrails: `docs/archive/OVERNIGHT_TESTING_HANDOFF.md`.
 - Credentials: gitignored `bruno_jellyfin.env` at the repo root (`JF_BASE`/`JF_USER_NAME`/`JF_PASS`).
 - Bundle id (tvOS): `com.diplomacymusic.bruno`. iOS scheme: `Swiftfin`. Min OS: iOS 16.6 / tvOS 17.

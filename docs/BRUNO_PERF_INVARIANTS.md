@@ -19,6 +19,23 @@ them. The fragile *constants* live in one place — `BrunoShelfMetrics` (`Swiftf
 
 ---
 
+## Quick reference
+
+| INV | Rule (one line) | Anchor / where it lives |
+|---|---|---|
+| INV-1 | Shelf rows are height-pinned (portrait 460 / landscape 348), placeholder == loaded. | `BrunoShelfMetrics`; `BrunoShelfView`, `BrunoShelfRow` |
+| INV-2 | Shelf identity is stable and domain-derived (`shelf.id`, never index); reuse the same VM per id. | `BrunoHomeViewModel` (`ForEach`, `hydrate`) |
+| INV-3 | Settled spine is deterministic, append-only in plan order (same seed ⇒ same home). | `BrunoHomePlan.build`, `streamReveal` |
+| INV-4 | Prefetch width == cell width (portrait 200 / landscape 300, q90), mirror `PosterImage`. | `BrunoShelfMetrics`, `BrunoPosterPrefetcher` |
+| INV-5 | Disk item-cache is seed+user keyed and excludes live user-state rows (resume/nextUp/recentlyAdded/hero picks). | `BrunoHomeCache` (`persistPayload`) |
+| INV-6 | Ambient background is a sibling layer at low res (maxWidth 480), not a scroll `.background`. | `BrunoAmbientBackground` |
+| INV-7 | Focus lands on the hero until a real shelf exists; placeholders are non-focusable. | `BrunoHomeView`, `BrunoHeroView` |
+| INV-8 | Reveal cadence is strictly top-down regardless of completion order; hero auto-advance gated on settle. | `streamReveal`, `BrunoHomeView` |
+| INV-9 | Every reveal/transition animation honors reduce-motion (collapse to instant). | `BrunoHomeView` (`reduceMotion`) |
+| INV-10 | Shelf cells are structurally stable across focus; gate work (not view presence), load per-item data key-aware, no `.id` in the package. | `BrunoFocusArtCycle` (`// INV-10`), forked CollectionHStack |
+
+---
+
 ## How Home loads (the mental model)
 
 1. **Hero first.** `BrunoHomeViewModel` publishes the hero the moment it lands (~1–2s), so the banner

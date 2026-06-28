@@ -75,7 +75,7 @@ id**, case-insensitively:
 
 - A set of favorited **group BoxSets** (Directors, Studios, Decades, Curated, Seasonal, **Genres**, …).
 - A **"Genres" group** whose children are **sub-genre BoxSets** (the ~80: 16 broad TMDB-built genres +
-  curated/personal sub-genres like Noir, Heist, Cubicle, Coming of Age…). See `GENRE_RECS_ARCHITECTURE.md`
+  curated/personal sub-genres like Noir, Heist, Cubicle, Coming of Age…). See `reference/GENRE_RECS_ARCHITECTURE.md`
   §"Current architecture" and `bruno-enrich-pipeline` / `bruno-genre-layers` memory.
 - **Every sub-genre BoxSet is movie-only** on the server — which is *why there is no movies-only filter in
   the app* (a `type == .movie` filter on the group's children would match `.boxSet` and **blank the page**).
@@ -84,7 +84,7 @@ id**, case-insensitively:
 > **Two genre data models coexist — do not confuse them.** `snapshot.genres` = raw **TMDB genre name
 > strings** (feeds Home's "IF YOU LIKE" rows via `BrunoHomePlan.genreQuery`, server-side `Genres=` match).
 > The **Genres-group sub-BoxSets** = the curated shelves this Movies tab renders. They are different
-> systems. `GENRE_RECS_ARCHITECTURE.md` is about the FORMER (an unbuilt Home rec lens) — it does **not**
+> systems. `reference/GENRE_RECS_ARCHITECTURE.md` is about the FORMER (an unbuilt Home rec lens) — it does **not**
 > describe this Movies tab.
 
 ---
@@ -332,4 +332,4 @@ the same id can't coexist). No live collision today.
 | The mid-feed "Browse the Collection" tile shelf (G1) | `Shared/Objects/Bruno/BrunoHomePlan.swift` |
 | `modernCutoff` (Home only — NOT this surface) | `Shared/Objects/Bruno/BrunoRecencyBias.swift` |
 | Perf invariants INV-1..9 + the INV-3 carve-out | `docs/BRUNO_PERF_INVARIANTS.md` |
-| The unbuilt Home "IF YOU LIKE" rec lens (NOT this) | `docs/GENRE_RECS_ARCHITECTURE.md` |
+| The unbuilt Home "IF YOU LIKE" rec lens (NOT this) | `docs/reference/GENRE_RECS_ARCHITECTURE.md` |

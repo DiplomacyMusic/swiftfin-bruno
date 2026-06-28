@@ -26,7 +26,7 @@
     the existing `swiftfin://…/item/<id>` scheme) + Info.plist + entitlements, as ready-to-add
     template files in `BrunoTopShelf/` (not compiled).
   - [ ] Owner: create the extension target, add the App Group to both targets, sign. Full
-    step-by-step in **docs/TOP_SHELF_SETUP.md**.
+    step-by-step in **../reference/TOP_SHELF_SETUP.md**.
 - Static `BRUNO.` top-shelf image stays as the fallback when no content/auth is available.
 
 ## 2. Top bar / tab IA  — `Shared/Coordinators/Tabs/MainTabView.swift` (tvOS branch)
