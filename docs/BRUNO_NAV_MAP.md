@@ -14,29 +14,39 @@
 
 ---
 
-## 0. Live library snapshot
+## 0. Live library snapshot — real sizes at each nav node
 
-> Real counts pulled from the live server (Jellyfin 10.10.3 at the host in `BRUNO_NOTES.md` §SDK),
-> captured 2026-06-28 — the actual pool sizes behind each surface. **Refresh:** re-query
-> `/Items?Recursive=true&IncludeItemTypes=…&Limit=0` (read `TotalRecordCount`) and the favorited group
-> BoxSets' `ChildCount`. Counts drift as the library grows.
+> Real sizes from the live server (Jellyfin 10.10.3 at the host in `BRUNO_NOTES.md` §SDK), captured
+> 2026-06-28. **Refresh:** `/Items?…&Limit=0` → `TotalRecordCount` for grid totals; favorited BoxSets'
+> `ChildCount` for parent sizes; `/Items?ParentId={group}` (**no type filter** — see Terminology in
+> `BRUNO_CODE_MAP.md`) for member/child sizes. Counts drift as the library grows.
 
-| Surface / pool | Live count | Feeds |
-|---|---|---|
-| Movies (library) | **1270** | Movies tab → `brunoMoviesGrid`; most movie shelves |
-| TV series (library) | **44** (2849 episodes) | TV Shows grid (§5) |
-| Kids | **52** = 48 movies + 4 shows | Kids grid (§6), merged via `BrunoCombinedLibrary` |
-| BoxSets (all) | **416** | Jellyfin `BoxSet` primitives across all tiers; the 8 group tiles report 408 member-BoxSets between them (ChildCount sum). "Boxed Sets" (franchises) is the runtime remainder — see **Terminology** in `BRUNO_CODE_MAP.md` |
-| · Genres group | **84** | Movies tab pills + sub-genre shelves (§4) |
-| · Directors group | **121** | Directors card; spine "Browse by Director" (prefix 14 on Home) |
-| · Studios group | **95** | Studios grid |
-| · New Releases group | **53** | New Releases card |
-| · Movie Stars group | **27** | Movie Stars card |
-| · Curated group | **14** | Curated drill-in (§3b) |
-| · Decades group | **8** | Decades drill-in — 8 decade pills (§3a) |
-| · Seasonal group | **6** | Seasonal card (Oct–Dec) |
+**Full grids (terminal surfaces):**
 
-Library views: `Movies` · `Shows` · `Kids Movies` · `Kids Shows` · `Collections`.
+| Grid | Items |
+|---|---|
+| Movies — `brunoMoviesGrid` / Movies-tab A–Z | **1270** |
+| TV Shows — `brunoTVGrid` (§5) | **44 series** (2849 episodes) |
+| Kids (§6) | **52** = 48 movies + 4 shows |
+
+**Group tiles → members → child film sizes** (parent = # member BoxSets; child = films inside each member):
+
+| Group tile (parent) | Members | Child films min / median / max | Σ films | Largest children |
+|---|---|---|---|---|
+| Genres | **84** | 2 / 31 / **596** | 5259 | Drama 596 · Comedy 384 · Thriller 280 |
+| Directors | **121** | 2 / 4 / 33 | 618 | Spielberg 33 · Scorsese 23 · Soderbergh 21 |
+| Studios | **95** | 4 / 7 / 100 | 1292 | Warner Bros 100 · Paramount 96 · Universal 89 |
+| Curated | **14** | 23 / 175 / 560 | 2417 | Ebert Thumbs Up 560 · Oscar—Screenplay 261 |
+| Decades | **8** | 33 / 133 / 255 | 1127 | 1990s 255 · 2010s 253 · 2000s 228 |
+| Movie Stars | **27** | 3 / 12 / 25 | 355 | De Niro 25 · Hanks 22 · Cruise 22 |
+| Seasonal | **6** | 3 / 35 / 66 | 203 | Halloween 66 · 4th of July 59 |
+| New Releases | **53** | flat — members are *movies*, not BoxSets | 53 | (newest-first) |
+| Boxed Sets (franchises) | **54** | 2 / 3 / 12 | 172 | James Bond 12 · Star Wars 9 · M:I 7 |
+
+Shelf caps (Home 18 · browse preview 14 · weighted 16) sit *on top of* these pools — e.g. the Drama
+genre shelf previews 14 of **596**. **BoxSet accounting:** 416 `BoxSet` primitives = 8 group tiles + 354
+member BoxSets + 54 standalone franchises (New Releases' 53 children are movies, not BoxSets). Library
+views: `Movies` · `Shows` · `Kids Movies` · `Kids Shows` · `Collections`.
 
 ---
 
@@ -154,7 +164,7 @@ ranks in during the Halloween→Christmas window. Each header's "Show all" → `
 | New Releases | Just Added | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
 | Directors | Auteurs | Directors group's boxSet children; weighted preview (salt `0x91A3`) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` — boxSet children only | shelf |
 | Movie Stars | Movie Stars | Actor group boxSet children | full set | `brunoBoxSetGrid(portrait, artCarousel)` | shelf |
-| Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group; **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
+| Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group (**54 live**, §0); **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted of 54 | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
 | Decades | Through the Years | Decades group boxSet children; newest-first | 14 preview | `brunoCategoryShelves(parent: Decades)` → drill-in (§3a) | shelf |
 | Curated | Hand-Picked | Curated group boxSet children | 14 preview | `brunoCategoryShelves(parent: Curated)` → drill-in (§3b) | shelf |
 | Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid | shelf |

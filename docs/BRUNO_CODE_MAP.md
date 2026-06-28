@@ -226,8 +226,9 @@ distinct in code, docs, and prompts:
 - "BoxSet" = the Jellyfin primitive, never the franchise card.
 - "Franchise" / "franchise set" = the user-facing concept; the code already names it `franchiseBoxSets` /
   lens "Franchises" — prefer these internally; treat "Boxed Sets" as the display string only.
-- Group membership is **NOT** a `ParentId` relationship — member BoxSets come from the snapshot
-  (`childrenByGroupName`), not a live `ParentId` query (which returns ~nothing for BoxSet children).
-  Don't compute franchise/membership counts via `ParentId`.
+- Group membership **IS** a `ParentId` query — but with **NO type filter** (Bruno's `fetchChildren`
+  sets `ParentId={group}`, no `includeItemTypes`). Adding `IncludeItemTypes=BoxSet` returns ~nothing —
+  that filter is the trap. So franchises = all BoxSets − group tiles − their `ParentId` members
+  (− director-name dups); the live count is **54**.
 - Optional UX cleanup (deferred): renaming the card's display label "Boxed Sets" → "Franchises" would
   erase the collision in the UI too. Flagged, not done.
