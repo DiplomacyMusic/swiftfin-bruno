@@ -90,11 +90,13 @@ struct BrunoHeroView: View {
         // +barHeight: the menu bar ROW now sits directly above the hero in the LazyVStack (the same
         // barHeight the old pinned inset used to reserve — geometry preserved), so the hero's measured
         // layout box starts barHeight lower. The backdrop is bottom-pinned, so its upward spill must clear
-        // BOTH the overscan strip AND the bar band to reach the physical top — otherwise a lighter ambient
-        // strip shows above the hero (the dimmer-short-of-top bug). topBleed is pure background overflow
-        // (never measured), so growing it moves no sibling; layoutHeight is untouched (adding barHeight
-        // there too would double-count and over-grow the banner).
-        let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight : 0
+        // the overscan strip, the bar band, AND the 36pt inter-row gap to reach the physical top —
+        // otherwise a lighter ambient strip shows above the hero (the dimmer-short-of-top bug). topBleed
+        // is pure background overflow (never measured), so growing it moves no sibling; layoutHeight is
+        // untouched (adding barHeight there too would double-count and over-grow the banner).
+        // +36: the LazyVStack row spacing between the menu-bar row and the hero row. Every hero-bleed host
+        // (Home/Kids/Movies/TV) uses spacing: 36, so without this term the bleed lands 36pt short.
+        let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight + 36 : 0
         // Three independent knobs (see swift-reference / hero notes):
         //  • layoutHeight  — the ONLY height the parent VStack measures, so it alone fixes the banner's
         //    bottom edge and the shelves below. extraHeight grows it downward (Home restores the
