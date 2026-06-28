@@ -144,6 +144,9 @@ struct BrunoBoxSetShelvesView: View {
         .onDisappear {
             commitTask?.cancel()
             commitTask = nil
+            // Tear down an in-flight streaming load if the user backs out mid-stream (structured cancel
+            // propagates to every in-flight child fetch).
+            viewModel.cancelLoad()
         }
     }
 
@@ -304,16 +307,50 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     /// follows in its existing per-launch shuffled order. ("Sci Fi" = the "Science Fiction" BoxSet.)
     private static let priorityGenreOrder = ["action", "comedy", "drama", "romance", "science fiction", "thriller"]
 
-    /// Stable-partition the shuffled genre rows so the six `priorityGenreOrder` names lead (in that
-    /// order); all others keep their incoming (shuffled) order behind them.
-    private static func pinningPriorityGenres(_ rows: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+    /// Final ROW ORDER, computed from the sub-group list by NAME alone — children are NOT needed to order
+    /// rows, which is exactly what lets the load STREAM (fix the order up front, then publish each shelf
+    /// as its children land). Mirrors the former post-fan-out ordering: genres → per-launch seeded row
+    /// reshuffle, then pin the owner's lead genres to the top in fixed order; decades → newest-first by
+    /// leading year; others → server order. `rowOrderSeed` is read ONCE here, so the published order is
+    /// stable for the session (INV-7). Each entry keeps its ORIGINAL enumerated index so the per-shelf
+    /// child shuffle seed stays unchanged. (Empty sub-groups still occupy a slot and are skipped at
+    /// publish time; a genre with zero films may thus shuffle to a slightly different slot than before —
+    /// cosmetic, within the INV-3 nondeterministic-row-order carve-out.)
+    private static func orderedSubGroups(
+        _ subGroups: [BaseItemDto],
+        parent: BaseItemDto,
+        recencyBiased: Bool
+    ) -> [(index: Int, sub: BaseItemDto)] {
+        // Keep each sub-group's enumerated index (so the child shuffle seed is unchanged); drop id-less
+        // sub-groups (they can't be fetched and were never shown).
+        let indexed = subGroups.enumerated().compactMap { pair -> (index: Int, sub: BaseItemDto)? in
+            pair.element.id == nil ? nil : (index: pair.offset, sub: pair.element)
+        }
+
+        // Decades render newest-first (owner request): leading year descending drops "1950s & Earlier"
+        // (year 1950, smallest) to the bottom. Other groups keep server order.
+        let isDecades = parent.displayTitle.lowercased() == "decades"
+        let base = isDecades
+            ? indexed.sorted { leadingYear($0.sub.displayTitle) > leadingYear($1.sub.displayTitle) }
+            : indexed
+
+        guard recencyBiased else { return base }
+
+        // Genres: per-launch row reshuffle, then pin the six lead genres to the top in fixed order.
+        let shuffled = BrunoRNG.shuffled(base, seed: rowOrderSeed)
         let leads = priorityGenreOrder.compactMap { name in
-            rows.first { $0.name.lowercased() == name }
+            shuffled.first { $0.sub.displayTitle.lowercased() == name }
         }
-        let rest = rows.filter { row in
-            !priorityGenreOrder.contains(row.name.lowercased())
-        }
+        let rest = shuffled.filter { !priorityGenreOrder.contains($0.sub.displayTitle.lowercased()) }
         return leads + rest
+    }
+
+    /// One row's streaming state: `.pending` until its children fetch returns, then `.empty` (zero films
+    /// → dropped) or `.ready`. Lets the publish loop advance a contiguous prefix in the fixed order.
+    private enum ShelfSlot {
+        case pending
+        case empty
+        case ready(BrunoCollectionCategory)
     }
 
     func load(parent: BaseItemDto) async {
@@ -329,6 +366,13 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         await task.value
     }
 
+    /// Cancel an in-flight streaming load when the surface disappears (user backs out mid-stream). The
+    /// load is a STRUCTURED task (the fan-out lives inside one `withTaskGroup` in the stored `loadTask`),
+    /// so cancelling it propagates to every in-flight child `getItems` — no detached requests survive.
+    func cancelLoad() {
+        loadTask?.cancel()
+    }
+
     private func performLoad(parent: BaseItemDto) async {
         guard let userSession, let parentID = parent.id else {
             isLoading = false
@@ -338,22 +382,31 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         let client = userSession.client
         let userID = userSession.user.id
 
-        // Cross-push cache: re-entering this drill-in (Genres / Decades / Curated) within the TTL
-        // reuses the categories the fan-out already produced — skipping the 20+ request storm — since
-        // the @StateObject is re-instantiated per navigation push and would otherwise re-run it every
-        // time. Keyed by (userID, parentID); 300s TTL bounds staleness of the children's
-        // enableUserData (watched / resume ticks), matching the snapshot cache's contract (INV-5).
+        // Cross-push in-memory cache: re-entering this drill-in within the TTL reuses the categories the
+        // fan-out already produced — skipping the request storm — since the @StateObject is re-instantiated
+        // per push. Keyed by (userID, parentID); 300s TTL bounds enableUserData (watched/resume) staleness
+        // to match the snapshot cache (INV-5).
         if let cached = await BrunoBoxSetShelvesCache.shared.value(userID: userID, parentID: parentID) {
             categories = cached
             isLoading = false
             return
         }
 
-        // Genre rows show each sub-genre's FULL membership (owner request): no modern-year filter and
-        // no cross-row dedup, so a film appears in every genre it belongs to and niche rows fill out.
-        // `recencyBiased` still flags the Genres surface — it drives the per-launch row-order reshuffle
-        // (below) and the newest-first "Show all" sort. Decades / Curated / any other group keep server
-        // order. We fetch a deeper page for genres as headroom for the per-shelf cap.
+        // Disk cache (cold-launch paint): on an in-memory MISS, paint the last persisted set INSTANTLY,
+        // then refresh live below (stale-while-revalidate) — this is what removes the ~25s cold-launch
+        // spinner. The persisted children carry enableUserData (watched ticks) that may be stale across
+        // launches; the immediate background refresh corrects them within ~1-2s, so a brief stale paint is
+        // INV-5-acceptable.
+        var hasStalePaint = false
+        if let disk = await BrunoBoxSetShelvesDiskCache.shared.load(userID: userID, parentID: parentID) {
+            categories = disk
+            isLoading = false
+            hasStalePaint = true
+        }
+
+        // Genre rows show each sub-genre's FULL membership (owner request): no modern-year filter, no
+        // cross-row dedup. `recencyBiased` flags the Genres surface — it drives the per-launch row reshuffle
+        // (in orderedSubGroups) and the newest-first "Show all" sort. Deeper page for genres as cap headroom.
         let recencyBiased = parent.displayTitle.lowercased() == "genres"
         let childFetch = recencyBiased ? 60 : perShelfFetch
 
@@ -361,67 +414,100 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             client: client,
             userID: userID,
             parentID: parentID,
-            // Headroom over the ~80 sub-genre BoxSets under "Genres" (was 100). Still a single page —
-            // if the curated set ever approaches this, page to completion like loadYearShelves (G5).
+            // Headroom over the ~80 sub-genre BoxSets under "Genres". Still a single page — if the curated
+            // set ever approaches this, page to completion like loadYearShelves (G5).
             limit: 120
         )
 
-        // Fetch each sub-group's children concurrently; preserve server order via the index.
-        var indexed: [(Int, BrunoCollectionCategory)] = []
-        await withTaskGroup(of: (Int, BaseItemDto, [BaseItemDto]).self) { group in
-            for (index, subGroup) in subGroups.enumerated() {
-                guard let subID = subGroup.id else { continue }
+        // Fix the final ROW ORDER up front, from the sub-groups by NAME — no children needed. This is what
+        // lets us STREAM: each shelf publishes into its pre-assigned slot as its children land, so the user
+        // sees the first rows in ~1-2s instead of staring at a spinner until all ~80 fetches finish.
+        let ordered = Self.orderedSubGroups(subGroups, parent: parent, recencyBiased: recencyBiased)
+        let shuffleSeed = Self.shuffleSeed
+
+        // BOUNDED concurrency (≤ maxInFlight) with ORDERED incremental publish: one slot per row, plus a
+        // high-water mark that advances over the contiguous filled prefix — so rows appear top-down in the
+        // fixed order regardless of which fetch finishes first (INV-7), and the server / connection pool is
+        // never hit with all ~80 requests at once (the old unbounded fan-out was the wall-time cost).
+        let maxInFlight = 6
+        var slots = [ShelfSlot](repeating: .pending, count: ordered.count)
+        var live: [BrunoCollectionCategory] = []
+        var nextToPublish = 0
+
+        await withTaskGroup(of: (Int, BrunoCollectionCategory?).self) { group in
+            var cursor = 0
+            func addNext() {
+                guard cursor < ordered.count else { return }
+                let slotIndex = cursor
+                let serverIndex = ordered[cursor].index
+                let sub = ordered[cursor].sub
+                cursor += 1
+                guard let subID = sub.id else { slots[slotIndex] = .empty
+                    return
+                }
                 let fetch = childFetch
                 group.addTask {
-                    let children = await Self.fetchChildren(
-                        client: client,
-                        userID: userID,
-                        parentID: subID,
-                        limit: fetch
+                    let children = await Self.fetchChildren(client: client, userID: userID, parentID: subID, limit: fetch)
+                    // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
+                    // server index → identical ordering to the prior implementation.
+                    let shown = BrunoRNG.shuffled(children, seed: shuffleSeed &+ UInt32(truncatingIfNeeded: serverIndex))
+                    return (
+                        slotIndex,
+                        shown.isNotEmpty
+                            ? BrunoCollectionCategory(boxSet: sub, children: shown, recencyBiased: recencyBiased)
+                            : nil
                     )
-                    return (index, subGroup, children)
                 }
             }
 
-            for await (index, subGroup, children) in group {
-                // Seeded shuffle so shelves read varied rather than alphabetical (owner request).
-                // Day-stable seed + per-shelf offset → stable within a day, fresh the next.
-                let shown = BrunoRNG.shuffled(children, seed: Self.shuffleSeed &+ UInt32(truncatingIfNeeded: index))
-                guard shown.isNotEmpty else { continue }
-                indexed.append((
-                    index,
-                    BrunoCollectionCategory(boxSet: subGroup, children: shown, recencyBiased: recencyBiased)
-                ))
+            for _ in 0 ..< maxInFlight {
+                addNext()
+            } // prime the pool
+
+            for await (slotIndex, category) in group {
+                if Task.isCancelled { break } // user backed out — stop publishing and enqueueing
+                slots[slotIndex] = category.map(ShelfSlot.ready) ?? .empty
+                addNext() // keep ≤ maxInFlight in flight
+
+                // Advance the published prefix over every resolved leading slot (skipping empties).
+                advance: while nextToPublish < slots.count {
+                    switch slots[nextToPublish] {
+                    case .pending:
+                        break advance
+                    case .empty:
+                        nextToPublish += 1
+                    case let .ready(category):
+                        live.append(category)
+                        nextToPublish += 1
+                    }
+                }
+
+                // Stream the growing prefix into the view ONLY on a true cold load. When a stale disk paint
+                // is already on screen, keep it intact and swap to the fresh set once (below) — avoids a
+                // stale-full → fresh-partial → fresh-full flicker.
+                if !hasStalePaint {
+                    categories = live
+                    if live.isNotEmpty { isLoading = false }
+                }
             }
         }
 
-        let baseOrdered = indexed
-            .sorted { $0.0 < $1.0 }
-            .map(\.1)
+        if Task.isCancelled { return } // don't finalize / cache a partial result
 
-        // Decades render newest-first (owner request): sort by leading year descending, which also
-        // drops the "1950s & Earlier" catch-all (year 1950, the smallest) to the bottom. Other
-        // groups keep server order.
-        let isDecades = parent.displayTitle.lowercased() == "decades"
-        let ordered = isDecades
-            ? baseOrdered.sorted { Self.leadingYear($0.name) > Self.leadingYear($1.name) }
-            : baseOrdered
+        isLoading = false // clear the spinner in every non-cancelled outcome
 
-        // Genres surface: reshuffle the ROW order per cold launch (and 6h, but only on a genuine reload —
-        // see rowOrderSeed) so the Movies tab feels fresh. The seed is read once here, so the published
-        // order is stable for the whole session — INV-7 safe. Decades / Curated keep deterministic order.
-        // Then pin the owner's six lead genres to the top in a fixed order; the rest follow shuffled.
-        let result = recencyBiased
-            ? Self.pinningPriorityGenres(BrunoRNG.shuffled(ordered, seed: Self.rowOrderSeed))
-            : ordered
-        categories = result
-        isLoading = false
-
-        // Store the fan-out result so a re-entry within the TTL skips the request storm. Empty results
-        // are not cached (let a later push retry), mirroring the snapshot cache.
-        if result.isNotEmpty {
-            await BrunoBoxSetShelvesCache.shared.store(result, userID: userID, parentID: parentID)
+        if live.isNotEmpty {
+            // Swap in the fresh set (the single replace for the stale-paint path; a redundant no-op for the
+            // cold path, which already streamed it) and seed both caches so a re-entry skips the fan-out.
+            categories = live
+            await BrunoBoxSetShelvesCache.shared.store(live, userID: userID, parentID: parentID)
+            await BrunoBoxSetShelvesDiskCache.shared.store(live, userID: userID, parentID: parentID)
+        } else if !hasStalePaint {
+            // Cold load that genuinely found nothing → show the empty state (don't cache an empty result).
+            categories = []
         }
+        // else: stale disk paint + an empty refresh (transient server blip) → keep the disk paint on screen
+        // rather than blanking good content.
     }
 
     // MARK: - Per-year decade shelves (Step 3b)
@@ -693,6 +779,55 @@ private actor BrunoBoxSetShelvesCache {
     func store(_ categories: [BrunoCollectionCategory], userID: String, parentID: String) {
         guard categories.isNotEmpty else { return }
         entries[parentID] = Entry(userID: userID, categories: categories, loadedAt: Date())
+    }
+}
+
+// MARK: - BrunoBoxSetShelvesDiskCache
+
+//
+// Disk persistence for the drill-in category set, so a COLD LAUNCH paints the genre/decade shelves
+// instantly from the last session instead of the ~25s spinner during the fan-out. Modeled on
+// BrunoHomeCache: an `actor` (JSON encode/decode + file I/O stay OFF the @MainActor), best-effort and
+// `try?`-tolerant (missing / corrupt / schema-drift file = a miss, never a crash). Keyed by
+// (userID, parentID), one file per parentID. The caller ALWAYS revalidates after a disk paint
+// (stale-while-revalidate), so the persisted enableUserData (watched ticks) is corrected within ~1-2s;
+// `maxAge` only bounds how ancient a paint we'll show before falling back to the spinner.
+private actor BrunoBoxSetShelvesDiskCache {
+
+    static let shared = BrunoBoxSetShelvesDiskCache()
+
+    private struct Payload: Codable {
+        let savedAt: Date
+        let userID: String
+        let categories: [BrunoCollectionCategory]
+    }
+
+    /// A week: generous because every paint is revalidated; this only guards against painting truly
+    /// ancient data on a long-dormant install.
+    private let maxAge: TimeInterval = 7 * 86400
+
+    private func fileURL(parentID: String) -> URL? {
+        try? FileManager.default
+            .url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("bruno-shelves-\(parentID).json")
+    }
+
+    func load(userID: String, parentID: String) -> [BrunoCollectionCategory]? {
+        guard let url = fileURL(parentID: parentID),
+              let data = try? Data(contentsOf: url),
+              let payload = try? JSONDecoder().decode(Payload.self, from: data),
+              payload.userID == userID,
+              Date().timeIntervalSince(payload.savedAt) < maxAge
+        else { return nil }
+        return payload.categories
+    }
+
+    func store(_ categories: [BrunoCollectionCategory], userID: String, parentID: String) {
+        guard categories.isNotEmpty,
+              let url = fileURL(parentID: parentID),
+              let data = try? JSONEncoder().encode(Payload(savedAt: Date(), userID: userID, categories: categories))
+        else { return }
+        try? data.write(to: url, options: .atomic)
     }
 }
 

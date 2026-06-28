@@ -209,6 +209,9 @@ struct BrunoGenresView: View {
         .onDisappear {
             commitTask?.cancel()
             commitTask = nil
+            // Tear down an in-flight streaming load if the user backs out mid-stream (structured cancel
+            // propagates to every in-flight child fetch).
+            viewModel.cancelLoad()
         }
     }
 

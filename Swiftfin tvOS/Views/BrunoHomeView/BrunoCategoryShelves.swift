@@ -20,10 +20,12 @@ import SwiftUI
 // Implicitly Sendable (all members are Sendable: BaseItemDto is Sendable, DrillStyle has no
 // associated values), so the loaded category set crosses into the actor-isolated drill-in cache
 // (BrunoBoxSetShelvesCache) without ceremony.
-struct BrunoCollectionCategory: Identifiable {
+struct BrunoCollectionCategory: Identifiable, Codable {
 
-    /// What "Show all" does for this category.
-    enum DrillStyle {
+    /// What "Show all" does for this category. `String`-raw `Codable` so the category set can persist
+    /// to disk (instant cold-launch paint — see BrunoBoxSetShelvesDiskCache); String raw values are the
+    /// case names and survive case reordering, unlike an Int enum's shifting ordinals.
+    enum DrillStyle: String, Codable {
         /// Flat full grid for the group (a stock ItemLibrary). The default leaf behaviour.
         case grid
         /// Shelf-per-sub-group drill-in (Decades).
