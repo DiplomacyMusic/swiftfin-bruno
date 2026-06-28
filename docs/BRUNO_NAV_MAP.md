@@ -26,7 +26,7 @@
 | Movies (library) | **1270** | Movies tab → `brunoMoviesGrid`; most movie shelves |
 | TV series (library) | **44** (2849 episodes) | TV Shows grid (§5) |
 | Kids | **52** = 48 movies + 4 shows | Kids grid (§6), merged via `BrunoCombinedLibrary` |
-| BoxSets (all) | **416** | = 8 group tiles + 408 group children |
+| BoxSets (all) | **416** | Jellyfin `BoxSet` primitives across all tiers; the 8 group tiles report 408 member-BoxSets between them (ChildCount sum). "Boxed Sets" (franchises) is the runtime remainder — see **Terminology** in `BRUNO_CODE_MAP.md` |
 | · Genres group | **84** | Movies tab pills + sub-genre shelves (§4) |
 | · Directors group | **121** | Directors card; spine "Browse by Director" (prefix 14 on Home) |
 | · Studios group | **95** | Studios grid |
@@ -154,7 +154,7 @@ ranks in during the Halloween→Christmas window. Each header's "Show all" → `
 | New Releases | Just Added | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
 | Directors | Auteurs | Directors group's boxSet children; weighted preview (salt `0x91A3`) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` — boxSet children only | shelf |
 | Movie Stars | Movie Stars | Actor group boxSet children | full set | `brunoBoxSetGrid(portrait, artCarousel)` | shelf |
-| Boxed Sets | Franchises | Franchise boxSets NOT in any curated group; weighted (salt `0xB075`) | 16 weighted | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
+| Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group; **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
 | Decades | Through the Years | Decades group boxSet children; newest-first | 14 preview | `brunoCategoryShelves(parent: Decades)` → drill-in (§3a) | shelf |
 | Curated | Hand-Picked | Curated group boxSet children | 14 preview | `brunoCategoryShelves(parent: Curated)` → drill-in (§3b) | shelf |
 | Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid | shelf |
