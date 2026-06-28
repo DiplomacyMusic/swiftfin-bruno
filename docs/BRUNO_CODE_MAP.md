@@ -39,7 +39,8 @@ Bruno lives in two places:
    `PagingLibraryViewModel`, `ItemLibrary`, `NavigationCoordinator`, stock item/detail/player views).
 
 Guardrails: additive + tvOS-only; **no `.pbxproj` edits** (file-system-synchronized group); never hardcode
-BoxSet/library IDs; no secrets in the repo; land finished work on `main`.
+BoxSet/library IDs; no secrets in the repo; **work in a worktree → open a PR; the owner merges** (don't
+push `main` directly).
 
 ---
 
@@ -193,6 +194,7 @@ zero dangling):
 | `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run (absorbed the old STATUS) |
 | `docs/UI_FIXPASS2_HANDOFF.md` | active | live UI handoff (absorbed UI_DEEP_WORK) |
 | `docs/BRUNO_CERTIFICATION_PLAN.md` | active (plan) | design for a pre-change cert / quality gate (SlateRunner-style) |
+| `docs/FEATURE_BACKLOG.md` | active (plan) | red-teamed next-thread feature plan |
 | `README.md` | reference | public-facing readme |
 | `NATIVE_FORK_PLAN.md` | reference | historical one-shot plan (BRUNO_NOTES overrides on drift) |
 | `docs/reference/STUDIO_GRID_HANDOFF.md` | reference | unbuilt Studios-grid redesign spec |
