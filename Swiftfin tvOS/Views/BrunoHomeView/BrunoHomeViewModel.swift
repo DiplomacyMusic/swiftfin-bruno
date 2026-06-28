@@ -60,7 +60,9 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
 
     private(set) var seed: UInt32
 
-    private var snapshot: BrunoLibrarySnapshot = .empty
+    // Read-only to the Home view so each shelf's "Show all" (D1) and the Eras decade deep-links (D2)
+    // can resolve their browse destinations from the same loaded snapshot.
+    private(set) var snapshot: BrunoLibrarySnapshot = .empty
     /// The fetched hero candidate pool (high-rated movies); re-shuffled locally on each (re)entry.
     private var heroSuperset: [BaseItemDto] = []
     private var explorePage = 0

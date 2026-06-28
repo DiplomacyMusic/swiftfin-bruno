@@ -152,7 +152,7 @@ struct BrunoHomeView: View {
                     // INV-2: cap-and-grow window — mount only the first `visibleShelfCount` of the
                     // already-revealed sections, keyed on the section's stable id (not array index).
                     ForEach(viewModel.sections.prefix(visibleShelfCount)) { section in
-                        BrunoShelfView(viewModel: section)
+                        BrunoShelfView(viewModel: section, snapshot: viewModel.snapshot)
                             // INV-8/INV-9: shelves stream in top-down (the VM reveals them in plan
                             // order); each rises into place with a soft fade + 16pt drift so the fill
                             // reads as an intentional reveal, not random pop-in. Honors reduce-motion.
