@@ -144,8 +144,9 @@ struct BrunoHomeView: View {
                             header
                                 .padding(.horizontal, 50)
                                 // Raise by the hero's drop below the bar, then re-center within the bar
-                                // (~48pt wordmark cap height). Tune the −48/2 term if it sits high/low.
-                                .padding(.top, -(BrunoMenuBar.barHeight + 36) + (BrunoMenuBar.barHeight - 48) / 2)
+                                // (~48pt wordmark cap height), plus a 15pt visual nudge up. Tune the
+                                // trailing −15 if it sits high/low.
+                                .padding(.top, -(BrunoMenuBar.barHeight + 36) + (BrunoMenuBar.barHeight - 48) / 2 - 15)
                         }
                         .id("bruno-top")
                         // Back-to-Top focus target: setting `homeFocus = .hero` pulls focus here after
