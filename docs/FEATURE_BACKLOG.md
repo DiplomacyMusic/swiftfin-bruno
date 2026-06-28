@@ -12,9 +12,9 @@
    the §7 BoxSet-vs-Franchise terminology.
 3. **`docs/BRUNO_PERF_INVARIANTS.md`** — INV-1..10. Each cited site is anchored `// INV-n`. Fragile
    constants live in `BrunoShelfMetrics`. **Restyle freely; keep the ten intact.**
-4. **`docs/BRUNO_STALL_HANDBOOK.md`** — the felt "stall" is a tvOS held-auto-repeat *focus freeze*, not a
+4. **`docs/BRUNO_PERF_PLAYBOOK.md`** — the felt "stall" is a tvOS held-auto-repeat *focus freeze*, not a
    render hitch. START HERE for any scroll/focus work.
-5. **`docs/BRUNO_HERO_UPNAV.md`** — the un-pinned-menu-bar resolution. Required reading for B1 (which it
+5. **`docs/BRUNO_HERO.md`** — the un-pinned-menu-bar resolution. Required reading for B1 (which it
    makes moot).
 6. **`docs/BRUNO_CERTIFICATION_PLAN.md`** — the five-check cert receipt. Per-feature "cert?" flags below
    say which items must produce one.
@@ -31,7 +31,7 @@
   stable (INV-10)"), and it is **already on `main`**. (The red-team's `f3c58bab` is the stale
   pre-cherry-pick branch name — ignore it; `24ee9372` is the landed commit.)
 - **Verify `24ee9372` on-device before C1/B2/C2 and any cell-structure change.** Re-baseline
-  freeze-while-held per STALL_HANDBOOK §3c on *current main* — every freeze number in the handbook
+  freeze-while-held per PERF_PLAYBOOK §3c on *current main* — every freeze number in the handbook
   predates this fix and is stale. No A/B is "pending"; the fix is landed and needs a fresh on-device
   measurement, not a re-port.
 
@@ -69,14 +69,14 @@ C2/B2 confirm-or-drop → C1 fix → B3 → D2/D1 only with owner sign-off.
 - **Corrected root cause:** Already architecturally dissolved. The menu bar was un-pinned (`4a721438`) and
   the hero dropped `.onMoveCommand` (`e94e07fd`); the hero is now just the first content row of each tab's
   `LazyVStack`. The original symptom (backdrop snap on tab switch) came from the *old pinned-bar* design,
-  deliberately removed to fix the UP-nav focus trap (`BRUNO_HERO_UPNAV.md` §Resolution).
+  deliberately removed to fix the UP-nav focus trap (`BRUNO_HERO.md` §Resolution).
 - **Red flags:** Framing is ~2 days stale; implementing it would require reverting the un-pin fix (major
   regression). No "Home slide-in" spec exists; all tabs are intentionally structurally identical.
 - **Invariant guardrail:** INV-8 (auto-advance gated on `settle`, semantic — never on tab-switch timing),
   INV-9 (any new animation collapses under reduce-motion), INV-10 (conditional `if isTabSwitching` view
   swaps re-introduce the exact focus-stall pattern `24ee9372` fixed).
 - **Recommended approach:** Do not implement as framed. On-device verify the un-pinned design meets "hero
-  feels locked." If yes → close with a pointer to `BRUNO_HERO_UPNAV.md`. If a residual snap remains → fix
+  feels locked." If yes → close with a pointer to `BRUNO_HERO.md`. If a residual snap remains → fix
   architecturally (freeze hero index during tab-switch settle), never via manual debounce. No Home-specific
   animation without owner design sign-off.
 - **Effort / confidence:** XL (if forced) / high that it's moot. **Cert?** No code → none; if a residual
@@ -142,11 +142,11 @@ C2/B2 confirm-or-drop → C1 fix → B3 → D2/D1 only with owner sign-off.
 - **Corrected root cause:** **Likely no Decades-specific symptom.** The code does an *atomic* stack swap,
   not lazy per-shelf insertion: decade fetch (paged to completion) → synchronous `yearCategories` grouping
   → atomic assign → one `LazyVStack` re-eval; all shelves height-pinned. The 500 ms debounce is a *feature*
-  (coalesces scrubs), not the cause. STALL_HANDBOOK documents zero Decades-specific jank; the measured
+  (coalesces scrubs), not the cause. PERF_PLAYBOOK documents zero Decades-specific jank; the measured
   freeze was the shared Home/Movies focus path (now addressed by `24ee9372`).
 - **Red flags:** Removing the debounce makes it worse; baseline is stale (pre-`24ee9372`).
 - **Recommended approach:** **Do not write Decades-specific code yet.** After G0a, reproduce with
-  `BrunoPerfLog` (STALL_HANDBOOK §3). If it's the shared focus path, `24ee9372` already covers it → close.
+  `BrunoPerfLog` (PERF_PLAYBOOK §3). If it's the shared focus path, `24ee9372` already covers it → close.
   Only if Decades is *measurably* jankier than other surfaces after the stall fix, analyze
   year-insertion/fetch cost.
 - **Effort / confidence:** M / low (symptom may not exist). **Cert?** Only if Decades-specific code ships.
@@ -234,10 +234,10 @@ C2/B2 confirm-or-drop → C1 fix → B3 → D2/D1 only with owner sign-off.
 1. **Acting on stale framing (B1, C2, D1).** Three items describe problems the codebase already dissolved
    (B1 un-pin), never exhibited (C2 Decades jank), or intentionally diverges on (D1 terminal feed).
    **Avoid:** verify-and-close before writing code; reconcile every symptom against `BRUNO_NAV_MAP.md` /
-   `BRUNO_HERO_UPNAV.md` / STALL_HANDBOOK and reproduce on current `main` first. Do not revert architectural
+   `BRUNO_HERO.md` / PERF_PLAYBOOK and reproduce on current `main` first. Do not revert architectural
    fixes to satisfy an old framing.
-2. **Trusting stale perf baselines / re-litigating a landed stall fix.** Every freeze number in
-   STALL_HANDBOOK predates `24ee9372` (on `main`). Attributing C1/C2/B2 jank to surface-specific code
+2. **Trusting stale perf baselines / re-litigating a landed stall fix.** Every freeze number quoted
+   (the pre-fix baselines now in `BRUNO_PERF_PLAYBOOK.md`) predates `24ee9372` (on `main`). Attributing C1/C2/B2 jank to surface-specific code
    before re-baselining sends the thread fixing the wrong layer. **Avoid:** do **G0a first** — on-device
    re-baseline on current `main`, then attribute. The fix is shipped, not "pending A/B."
 3. **Re-introducing the INV-10 structural-instability anti-pattern.** C1's "pin grid mid-animation," D1's

@@ -25,7 +25,7 @@ A cert asserts five things about a proposed change:
    no errors, no deprecated-API use.
 2. **Performance invariants** — the diff violates none of INV-1..10 (`docs/BRUNO_PERF_INVARIANTS.md`).
 3. **Scroll/focus correctness** — no held-repeat freeze (INV-10), no vertical-scroll hitch; on-device
-   evidence when a scroll/focus surface is touched (`docs/BRUNO_PERF_HANDOFF.md` + `BRUNO_PERF_LOGGING.md`).
+   evidence when a scroll/focus surface is touched (`docs/BRUNO_PERF_PLAYBOOK.md`).
 4. **Determinism** — `BrunoHomePlan` stays pure: same `(seed, snapshot)` ⇒ same plan
    (`BrunoHomePlan+SelfCheck`), proven across a fixed seed set for any plan-touching change.
 5. **Doc/reference integrity** — no claim in `CLAUDE.md` / `BRUNO_CODE_MAP.md` / `BRUNO_NAV_MAP.md` /
@@ -38,7 +38,7 @@ A cert asserts five things about a proposed change:
 |---|---|---|
 | **Build validator** | headless `xcodebuild` on `Swiftfin tvOS`; parse for `error:` / `deprecated` | `BRUNO_NOTES.md` §Toolchain |
 | **INV scanner** | grep the diff for `// INV-[0-9]` sites; for each touched site, verify the rule still holds | `BRUNO_PERF_INVARIANTS.md`, `BrunoShelfMetrics` |
-| **Scroll/focus diagnostician** | if a scroll/focus surface is touched, require an on-device frame-time + Δy log (no >100 ms stall, no focus jump); else an explicit "touch-only" exemption | `BRUNO_PERF_HANDOFF.md` + `BRUNO_PERF_LOGGING.md` (DEBUG HUD) |
+| **Scroll/focus diagnostician** | if a scroll/focus surface is touched, require an on-device frame-time + Δy log (no >100 ms stall, no focus jump); else an explicit "touch-only" exemption | `BRUNO_PERF_PLAYBOOK.md` (DEBUG HUD) |
 | **Determinism asserter** | run `BrunoHomePlan` self-check over a fixed seed set; PASS/FAIL + plan diff on regression | `BrunoHomePlan+SelfCheck.swift` |
 | **Doc auditor** | scan the canonical docs for claims about the changed files; flag staleness (do not auto-edit) | `BRUNO_CODE_MAP.md`, `BRUNO_NAV_MAP.md`, `CLAUDE.md` |
 

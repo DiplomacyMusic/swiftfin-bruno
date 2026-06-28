@@ -63,8 +63,8 @@ prefetch-width == cell-width, seed-keyed cache, top-down reveal, …). **Before 
 `BrunoShelfMetrics`). Restyle freely — keep the ten intact.
 
 **Scroll/focus "stall"?** A focus-engine held-repeat **freeze**, not a render hitch —
-`docs/BRUNO_STALL_HANDBOOK.md` + INV-10. Diagnose via `docs/BRUNO_PERF_HANDOFF.md` +
-`docs/BRUNO_PERF_LOGGING.md` (DEBUG on-disk telemetry); don't re-derive — it's documented.
+`docs/BRUNO_PERF_PLAYBOOK.md` + INV-10. It carries the root cause, the measurement protocol, the
+on-disk `BrunoPerfLog` telemetry schema, and the declined levers; don't re-derive — it's documented.
 
 ---
 Working if: fewer stray diffs, fewer overcomplication rewrites, and clarifying questions land before mistakes.
