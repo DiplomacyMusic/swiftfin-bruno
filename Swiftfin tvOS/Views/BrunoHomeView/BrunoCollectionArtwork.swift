@@ -25,7 +25,11 @@ enum BrunoCollectionArtwork {
     /// Non-seasonal category (lowercased name) → its bundled art assets, in catalog-name form.
     private static let byCategory: [String: [String]] = [
         "new releases": ["NewReleases01", "NewReleases02", "NewReleases03"],
-        "directors": ["Directors01", "Directors02", "Directors03", "Directors04"],
+        // Locked to the Francis Ford Coppola photo (Directors04) — a single-element list makes
+        // `dailyAsset` always resolve to it, so the resting tile no longer rotates. The generic
+        // crane-camera (Directors02) and director's-chair shots (Directors01 Hitchcock, Directors03
+        // empty chair) are intentionally dropped from the tile; the imagesets stay in the catalog.
+        "directors": ["Directors04"],
         "boxed sets": ["BoxedSets01", "BoxedSets02"],
         "movie stars": ["MovieStars01"],
         "curated": ["Curated01", "Curated02"],
