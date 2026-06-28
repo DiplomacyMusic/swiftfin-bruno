@@ -139,7 +139,7 @@ struct BrunoHeroView: View {
             // bright band/seam under the nav).
             .overlay {
                 LinearGradient(
-                    colors: [Color.bruno.page, Color.bruno.page.opacity(0.3)],
+                    colors: [Color.bruno.page, Color.bruno.page.opacity(0.7)],
                     startPoint: .bottom,
                     endPoint: .top
                 )
