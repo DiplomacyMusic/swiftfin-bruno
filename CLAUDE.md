@@ -18,10 +18,10 @@ library. Before changing anything, read these in full (no skimming):
 `docs/archive/` = superseded (do not treat as current).
 
 **Where code lives:** Bruno UI in `Swiftfin tvOS/Views/BrunoHomeView/`, engine in `Shared/Objects/Bruno/`;
-everything else is upstream Swiftfin — reuse it, don't refactor it. **It is one connected pipeline:** a
-shelf is a seeded descriptor (`BrunoHomePlan`) → realized into a paging view model (`BrunoHomeViewModel`)
-→ rendered (`BrunoShelfView` / `PosterHStack`); all "show all" routing funnels through one function,
-`brunoRouteToShowAll()`. Trace a change through the maps first — a local edit can ripple.
+everything else is upstream Swiftfin — reuse, don't refactor. **One connected pipeline:** a shelf is a
+seeded descriptor (`BrunoHomePlan`) → realized to a paging VM (`BrunoHomeViewModel`) → rendered
+(`BrunoShelfView`/`PosterHStack`); all "show all" routing funnels through `brunoRouteToShowAll()`. Trace a
+change through the maps first — local edits ripple.
 
 **Agents:** Swift/SwiftUI/Xcode mechanics → `swift-xcode-expert`; "where/how does Bruno do X" → `bruno-expert`.
 
@@ -45,16 +45,14 @@ then make it pass). Multi-step work → state a brief plan with one verify step 
 never claim green you didn't see.
 
 ## Performance invariants — non-negotiable
-Home/browse scroll is fast because of ten non-obvious rules (fixed shelf-row height, stable shelf ids,
-prefetch-width == cell-width, seed-keyed/source-restricted cache, top-down reveal, …). **Before
-UX-polishing shelves, read `docs/BRUNO_PERF_INVARIANTS.md`** (INV-1..10 + a quick-ref table; code sites
-anchored `// INV-n`; fragile constants in `BrunoShelfMetrics`). Restyle freely — keep the ten intact.
+Home/browse scroll is fast because of ten non-obvious rules (fixed row height, stable ids,
+prefetch-width == cell-width, seed-keyed cache, top-down reveal, …). **Before UX-polishing shelves, read
+`docs/BRUNO_PERF_INVARIANTS.md`** (INV-1..10 + quick-ref; code anchored `// INV-n`; constants in
+`BrunoShelfMetrics`). Restyle freely — keep the ten intact.
 
-**Scroll/focus "stall"?** It is a focus-engine held-repeat **freeze**, not a render hitch — see
-`docs/BRUNO_STALL_HANDBOOK.md` + INV-10. Diagnose with `docs/BRUNO_PERF_HANDOFF.md` +
-`docs/BRUNO_PERF_LOGGING.md` (enable "Perf logging → disk", reproduce, run
-`./Scripts/bruno-pull-perf.command`, correlate the `.jsonl` against a screen recording). Don't re-derive
-the diagnosis — it's documented.
+**Scroll/focus "stall"?** A focus-engine held-repeat **freeze**, not a render hitch —
+`docs/BRUNO_STALL_HANDBOOK.md` + INV-10. Diagnose via `docs/BRUNO_PERF_HANDOFF.md` +
+`docs/BRUNO_PERF_LOGGING.md` (DEBUG on-disk telemetry); don't re-derive — it's documented.
 
 ---
 Working if: fewer stray diffs, fewer overcomplication rewrites, and clarifying questions land before mistakes.
