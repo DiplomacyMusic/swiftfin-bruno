@@ -114,11 +114,12 @@ struct BrunoHeroView: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            LinearGradient(
-                colors: [Color.bruno.page, .clear],
-                startPoint: .bottom,
-                endPoint: .center
-            )
+            // DARKENING SCRIM DISABLED (was: bottom→center page→clear gradient).
+            // LinearGradient(
+            //     colors: [Color.bruno.page, .clear],
+            //     startPoint: .bottom,
+            //     endPoint: .center
+            // )
 
             content(for: item)
                 // +overscan keeps the copy title-safe after the card bleeds left to the screen edge.
