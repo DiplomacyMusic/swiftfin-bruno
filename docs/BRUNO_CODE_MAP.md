@@ -32,9 +32,12 @@ Bruno lives in two places:
 1. Path contains `/Bruno` or filename starts with `Bruno` → **ours**, edit freely.
 2. Brand seams — `Shared/Extensions/Color.swift` (`Color.bruno.*`), `Font+Bruno.swift`,
    `Shared/Services/SwiftfinDefaults.swift` accent defaults → **ours (small, additive)**.
-3. **Integration seams** (the only non-Bruno-named edits): `Shared/Coordinators/Tabs/{TabItem,MainTabView}.swift`
-   (tvOS Home → `BrunoHomeView`, tab IA), `Swiftfin tvOS/App/SwiftfinApp.swift` (DEBUG-gated snapshot /
-   autosignin branches). Keep these **minimal and inert** — gated, no behavior change for upstream paths.
+3. **Integration seams** (the only non-Bruno-named edits — this is the COMPLETE sanctioned list; anything
+   else upstream is off-limits): `Shared/Coordinators/Tabs/{TabItem,MainTabView}.swift` (tvOS Home →
+   `BrunoHomeView`, tab IA), `Swiftfin tvOS/App/SwiftfinApp.swift` (DEBUG-gated snapshot / autosignin
+   branches), and `Swiftfin tvOS/Components/PosterButton.swift` (the `FocusShadowPoster`
+   structural-stability fix — INV-10, the one perf-driven upstream edit). Keep these **minimal and
+   inert** — gated, no behavior change for upstream paths.
 4. Everything else → **upstream Swiftfin**. Don't refactor it; reuse it (`PosterHStack`,
    `PagingLibraryViewModel`, `ItemLibrary`, `NavigationCoordinator`, stock item/detail/player views).
 
@@ -47,8 +50,11 @@ push `main` directly).
 ## 3. Home data flow (the pipeline)
 
 Home is a four-stage pipeline: a **plan of descriptors** is built deterministically, then **realized** into
-live paging view models, then **rendered** as shelves. Determinism is sacred — same `(seed, snapshot)` ⇒
-same Home (asserted in DEBUG by `BrunoHomePlan+SelfCheck`).
+live paging view models, then **rendered** as shelves. Determinism is sacred — same `(seed, snapshot, now)`
+⇒ same Home (asserted in DEBUG by `BrunoHomePlan+SelfCheck`; `now` is injected, never read from the wall
+clock). **Three ways agents break it:** (a) a non-seeded `shuffle`/random pick inside
+`build`/`explore`/`appendExplore`; (b) reading `Date()`/`.now` instead of the injected `now`; (c) ordering
+by a live/random server sort instead of a deterministic key. Any of these trips `selfCheckPassed()`.
 
 ```
 library snapshot ──▶ BrunoHomePlan.build(seed) ──▶ BrunoHomeViewModel ──▶ views
@@ -154,14 +160,13 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
   year/decade/Eras). Pass filters via `ItemFilterCollection` in the `ItemLibrary` constructor.
 - **Tune scroll/focus perf** → **read `docs/BRUNO_PERF_INVARIANTS.md` first** (INV-1..10). Constants live in
   `BrunoShelfMetrics.swift`; reveal cadence/cap-and-grow in `BrunoHomeView.swift`/`BrunoHomeViewModel.swift`;
-  prefetch in `BrunoPosterPrefetcher.swift`. Diagnose with `docs/BRUNO_PERF_HANDOFF.md` +
-  `docs/BRUNO_PERF_LOGGING.md` (don't re-derive). The scroll "stall" is a focus-engine freeze
+  prefetch in `BrunoPosterPrefetcher.swift`. Diagnose with `docs/BRUNO_PERF_PLAYBOOK.md` (root cause +
+  measurement + on-disk telemetry + declined levers; don't re-derive). The scroll "stall" is a focus-engine freeze
   (held-auto-repeat), not a render hitch — root cause traced to FocusShadowPoster; see **INV-10** in
   `docs/BRUNO_PERF_INVARIANTS.md`.
 - **Change the top menu** → tab set/order in `Shared/Coordinators/Tabs/TabItem.swift`; the scrolling bar UI
   in `BrunoScrollingMenuBar.swift` (tab roots) and `BrunoHeroMenuBar.swift` (pushed covers). Hero/menu
-  vertical-stack magic numbers: `docs/BRUNO_HERO_LAYOUT_MAP.md`; the UP-nav focus model:
-  `docs/BRUNO_HERO_UPNAV.md`.
+  vertical-stack magic numbers + the UP-nav focus model: `docs/BRUNO_HERO.md`.
 
 For full shelf taxonomy, per-tab surfaces, and Show-all routing detail, see **`docs/BRUNO_NAV_MAP.md`**
 (this map links there rather than duplicating it).
@@ -170,15 +175,15 @@ For full shelf taxonomy, per-tab surfaces, and Show-all routing detail, see **`d
 
 ## 6. Documentation map
 
-Docs are organized in three tiers (reorg completed 2026-06-28 — every cross-reference repointed, verified
-zero dangling):
+Docs are organized in tiers (streamlined 2026-06-28 — superseded one-offs deleted, the perf and hero docs
+merged, every cross-reference repointed, verified zero dangling):
 
-- **`docs/` (top level) — canonical + active.** Read these.
+- **`docs/` (top level) — canonical + active.** Read these. Shipped history lives in `docs/CHANGELOG.md`.
 - **`docs/reference/` — stable specs** (designs, checklists; some unbuilt). Consult when relevant.
-- **`docs/archive/` — superseded one-off handoffs**, kept for history only; not current.
 - **`docs/pipeline/` — snapshots of the external MovieCollection pipeline's design docs** (the server-side
   producer that builds the Jellyfin BoxSets Bruno renders; authoritative source is the separate
   MovieCollection repo). See `docs/pipeline/README.md` for the producer→viewer seam + data contract.
+- Obsolete handoffs are **deleted, not archived** — recover from `git` if ever needed.
 
 **Load-bearing (always keep current):** `CLAUDE.md`, `docs/PROJECT_TRACKER.md`,
 `docs/BRUNO_PERF_INVARIANTS.md`, `docs/BRUNO_NAV_MAP.md`, `docs/BRUNO_CODE_MAP.md`, `BRUNO_NOTES.md`,
@@ -186,37 +191,32 @@ zero dangling):
 
 | Doc | Tier | Role |
 |---|---|---|
-| `CLAUDE.md` | load-bearing | working principles + perf-doc pointers |
-| `docs/PROJECT_TRACKER.md` | load-bearing | canonical status board (the heartbeat) |
+| `CLAUDE.md` | load-bearing | working principles + read-first pointers |
+| `docs/BRUNO_CODE_MAP.md` | load-bearing | architecture + file index + this doc map |
 | `docs/BRUNO_NAV_MAP.md` | load-bearing | IA / shelves / show-all routing |
-| `docs/BRUNO_CODE_MAP.md` | load-bearing | architecture + this doc map |
 | `docs/BRUNO_PERF_INVARIANTS.md` | load-bearing | INV-1..10 (+ quick-ref) — read before shelf UX |
+| `docs/PROJECT_TRACKER.md` | load-bearing | status board (current + next only) |
 | `BRUNO_NOTES.md` | load-bearing | verified toolchain / SDK / architecture |
 | `prototype/design_handoff_bruno/PRODUCT_SPEC.md` | load-bearing | product contract / mockup |
-| `docs/BRUNO_PERF_HANDOFF.md` | active | scroll-hitch diagnosis & levers |
-| `docs/BRUNO_PERF_LOGGING.md` | active | DEBUG on-disk telemetry guide |
-| `docs/BRUNO_STALL_HANDBOOK.md` | active | held-scroll freeze (focus-engine) handbook |
-| `docs/BRUNO_HERO_UPNAV.md` | active | hero UP-nav focus model |
-| `docs/BRUNO_HERO_LAYOUT_MAP.md` | active | hero/menu layout knobs |
-| `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active | Movies/genre surface fragility map |
-| `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run (absorbed the old STATUS) |
-| `docs/UI_FIXPASS2_HANDOFF.md` | active | live UI handoff (absorbed UI_DEEP_WORK) |
-| `docs/BRUNO_CERTIFICATION_PLAN.md` | active (plan) | design for a pre-change cert / quality gate (SlateRunner-style) |
+| `docs/CHANGELOG.md` | active | newest-first shipped-milestone log |
 | `docs/FEATURE_BACKLOG.md` | active (plan) | red-teamed next-thread feature plan |
-| `README.md` | reference | public-facing readme |
-| `NATIVE_FORK_PLAN.md` | reference | historical one-shot plan (BRUNO_NOTES overrides on drift) |
-| `docs/reference/STUDIO_GRID_HANDOFF.md` | reference | unbuilt Studios-grid redesign spec |
-| `docs/reference/GENRE_RECS_ARCHITECTURE.md` | reference | unbuilt "IF YOU LIKE" rec-lens design |
+| `docs/BRUNO_PERF_PLAYBOOK.md` | active | scroll/focus freeze — diagnosis + telemetry + declined levers |
+| `docs/BRUNO_HERO.md` | active | hero layout numbers + up-nav focus model |
+| `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active | Movies/genre surface fragility map |
+| `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run + signing |
+| `docs/BRUNO_CERTIFICATION_PLAN.md` | active (plan) | rationale for the pre-change cert gate |
+| `prototype/design_handoff_bruno/README.md` | reference | design system (tokens / type / spacing) |
+| `README.md` | reference | upstream public-facing readme |
+| `docs/reference/STUDIO_GRID_HANDOFF.md` | reference (unbuilt) | Studios-grid redesign spec |
+| `docs/reference/GENRE_RECS_ARCHITECTURE.md` | reference (unbuilt) | "IF YOU LIKE" rec-lens design |
 | `docs/reference/TOP_SHELF_SETUP.md` | reference | Top Shelf extension owner checklist |
-| `docs/reference/PERF_SHELVES.md` | reference | scaffold-jank options memo |
 | `docs/reference/swift-reference.md` | reference | swift-xcode-expert doc sources |
-| `docs/archive/SIM_VIEWING_HANDOFF.md` | archive | superseded sim-viewing notes |
-| `docs/archive/OVERNIGHT_TESTING_HANDOFF.md` | archive | one-off T0 testing handoff |
-| `docs/archive/UI_POLISH_ROADMAP.md` | archive | superseded UI roadmap |
+| `docs/pipeline/*` (README · PLAN · GENRE_MAP · TAGGING_SPEC · FILING_MAP) | external snapshot | the MovieCollection producer's design + the producer→app filing map |
 
-**Merged/removed in the 2026-06-28 reorg:** `STATUS.md` → folded into `DEPLOYMENT_HANDOFF.md`
-("Already verified" section); `UI_DEEP_WORK_HANDOFF.md` → folded into `UI_FIXPASS2_HANDOFF.md`;
-`overnight-loop-log.md` → deleted (noise).
+**Streamlined 2026-06-28:** the perf cluster (`PERF_HANDOFF` + `STALL_HANDBOOK` + `PERF_LOGGING`) →
+`BRUNO_PERF_PLAYBOOK.md`; the hero cluster (`HERO_LAYOUT_MAP` + `HERO_UPNAV`) → `BRUNO_HERO.md`; shipped
+history → `CHANGELOG.md`; the enrichment filing-map → `pipeline/FILING_MAP.md`. Deleted (recover from
+git): `NATIVE_FORK_PLAN`, `UI_FIXPASS2_HANDOFF`, `reference/PERF_SHELVES`, and the whole `archive/` tier.
 
 ---
 

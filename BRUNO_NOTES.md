@@ -1,9 +1,8 @@
 # BRUNO_NOTES.md — verified signatures, environment, and handback
 
-> Source of truth for the Bruno tvOS fork. Created during T0 by re-verifying every signature the
-> plan (`NATIVE_FORK_PLAN.md`) lists against the **actual local source** (Swiftfin + the resolved
-> `jellyfin-sdk-swift` 2.1.0) and the **live Jellyfin library**. Where this file and the plan differ,
-> **this file wins** (the plan invited T0 to override on drift).
+> Source of truth for the Bruno tvOS fork: verified signatures, environment, and architecture, checked
+> against the **actual local source** (Swiftfin + the resolved `jellyfin-sdk-swift` 2.1.0) and the
+> **live Jellyfin library**. On any drift between a doc and the code, re-verify against the source.
 >
 > **No secrets in this file.** Live Jellyfin creds live only in the gitignored `bruno_jellyfin.env`.
 
@@ -37,8 +36,8 @@ at `ComputeTargetDependencyGraph` with `Macro "CasePathsMacros"/"StatefulMacrosM
 ⚠️ `CODE_SIGNING_ALLOWED=NO` is for **verifying compilation only**. To *run* the app on the sim across
 relaunches, build WITH simulator ad-hoc signing — otherwise the keychain-access-group entitlement is
 stripped, the access token doesn't persist, and the stock upstream `assertionFailure("access token
-missing in keychain")` (`SwiftinStore+UserState.swift:33`) traps on the next launch. See
-`docs/archive/SIM_VIEWING_HANDOFF.md`.
+missing in keychain")` (`SwiftinStore+UserState.swift:33`) traps on the next launch. The runnable
+ad-hoc-signed sim build command is in `docs/DEPLOYMENT_HANDOFF.md` ("Already verified").
 
 **Gotcha after upgrading Xcode:** the iOS sim build's asset-catalog step (`actool`) can fail with
 `No simulator runtime version from ["22G86"] available to use with iphonesimulator SDK version 23C57`
