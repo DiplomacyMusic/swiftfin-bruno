@@ -159,8 +159,14 @@ struct BrunoShelfView: View {
         case item(BaseItemDto)
         case showAll
 
-        var id: CarouselCard {
-            self
+        // Cell identity is the stable item id (INV-10), NOT the whole value: items mutate in place and
+        // the forked hosting-controller reuse would otherwise paint a recycled cell's loaded art onto a
+        // different item (right label, wrong poster). Mirrors the proven BrunoShelfRow.Card form.
+        var id: String {
+            switch self {
+            case let .item(item): item.id ?? item.displayTitle
+            case .showAll: "bruno-show-all"
+            }
         }
     }
 
