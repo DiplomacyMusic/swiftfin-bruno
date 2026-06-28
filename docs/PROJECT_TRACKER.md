@@ -53,7 +53,7 @@ Need owner decision or on-device measurement — NOT done:
 - [ ] **Reuse `BrunoPosterPrefetcher` on browse rows** — additive, but needs on-device (real Apple TV, Release) hitch measurement; interacts with the artCarousel cards' own focus-fetch.
 - [ ] **Static-collection-grid completeness** — `fetchChildren` `limit=200` feeds Directors/Studios grids; sub-group list `limit=100`. LATENT at current scale; open: cap-at-shelf vs lazy-fetch-at-destination.
 - [ ] **On-device perf re-record** — confirm the held-scroll freeze fix (INV-10) + Movies-hitch fork fix on a real Apple TV (Release). The single most important open verification.
-- [ ] **Hero left/right spotlight via a UIKit responder** — restore manual L/R stepping of the multi-item spotlight without re-trapping Up; wrap the hero in a `UIViewRepresentable` overriding `pressesBegan`. Verify on device. See `docs/BRUNO_HERO.md`.
+- [x] **Hero left/right spotlight** — DONE (2026-06-28, PR pending): restored via focusable page-indicator dots (a `.focusSection()` move-to-select pager), **not** the `pressesBegan` UIViewRepresentable originally sketched — LEFT/RIGHT pages the multi-item spotlight while UP/DOWN escape, no `.onMoveCommand`. Same change rests launch/Back-to-Top focus on the menu bar. Device-verify the focus feel. See `docs/BRUNO_HERO.md`.
 - [ ] Direct hero-play (build `MediaPlayerItemProvider` → `.videoPlayer`; today routes to stock detail → Play).
 - [ ] Localize Bruno UI strings via `L10n` (prototype is English-only).
 - [ ] Licensed Knockout font (Oswald is the brand stand-in).
