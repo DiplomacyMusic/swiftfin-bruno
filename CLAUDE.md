@@ -50,8 +50,8 @@ never claim green you didn't see.
 ## 5. Commit at high resolution
 Commit early and often — **one logical change per commit**, message saying what + why. Frequent atomic
 commits keep the `git bisect` window tight when a regression surfaces — and Bruno's worst regressions
-(perf/scroll/focus) often only show up later on a real device, so a coarse history makes the culprit
-unfindable. Don't batch hours of work into one fat commit; land each verifiable step as its own commit.
+(perf/scroll/focus/determinism) are **silent**: they don't crash or fail a build, so they can sit
+unnoticed across many commits, and a coarse history makes the culprit unfindable. Don't batch hours of work into one fat commit; land each verifiable step as its own commit.
 Commits stay on the worktree branch; the owner merges via PR. **This repo is a fork of
 `jellyfin/Swiftfin`,** so `gh pr create` defaults the base to upstream — always pass
 `--repo DiplomacyMusic/swiftfin-bruno --base main` to keep the PR inside the fork.

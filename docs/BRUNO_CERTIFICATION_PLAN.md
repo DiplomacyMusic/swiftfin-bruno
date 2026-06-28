@@ -13,7 +13,7 @@
 Bruno's tvOS Home is fast and correct because of **invisible, load-bearing rules** — the ten perf
 invariants (INV-1..10), the deterministic seeded `BrunoHomePlan.build`, the centralized `brunoRouteToShowAll`
 seam, and a thin-fork doc web that drifts easily. A fresh thread reads "add a shelf" as simple, misses the
-determinism contract or an INV site, and the breakage surfaces weeks later on a real device. SlateRunner's
+determinism contract or an INV site, and the breakage surfaces later as a silent perf/determinism regression. SlateRunner's
 answer is a **certification receipt** an agent must produce *before* it edits — proof, not promises. This
 plan ports that idea to Bruno. (Bad sessions in this repo have been exactly this failure mode.)
 

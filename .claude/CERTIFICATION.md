@@ -33,7 +33,8 @@ rules** — the ten perf invariants (`INV-1..10` in
 centralized `brunoRouteToShowAll` "show all" seam, and a thin-fork doc web
 that drifts easily. A fresh thread reads "add a shelf" as simple, misses
 the determinism contract or an `// INV-n` site, and the breakage surfaces
-weeks later on a real device.
+later as a silent perf/determinism regression — no crash, no build
+failure, so you notice it only when you next look.
 
 Cert closes that loop by mechanically requiring the grounding work to be
 done — and attested with evidence — before a single source file can be
