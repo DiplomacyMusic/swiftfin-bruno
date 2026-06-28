@@ -167,6 +167,9 @@ zero dangling):
 - **`docs/` (top level) — canonical + active.** Read these.
 - **`docs/reference/` — stable specs** (designs, checklists; some unbuilt). Consult when relevant.
 - **`docs/archive/` — superseded one-off handoffs**, kept for history only; not current.
+- **`docs/pipeline/` — snapshots of the external MovieCollection pipeline's design docs** (the server-side
+  producer that builds the Jellyfin BoxSets Bruno renders; authoritative source is the separate
+  MovieCollection repo). See `docs/pipeline/README.md` for the producer→viewer seam + data contract.
 
 **Load-bearing (always keep current):** `CLAUDE.md`, `docs/PROJECT_TRACKER.md`,
 `docs/BRUNO_PERF_INVARIANTS.md`, `docs/BRUNO_NAV_MAP.md`, `docs/BRUNO_CODE_MAP.md`, `BRUNO_NOTES.md`,
