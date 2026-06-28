@@ -136,18 +136,10 @@ struct BrunoHomeView: View {
                         // while hidden, so without this the hero would keep crossfading backdrops offscreen.
                         autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
                     )
-                    // BRUNO wordmark floats ON TOP of the hero (z-order), title-safe at the left. The
-                    // overlay is top-aligned to the hero frame, which begins barHeight + 36 (LazyVStack
-                    // row spacing) below the menu-bar top — so a negative top inset lifts the wordmark
-                    // back up onto the menu bar's centerline, in line with the pills.
-                    .overlay(alignment: .top) {
-                            header
-                                .padding(.horizontal, 50)
-                                // Raise by the hero's drop below the bar, then re-center within the bar
-                                // (~48pt wordmark cap height), plus a 15pt visual nudge up. Tune the
-                                // trailing −15 if it sits high/low.
-                                .padding(.top, -(BrunoMenuBar.barHeight + 36) + (BrunoMenuBar.barHeight - 48) / 2 - 15)
-                        }
+                    // BRUNO wordmark floats ON TOP of the hero (z-order), lifted onto the menu bar's
+                    // centerline. Shared with every other tab via `.brunoHeroWordmark()`; Home is the
+                    // one surface that also shows the build-stamp diagnostic.
+                    .brunoHeroWordmark(showBuildStamp: true)
                         .id("bruno-top")
                         // Back-to-Top focus target: setting `homeFocus = .hero` pulls focus here after
                         // the scroll (the hero stays the natural first-focus element otherwise — INV-7).
@@ -227,37 +219,6 @@ struct BrunoHomeView: View {
                 }
             }
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Text("BRUNO")
-                .font(.brunoDisplay(40, weight: .bold))
-                .tracking(6)
-                .foregroundStyle(Color.bruno.fg)
-            Circle()
-                .fill(Color.bruno.accent)
-                .frame(width: 12, height: 12)
-
-            Spacer()
-
-            // Build stamp: the app executable's build time. Auto-updates every build, so it's an
-            // unambiguous "which build am I looking at?" marker. (Temporary diagnostic.)
-            Text(Self.buildStamp)
-                .font(.brunoBody(20, weight: .semibold))
-                .foregroundStyle(Color.bruno.accent)
-        }
-    }
-
-    private static var buildStamp: String {
-        guard let executableURL = Bundle.main.executableURL,
-              let attributes = try? FileManager.default.attributesOfItem(atPath: executableURL.path),
-              let date = attributes[.modificationDate] as? Date
-        else { return "BUILD —" }
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d · HH:mm:ss"
-        return "BUILD \(formatter.string(from: date))"
     }
 
     private func errorView(_ error: ErrorMessage) -> some View {

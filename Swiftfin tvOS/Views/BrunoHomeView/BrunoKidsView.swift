@@ -137,6 +137,7 @@ struct BrunoKidsView: View {
                             bleedsTop: true,
                             extraHeight: 160
                         )
+                        .brunoHeroWordmark()
                     }
 
                     filterBar

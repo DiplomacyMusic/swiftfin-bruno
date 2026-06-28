@@ -98,18 +98,24 @@ LinearGradient(colors: [page, .clear], startPoint: .bottom, endPoint: .center)
 
 ---
 
-## 4. The BRUNO wordmark (overlay, not a row)
+## 4. The BRUNO wordmark (shared overlay, not a row)
 
-`BrunoHomeView.content`, overlaid on the hero (`.id("bruno-top")`):
+Lives in **`BrunoHeroWordmark.swift`** and is applied on the `BrunoHeroView` of **every** hero-bleed tab
+(Home / Collections / Movies / TV / Kids) via the `.brunoHeroWordmark(showBuildStamp:)` modifier — so the
+brand sits identically on all of them. Only Home passes `showBuildStamp: true`.
+
 ```
-.overlay(alignment: .top) {
-    header
-        .padding(.horizontal, 50)
-        .padding(.top, -(BrunoMenuBar.barHeight + 36) + (BrunoMenuBar.barHeight - 48) / 2 - 15)
+func brunoHeroWordmark(showBuildStamp: Bool = false) -> some View {
+    overlay(alignment: .top) {
+        BrunoHeroWordmark(showBuildStamp: showBuildStamp)
+            .padding(.horizontal, 50)
+            .padding(.top, -(BrunoMenuBar.barHeight + 36) + (BrunoMenuBar.barHeight - 48) / 2 - 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 ```
-`header` = `HStack { "BRUNO" (brunoDisplay 40, bold, tracking 6) · accent dot (12pt) · Spacer · buildStamp }`.
-The build stamp is a **temporary diagnostic** ("which build am I looking at").
+`BrunoHeroWordmark` = `HStack { "BRUNO" (brunoDisplay 40, bold, tracking 6) · accent dot (12pt) [· Spacer ·
+buildStamp] }`. The build stamp is a **temporary diagnostic** ("which build am I looking at"), Home-only.
 
 The overlay is top-aligned to the hero frame, whose top is `barHeight + 36` **below** the menu bar. The
 top inset lifts the wordmark back up onto the bar's centerline. The offset has three parts:
@@ -118,10 +124,11 @@ top inset lifts the wordmark back up onto the bar's centerline. The offset has t
 |---|---|---|
 | `-(barHeight + 36)` | −152 | raise by the hero's drop below the bar (bar height + row spacing) |
 | `+(barHeight - 48)/2` | +34 | re-center within the bar (`48` ≈ wordmark cap height) |
-| `-15` | −15 | hand-tuned visual nudge up |
-| **total** | **−133** | wordmark vertical inset |
+| `-10` | −10 | hand-tuned visual nudge up |
+| **total** | **−128** | wordmark vertical inset |
 
-If BRUNO sits high/low, tune the **`-15`** (more negative = higher) or the **`48`** (larger = lower).
+If BRUNO sits high/low, tune the **`-10`** (more negative = higher) or the **`48`** (larger = lower).
+Changing it once in `BrunoHeroWordmark.swift` moves it on every tab.
 Because it is an `.overlay`, this never affects sibling layout.
 
 ---
@@ -150,7 +157,7 @@ Because it is an `.overlay`, this never affects sibling layout.
 | `barHeight = 116` | `BrunoMenuBar` | menu row height **and** `topBleed` | both must use the same value |
 | `36` | `LazyVStack(spacing:)` (all tabs) | row gaps; `topBleed`; wordmark offset | duplicated as a literal in `topBleed` + wordmark offset |
 | `insets.top` | safe area | `topBleed`; title-safe insets | tvOS overscan |
-| wordmark inset `−133` | `BrunoHomeView` overlay | BRUNO vertical position | `barHeight`, `36`, cap-height `48`, nudge `−15` |
+| wordmark inset `−128` | `BrunoHeroWordmark.swift` (shared, all tabs) | BRUNO vertical position | `barHeight`, `36`, cap-height `48`, nudge `−10` |
 | left scrim `0.96 → 0.1` | backdrop overlay | left legibility wash | — |
 | bottom scrim `page → clear` (bottom→center) | front ZStack | lower legibility **+ hero height** (§3b) | load-bearing |
 | `50` / `600` / `50` | hero content paddings | leading (title-safe) / trailing / bottom of copy | `50` matches wordmark leading |

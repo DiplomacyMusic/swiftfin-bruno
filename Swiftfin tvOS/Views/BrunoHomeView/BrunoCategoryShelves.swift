@@ -300,6 +300,7 @@ struct BrunoCategoryShelves: View {
                         // where `featured` is always present, so this anchor always exists for it.
                         .focused($heroFocused)
                             .id(ScrollAnchor.top)
+                            .brunoHeroWordmark()
                     }
 
                     if let header {

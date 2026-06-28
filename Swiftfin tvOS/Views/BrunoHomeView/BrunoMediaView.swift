@@ -95,6 +95,7 @@ struct BrunoMediaView: View {
                         bleedsTop: true,
                         extraHeight: 160
                     )
+                    .brunoHeroWordmark()
                 }
 
                 BrunoPosterGrid(items: viewModel.items) { item in
