@@ -10,7 +10,43 @@
 >
 > All paths are repo-relative to the Bruno root. tvOS-only unless noted.
 >
-> **last verified at commit `78dc256f`**
+> **Last verified against code at commit `db0881b3`** (second-pass QA, 2026-06-28). Live library counts in §0.
+
+---
+
+## 0. Live library snapshot — real sizes at each nav node
+
+> Real sizes from the live server (Jellyfin 10.10.3 at the host in `BRUNO_NOTES.md` §SDK), captured
+> 2026-06-28. **Refresh:** `/Items?…&Limit=0` → `TotalRecordCount` for grid totals; favorited BoxSets'
+> `ChildCount` for parent sizes; `/Items?ParentId={group}` (**no type filter** — see Terminology in
+> `BRUNO_CODE_MAP.md`) for member/child sizes. Counts drift as the library grows.
+
+**Full grids (terminal surfaces):**
+
+| Grid | Items |
+|---|---|
+| Movies — `brunoMoviesGrid` / Movies-tab A–Z | **1270** |
+| TV Shows — `brunoTVGrid` (§5) | **44 series** (2849 episodes) |
+| Kids (§6) | **52** = 48 movies + 4 shows |
+
+**Group tiles → members → child film sizes** (parent = # member BoxSets; child = films inside each member):
+
+| Group tile (parent) | Members | Child films min / median / max | Σ films | Largest children |
+|---|---|---|---|---|
+| Genres | **84** | 2 / 31 / **596** | 5259 | Drama 596 · Comedy 384 · Thriller 280 |
+| Directors | **121** | 2 / 4 / 33 | 618 | Spielberg 33 · Scorsese 23 · Soderbergh 21 |
+| Studios | **95** | 4 / 7 / 100 | 1292 | Warner Bros 100 · Paramount 96 · Universal 89 |
+| Curated | **14** | 23 / 175 / 560 | 2417 | Ebert Thumbs Up 560 · Oscar—Screenplay 261 |
+| Decades | **8** | 33 / 133 / 255 | 1127 | 1990s 255 · 2010s 253 · 2000s 228 |
+| Movie Stars | **27** | 3 / 12 / 25 | 355 | De Niro 25 · Hanks 22 · Cruise 22 |
+| Seasonal | **6** | 3 / 35 / 66 | 203 | Halloween 66 · 4th of July 59 |
+| New Releases | **53** | flat — members are *movies*, not BoxSets | 53 | (newest-first) |
+| Boxed Sets (franchises) | **54** | 2 / 3 / 12 | 172 | James Bond 12 · Star Wars 9 · M:I 7 |
+
+Shelf caps (Home 18 · browse preview 14 · weighted 16) sit *on top of* these pools — e.g. the Drama
+genre shelf previews 14 of **596**. **BoxSet accounting:** 416 `BoxSet` primitives = 8 group tiles + 354
+member BoxSets + 54 standalone franchises (New Releases' 53 children are movies, not BoxSets). Library
+views: `Movies` · `Shows` · `Kids Movies` · `Kids Shows` · `Collections`.
 
 ---
 
@@ -128,7 +164,7 @@ ranks in during the Halloween→Christmas window. Each header's "Show all" → `
 | New Releases | Just Added | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
 | Directors | Auteurs | Directors group's boxSet children; weighted preview (salt `0x91A3`) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` — boxSet children only | shelf |
 | Movie Stars | Movie Stars | Actor group boxSet children | full set | `brunoBoxSetGrid(portrait, artCarousel)` | shelf |
-| Boxed Sets | Franchises | Franchise boxSets NOT in any curated group; weighted (salt `0xB075`) | 16 weighted | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
+| Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group (**54 live**, §0); **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted of 54 | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
 | Decades | Through the Years | Decades group boxSet children; newest-first | 14 preview | `brunoCategoryShelves(parent: Decades)` → drill-in (§3a) | shelf |
 | Curated | Hand-Picked | Curated group boxSet children | 14 preview | `brunoCategoryShelves(parent: Curated)` → drill-in (§3b) | shelf |
 | Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid | shelf |
@@ -164,8 +200,8 @@ Curated→`.shelves`, everything else→`.grid`. Boxed Sets is built explicitly 
 snapshot and hands it to `BrunoGenresView` (core-genre pills + a shelf per sub-genre). Genre categories
 are `recencyBiased` → row is modern-only, Show-all grid sorts newest-first (pre-1985 sink to the
 bottom). Sub-genre membership is the full set (no year filter, recency-biased), per-launch reshuffled,
-6 lead genres pinned. Preview cap 14; ~80 sub-genres total. Trailing "All Movies" pill →
-`brunoMoviesGrid`.
+6 lead genres pinned. Preview cap 14; **84** sub-genre BoxSets total (live, §0). Trailing "All Movies"
+pill → `brunoMoviesGrid`.
 
 | Shelf | Lens/eyebrow | Derived from | Max | Show-all destination (filter carried) | shelf/grid |
 |---|---|---|---|---|---|
@@ -184,7 +220,7 @@ Series"`. No shelves.
 
 | Surface | Derived from | Max | Destination |
 |---|---|---|---|
-| **GRID** — All TV Shows | `Paths.getItems includeItemTypes=[.series] sortBy=[.sortName]`, paged to completion; hero = top backdrop-bearing, hero-eligible items | all series | terminal |
+| **GRID** — All TV Shows | `Paths.getItems includeItemTypes=[.series] sortBy=[.sortName]`, paged to completion; hero = top backdrop-bearing, hero-eligible items | all series (**44** live · 2849 eps, §0) | terminal |
 
 ---
 
@@ -195,7 +231,7 @@ Series"`. No shelves.
 
 | Surface | Derived from | Max | Destination |
 |---|---|---|---|
-| **GRID** — All / Movies / TV Shows / Pixar / Disney | All merged kids items, filtered by `KidsFilter.matches` (type or studio; Disney excludes Pixar) | all filtered | rebuilt in place per filter |
+| **GRID** — All / Movies / TV Shows / Pixar / Disney | All merged kids items, filtered by `KidsFilter.matches` (type or studio; Disney excludes Pixar) | all filtered (**52** live: 48 mv + 4 tv, §0) | rebuilt in place per filter |
 
 ---
 
@@ -203,7 +239,7 @@ Series"`. No shelves.
 
 | Surface (file) | Source | Notes |
 |---|---|---|
-| `brunoMoviesGrid` / `brunoTVGrid` → `BrunoMediaView` | A–Z full library by type | pushed COVER (own `BrunoCoverMenuBarRow`); lazy load on first appear |
+| `brunoMoviesGrid` / `brunoTVGrid` → `BrunoMediaView` | A–Z full library by type (**Movies 1270 · TV 44** live, §0) | pushed COVER (own `BrunoCoverMenuBarRow`); lazy load on first appear |
 | `brunoBoxSetGrid` → `BrunoBoxSetGridView` | static `items:` array passed by `brunoRouteToShowAll` | portrait/landscape, optional artCarousel/showsDate/collectionLabel; NOT paged |
 | `brunoStudiosGrid` → `BrunoStudiosGridView` | static studio boxSets | cinematic 4-col landscape grid |
 | `.library(ItemLibrary(parent:filters:))` | live paged Jellyfin query scoped to a boxSet, carrying `ItemFilterCollection` | the only path that carries a real server filter (years / sort) |

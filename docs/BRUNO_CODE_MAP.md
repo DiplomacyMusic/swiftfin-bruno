@@ -207,3 +207,28 @@ zero dangling):
 **Merged/removed in the 2026-06-28 reorg:** `STATUS.md` → folded into `DEPLOYMENT_HANDOFF.md`
 ("Already verified" section); `UI_DEEP_WORK_HANDOFF.md` → folded into `UI_FIXPASS2_HANDOFF.md`;
 `overnight-loop-log.md` → deleted (noise).
+
+---
+
+## 7. Terminology — `BoxSet` vs Franchise (don't conflate)
+
+Jellyfin's collection primitive and Bruno's franchise card are both "box sets" in English. Keep them
+distinct in code, docs, and prompts:
+
+| Term | Means | In code |
+|---|---|---|
+| **`BoxSet`** (one word) | The **Jellyfin primitive** — `BaseItemKind.boxSet`, a collection container. Bruno ships *all* curation as BoxSets; the library holds **416** across every tier. Reserve "BoxSet" for the primitive only. | `IncludeItemTypes=[.boxSet]`, `BaseItemDto` |
+| **Group tile** (group BoxSet) | A *favorited* BoxSet whose members are themselves BoxSets — the **8** tiles: New Releases, Directors, Decades, Genres, Studios, Curated, Seasonal, Movie Stars. | `snapshot.favoriteGroupBoxSets`, `BrunoCollectionCategory.fromSnapshot` |
+| **Member BoxSet** | A BoxSet belonging to a group (a sub-genre, a director's set, a decade bucket, a studio set); its members are usually movies. | `snapshot.childrenByGroupName` |
+| **Franchise** (the "Boxed Sets" card) | The **user-facing** grouping of *standalone* franchise/series collections (LOTR, Star Wars) — every BoxSet **not** absorbed by a group. Runtime-synthesized, lens **"Franchises"**, `drillStyle .items`. "Boxed Sets" is its **display label only**. | `franchiseBoxSets` — `BrunoCollectionsView.swift:93-122` |
+
+**Rules of use**
+- "BoxSet" = the Jellyfin primitive, never the franchise card.
+- "Franchise" / "franchise set" = the user-facing concept; the code already names it `franchiseBoxSets` /
+  lens "Franchises" — prefer these internally; treat "Boxed Sets" as the display string only.
+- Group membership **IS** a `ParentId` query — but with **NO type filter** (Bruno's `fetchChildren`
+  sets `ParentId={group}`, no `includeItemTypes`). Adding `IncludeItemTypes=BoxSet` returns ~nothing —
+  that filter is the trap. So franchises = all BoxSets − group tiles − their `ParentId` members
+  (− director-name dups); the live count is **54**.
+- Optional UX cleanup (deferred): renaming the card's display label "Boxed Sets" → "Franchises" would
+  erase the collision in the UI too. Flagged, not done.
