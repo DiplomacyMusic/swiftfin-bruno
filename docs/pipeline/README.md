@@ -42,11 +42,11 @@ Bruno; Bruno never writes to the server.
 | `PLAN.md` | The enrich pipeline phases p1→p7 (spine → TMDB → LLM-tag → QC → awards → significance → materialize) |
 | `TAGGING_SPEC.md` | The LLM sub-genre tagging pass (vocabulary, batch format) |
 | `GENRE_MAP.md` | Sub-genre vs broad-genre taxonomy + near-duplicate clustering rules |
-| `SPEC-romance-collections.md` | A specific collection-build spec (romance sub-genres) |
+| `FILING_MAP.md` | How each pipeline output (BoxSet) files into the Bruno app surfaces |
 
 ## Bruno-side counterparts (authoritative, in this repo)
 
-- `docs/PROJECT_TRACKER.md` — the "Enrichment → Bruno FILING MAP" (how each pipeline output files into the app)
+- `docs/pipeline/FILING_MAP.md` — the "Enrichment → Bruno filing map" (how each pipeline output files into the app)
 - `docs/BRUNO_MOVIES_GENRE_SURFACE.md` — how the Movies tab renders the genre BoxSets
 - `docs/reference/GENRE_RECS_ARCHITECTURE.md` — the (unbuilt) "IF YOU LIKE" rec-lens design
 - `docs/BRUNO_NAV_MAP.md` — where each BoxSet group surfaces in the tvOS UI

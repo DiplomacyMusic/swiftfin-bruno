@@ -80,8 +80,9 @@ CLI alternative (no Xcode UI): `xcodebuild -scheme "Swiftfin tvOS" -destination 
 - **Can't reach server** → same-LAN check; try the URL in the device's browser first.
 - **Stutter on real Apple TV** (shouldn't happen) → then it's transcode/bitrate/network, not the sim;
   check Settings ▸ Playback (Native AVPlayer vs Swiftfin/VLC), direct-play vs server transcode.
-- **A crash on device** → pull the `.ips` and apply the §6 decision rule in
-  `docs/archive/OVERNIGHT_TESTING_HANDOFF.md`: stock frames ⇒ signing/profile; `…/Bruno/…` frames ⇒ real bug.
+- **A crash on device** → pull the `.ips` and apply the decision rule: a backtrace of **stock** frames
+  ⇒ signing/profile/env (not a Bruno bug); `…/Bruno/…` frames ⇒ a real bug. (The one known pre-existing
+  crash is the stock keychain assertion with **zero Bruno frames** — see "Already verified" below.)
 
 ## Already verified (prior overnight run)
 
@@ -125,6 +126,7 @@ xcodebuild -project Swiftfin.xcodeproj -scheme "Swiftfin tvOS" \
 
 ## 6. Reference
 
-- Architecture / crash root-cause / guardrails: `docs/archive/OVERNIGHT_TESTING_HANDOFF.md`.
+- Architecture / guardrails: `docs/BRUNO_CODE_MAP.md` §2–3 + `BRUNO_NOTES.md`. Crash root-cause: the
+  "Already verified" section above (stock keychain assertion, zero Bruno frames).
 - Credentials: gitignored `bruno_jellyfin.env` at the repo root (`JF_BASE`/`JF_USER_NAME`/`JF_PASS`).
 - Bundle id (tvOS): `com.diplomacymusic.bruno`. iOS scheme: `Swiftfin`. Min OS: iOS 16.6 / tvOS 17.

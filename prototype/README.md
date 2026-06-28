@@ -1,48 +1,15 @@
-# Bruno
+# Bruno — prototype (superseded)
 
-A streamer-style front-end for a self-hosted Jellyfin movie library — hero spotlight up top,
-then endless horizontal "shelves" (genre, year, director, studio, curated, random explore),
-all leaning on the big 16:9 backdrop art.
+> **Status: SUPERSEDED.** This folder held an early Vite/React **web PoC** of the Bruno streamer-style
+> home. The team decided to build the real native app directly — the **tvOS Swiftfin fork** that is this
+> repo — so the web PoC is no longer built or maintained. Do **not** run `npm run dev` expecting a live
+> app; it is a frozen design sandbox only.
 
-**Status / direction:** the team decided to **build the real native app directly** — a **Swiftfin
-fork** for Apple TV — rather than ship the web PoC. The web app in this repo is kept as a design
-sandbox/reference only. The active build contract is **[`NATIVE_FORK_PLAN.md`](NATIVE_FORK_PLAN.md)**:
-an extreme-detail, one-shot execution plan (Swiftfin's architecture mapped) for a fresh autonomous
-thread to fork Swiftfin and graft the Bruno home onto it. Design source of truth:
-[`design_handoff_bruno/`](design_handoff_bruno/). (`bruno` is the app + repo name.)
+**What's still authoritative here:**
 
-## Quickstart
+- [`design_handoff_bruno/PRODUCT_SPEC.md`](design_handoff_bruno/PRODUCT_SPEC.md) — the product contract
+  (IA, taxonomy, the seeded shelf engine, the Jellyfin REST→shelf API map).
+- [`design_handoff_bruno/README.md`](design_handoff_bruno/README.md) — the visual design system
+  (tokens, type, spacing, component anatomy).
 
-```bash
-cd bruno
-npm install
-cp .env.example .env      # then fill in your Jellyfin URL / token / user id
-npm run dev               # open the printed http://localhost:5173
-```
-
-A local `.env` with working values is already present (gitignored), so `npm run dev`
-should connect immediately on your network.
-
-## How it works
-
-- **Vite + React.** The browser can't call the Jellyfin API directly (CORS), so in dev
-  everything under `/jf` is proxied to the server (`vite.config.js`). The client uses
-  same-origin relative URLs.
-- **`src/api/jellyfin.js`** — thin REST client (group tiles / collections / recent / random,
-  plus image URLs).
-- **`src/App.jsx`** — the current PoC home: hero + three shelves (Browse the Collection =
-  your 7 pinned group tiles, Recently Added, Surprise Me).
-
-## Roadmap
-
-1. **Design spec** (Claude Design thread) → see [`docs/DESIGN-PROMPT.md`](docs/DESIGN-PROMPT.md).
-2. **This web PoC** → flesh out the dynamic "shelf engine", card variants, detail page, and
-   navigation per the spec (see [`docs/PLAN.md`](docs/PLAN.md)).
-3. **Validate in browser**, then **port to native tvOS** (SwiftUI / Swiftfin fork).
-
-## Notes
-
-- `.env` is gitignored — your API token never enters the repo. `.env.example` is the template.
-- The server-side organization (collections, generated artwork, director portraits, studio
-  logos, favorites) lives in Jellyfin and is built by `Build-Jellyfin-Collections.command`
-  in the MovieCollection project. Bruno is purely a viewer over that.
+For the native app: start at the repo root `CLAUDE.md`, then `docs/BRUNO_CODE_MAP.md`.
