@@ -108,18 +108,12 @@ struct BrunoHeroView: View {
         let layoutHeight = 720 + extraHeight
         let visualHeight = layoutHeight + topBleed
         return ZStack(alignment: .bottomLeading) {
-            // Left + bottom scrims for legibility (README scrim system), sized to the layout box.
+            // Left scrim for copy legibility (README scrim system), sized to the layout box.
             LinearGradient(
                 colors: [Color.bruno.page.opacity(0.96), Color.bruno.page.opacity(0.1)],
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            LinearGradient(
-                colors: [Color.bruno.page, .clear],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-
             content(for: item)
                 // +overscan keeps the copy title-safe after the card bleeds left to the screen edge.
                     .padding(.leading, 50 + insets.left)
@@ -139,6 +133,17 @@ struct BrunoHeroView: View {
             .frame(maxWidth: .infinity)
             .frame(height: visualHeight, alignment: imageAnchor)
             .clipped()
+            // Darkening scrim lives on the backdrop box (visualHeight), so it covers ALL the art —
+            // including the strip that bleeds up behind the menu. One continuous gradient, solid at the
+            // bottom for text legibility, easing to a light tint at the top (never fully clear, so no
+            // bright band/seam under the nav).
+            .overlay {
+                LinearGradient(
+                    colors: [Color.bruno.page, Color.bruno.page.opacity(0.3)],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            }
             .id(item.id)
             .transition(.opacity)
         }
