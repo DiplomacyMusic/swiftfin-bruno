@@ -110,3 +110,4 @@ bruno_jellyfin.env
 
 # Bruno perf-telemetry sessions pulled off the sim (Scripts/bruno-pull-perf.command)
 PerfLogs/
+_perf/
