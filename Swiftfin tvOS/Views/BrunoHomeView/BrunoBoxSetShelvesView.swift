@@ -23,6 +23,11 @@ struct BrunoBoxSetShelvesView: View {
 
     let parent: BaseItemDto
 
+    /// Optional pre-resolved sub-groups (the child BoxSets to render one shelf each). nil ⇒ the view
+    /// model fetches the parent's children from the server. Non-nil for the SYNTHETIC "Oscars" drill-in,
+    /// whose parent is a label-only stub with no server children — we hand it the six Oscar BoxSets directly.
+    var subGroups: [BaseItemDto]?
+
     @StateObject
     private var viewModel = BrunoBoxSetShelvesViewModel()
 
@@ -69,6 +74,10 @@ struct BrunoBoxSetShelvesView: View {
         parent.displayTitle.lowercased() == "decades"
     }
 
+    private var isCurated: Bool {
+        parent.displayTitle.lowercased() == "curated"
+    }
+
     /// The decade category currently selected by a pill (nil ⇒ "All", the overview).
     private var selectedDecadeCategory: BrunoCollectionCategory? {
         guard let selectedDecade else { return nil }
@@ -82,13 +91,35 @@ struct BrunoBoxSetShelvesView: View {
     /// never vanish. Falls back to the single decade shelf until the fetch lands.
     private var shownCategories: [BrunoCollectionCategory] {
         guard isDecades, let selectedDecade, let category = selectedDecadeCategory else {
-            return viewModel.categories
+            // Curated hub: collapse the six "Oscar — *" sub-collections into ONE "Oscars" card whose
+            // Show-all opens a shelf-per-Oscar-category drill-in. The six stay in the snapshot for
+            // standalone Home/Curated shelves; this only changes the Curated hub's display.
+            return isCurated ? Self.consolidateOscars(viewModel.categories) : viewModel.categories
         }
         if let id = category.boxSet.id, let perYear = viewModel.yearShelvesByDecadeID[id] {
             return perYear
         }
         // Not yet fetched: show the single decade shelf until loadYearShelves lands.
         return viewModel.categories.filter { $0.name == selectedDecade }
+    }
+
+    /// Collapse the six "Oscar — <Category>" sub-collections into ONE synthetic "Oscars" category
+    /// (drillStyle .shelves) so the Curated hub shows a single Oscars card that drills into a shelf per
+    /// category. Stable id "curated-oscars" (INV-2). Its children are the six Oscar BoxSets themselves,
+    /// so the drill-in (subGroups override) fans out one shelf each. A no-op when fewer than two exist.
+    private static func consolidateOscars(_ categories: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+        let isOscar: (BrunoCollectionCategory) -> Bool = {
+            $0.name.lowercased().hasPrefix("oscar") && $0.name.contains(" — ")
+        }
+        let oscars = categories.filter(isOscar)
+        guard oscars.count > 1 else { return categories }
+        let oscarsCategory = BrunoCollectionCategory(
+            boxSet: BaseItemDto(id: "curated-oscars", name: "Oscars"),
+            children: oscars.map(\.boxSet),
+            drillStyle: .shelves,
+            lens: "Academy Awards"
+        )
+        return [oscarsCategory] + categories.filter { !isOscar($0) }
     }
 
     var body: some View {
@@ -129,7 +160,7 @@ struct BrunoBoxSetShelvesView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
-            Task { await viewModel.load(parent: parent) }
+            Task { await viewModel.load(parent: parent, subGroups: subGroups) }
         }
         // Compute the hero ONCE from the FULL unfiltered set when categories land (and never per pill).
         .onChange(of: viewModel.categories.map(\.id)) { _, _ in
@@ -356,7 +387,7 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         case ready(BrunoCollectionCategory)
     }
 
-    func load(parent: BaseItemDto) async {
+    func load(parent: BaseItemDto, subGroups: [BaseItemDto]? = nil) async {
         // Re-entrancy guard: if a load is already running/done on this instance, await it instead of
         // launching a second fan-out. The `await` on the cache read is the suspension a quick
         // re-push could slip through, so the guard wraps the whole thing.
@@ -364,7 +395,7 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
             await loadTask.value
             return
         }
-        let task = Task { await performLoad(parent: parent) }
+        let task = Task { await performLoad(parent: parent, providedSubGroups: subGroups) }
         loadTask = task
         await task.value
     }
@@ -376,7 +407,7 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         loadTask?.cancel()
     }
 
-    private func performLoad(parent: BaseItemDto) async {
+    private func performLoad(parent: BaseItemDto, providedSubGroups: [BaseItemDto]?) async {
         guard let userSession, let parentID = parent.id else {
             isLoading = false
             return
@@ -413,14 +444,15 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         let recencyBiased = parent.displayTitle.lowercased() == "genres"
         let childFetch = recencyBiased ? 60 : perShelfFetch
 
-        let subGroups = await Self.fetchChildren(
-            client: client,
-            userID: userID,
-            parentID: parentID,
+        // Synthetic drill-ins (the "Oscars" tile) hand us the child BoxSets directly — their stub parent
+        // has no server children to fetch. Otherwise fetch the parent's children as usual.
+        let subGroups: [BaseItemDto] = if let providedSubGroups {
+            providedSubGroups
+        } else {
             // Headroom over the ~80 sub-genre BoxSets under "Genres". Still a single page — if the curated
             // set ever approaches this, page to completion like loadYearShelves (G5).
-            limit: 120
-        )
+            await Self.fetchChildren(client: client, userID: userID, parentID: parentID, limit: 120)
+        }
 
         // Fix the final ROW ORDER up front, from the sub-groups by NAME — no children needed. This is what
         // lets us STREAM: each shelf publishes into its pre-assigned slot as its children land, so the user
@@ -839,12 +871,12 @@ private actor BrunoBoxSetShelvesDiskCache {
 extension NavigationRoute {
 
     @MainActor
-    static func brunoCategoryShelves(parent: BaseItemDto) -> NavigationRoute {
+    static func brunoCategoryShelves(parent: BaseItemDto, subGroups: [BaseItemDto]? = nil) -> NavigationRoute {
         NavigationRoute(
             id: "bruno-shelves-\(parent.id ?? parent.displayTitle)",
             withNamespace: { .push(.zoom(sourceID: "item", namespace: $0)) }
         ) {
-            BrunoBoxSetShelvesView(parent: parent)
+            BrunoBoxSetShelvesView(parent: parent, subGroups: subGroups)
         }
     }
 }
