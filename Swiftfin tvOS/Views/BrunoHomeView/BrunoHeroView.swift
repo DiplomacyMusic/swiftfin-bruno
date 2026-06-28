@@ -113,6 +113,9 @@ struct BrunoHeroView: View {
             // Left scrim moved onto the backdrop box below (.background) so it covers the full visible
             // art, including the strip that bleeds up behind the menu.
             // Bottom darkening scrim for copy legibility — fades out by center (top half stays as art).
+            // ⚠ LOAD-BEARING: this gradient is also required for the hero to hold its full layoutHeight —
+            // removing it pushes the first shelf off-screen when the hero is focused (verified A/B,
+            // 2026-06-27). Do not delete; see docs/BRUNO_HERO_LAYOUT_MAP.md §3b.
             LinearGradient(
                 colors: [Color.bruno.page, .clear],
                 startPoint: .bottom,
