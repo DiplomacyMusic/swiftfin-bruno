@@ -124,22 +124,19 @@ struct BrunoKidsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 36) {
-                    // Bar + hero flush (VStack spacing 0) so the LazyVStack's 36pt inter-row gap doesn't
-                    // push the hero down and leave its topBleed short of the top edge (the dimmer-short-of-
-                    // top strip). The bar (Kids is only ever a tab root) scrolls off and reappears at the top.
-                    VStack(spacing: 0) {
-                        BrunoScrollingMenuBar()
-                            .zIndex(1) // paint above the hero's upward backdrop spill
+                    // The menu bar is the first scrolling row (Kids is only ever a tab root): it scrolls
+                    // off with the content and reappears at the top.
+                    BrunoScrollingMenuBar()
+                        .zIndex(1) // paint above the hero's upward backdrop spill
 
-                        if viewModel.heroItems.isNotEmpty {
-                            BrunoHeroView(
-                                items: viewModel.heroItems,
-                                index: $spotlightIndex,
-                                eyebrow: "Featured",
-                                bleedsTop: true,
-                                extraHeight: 160
-                            )
-                        }
+                    if viewModel.heroItems.isNotEmpty {
+                        BrunoHeroView(
+                            items: viewModel.heroItems,
+                            index: $spotlightIndex,
+                            eyebrow: "Featured",
+                            bleedsTop: true,
+                            extraHeight: 160
+                        )
                     }
 
                     filterBar
