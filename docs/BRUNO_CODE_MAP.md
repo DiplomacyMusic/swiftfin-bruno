@@ -39,7 +39,8 @@ Bruno lives in two places:
    `PagingLibraryViewModel`, `ItemLibrary`, `NavigationCoordinator`, stock item/detail/player views).
 
 Guardrails: additive + tvOS-only; **no `.pbxproj` edits** (file-system-synchronized group); never hardcode
-BoxSet/library IDs; no secrets in the repo; land finished work on `main`.
+BoxSet/library IDs; no secrets in the repo; **work in a worktree → open a PR; the owner merges** (don't
+push `main` directly).
 
 ---
 
