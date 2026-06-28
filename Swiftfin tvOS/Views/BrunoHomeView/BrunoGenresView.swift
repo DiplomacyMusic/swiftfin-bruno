@@ -41,22 +41,25 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "action", "action hero", "adventure", "ancient war", "buddy cop", "disaster",
             "heist", "modern war", "on the run", "revenge", "sailing & high seas",
             "space opera", "spy", "superhero", "survival", "vigilante",
+            "chicago movies",
         ]),
         .init(id: "comedy", title: "Comedy", members: [
             "buddy cop", "college", "comedy", "coming of age", "cubicle",
             "dude approved romance", "ensemble", "fish out of water", "heist", "lgbtq",
             "obsession", "road trip", "romantic comedy", "romcom all-timers", "satire",
             "snl stars", "sports movies", "teen romance", "twee",
+            "chicago movies",
         ]),
         .init(id: "drama", title: "Drama", members: [
             "biopics", "courtroom", "drama", "drug movies", "dystopia", "ensemble",
             "foreign film", "french cinema", "grief & loss", "journalism", "mind blowers",
             "music", "obsession", "oscar bait", "romantic drama", "sports movies", "survival",
-            "twee",
+            "twee", "chicago movies",
         ]),
         .init(id: "romance", title: "Romance", members: [
             "classic romance", "dude approved romance", "erotic thriller", "lgbtq", "romance",
             "romantic comedy", "romantic drama", "romcom all-timers", "teen romance", "twee",
+            "chicago movies",
         ]),
         .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
             "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
@@ -67,10 +70,12 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "gangster", "heist", "isolation", "journalism", "mind blowers", "monster movies",
             "mystery", "noir", "obsession", "on the run", "paranoia", "political thriller",
             "prison", "revenge", "spy", "thriller", "twist", "whodunits",
+            "chicago movies",
         ]),
         .init(id: "crime", title: "Crime", members: [
             "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
             "on the run", "prison", "vigilante", "whodunits",
+            "chicago movies",
         ]),
         .init(id: "horror", title: "Horror", members: [
             "horror", "horror sub-genres", "isolation", "monster movies",
