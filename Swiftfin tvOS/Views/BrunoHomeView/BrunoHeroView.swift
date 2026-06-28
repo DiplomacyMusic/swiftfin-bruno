@@ -107,7 +107,12 @@ struct BrunoHeroView: View {
         //    physical screen top (full-bleed top) without moving any sibling.
         //  • imageAnchor   — which slice of the (overflowing) fill survives the crop. .top keeps the
         //    source's true top; .center balances it. Replaces the old magic offset.
-        let layoutHeight = 720 + extraHeight
+        // ×0.83: hero runs 17% shorter than its natural height so the first content shelf always peeks
+        // below it (and the bottom-pinned title block sits closer to the menu). Applies to every tab —
+        // layoutHeight is shared by all BrunoHeroView callers. Safe for the top-bleed: visualHeight =
+        // layoutHeight + topBleed, so layoutHeight cancels in the backdrop-top math and the art still
+        // reaches the physical top. See docs/BRUNO_HERO_LAYOUT_MAP.md §2.
+        let layoutHeight = (720 + extraHeight) * 0.83
         let visualHeight = layoutHeight + topBleed
         return ZStack(alignment: .bottomLeading) {
             // Left scrim moved onto the backdrop box below (.background) so it covers the full visible

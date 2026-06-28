@@ -43,9 +43,13 @@ The hero is the natural first-focus element (INV-7). The menu bar sits **above**
 
 ```
 let topBleed     = bleedsTop ? insets.top + BrunoMenuBar.barHeight + 36 : 0   // = insets.top + 116 + 36
-let layoutHeight = 720 + extraHeight                                           // Home: 720 + 200 = 920
+let layoutHeight = (720 + extraHeight) * 0.83          // Home: 920×0.83≈764 · Kids/Movies/TV: 880×0.83≈730
 let visualHeight = layoutHeight + topBleed
 ```
+
+The `×0.83` runs every tab's hero **17% shorter** than its natural height so the first shelf always peeks
+(and the bottom-pinned title block sits closer to the menu). It's safe for the top-bleed: `layoutHeight`
+cancels in the backdrop-top math (§2 bullet on `visualHeight`), so the art still reaches the physical top.
 
 - **`layoutHeight` (920 on Home)** — the **only** height the parent `LazyVStack` measures. It alone fixes
   the hero's bottom edge and therefore where the first shelf sits. `extraHeight` (200 on Home) grows it
@@ -141,6 +145,7 @@ Because it is an `.overlay`, this never affects sibling layout.
 | Constant | Where | Controls | Coupled to |
 |---|---|---|---|
 | `720` | `BrunoHeroView` layoutHeight base | hero base height | — |
+| `×0.83` | `BrunoHeroView` layoutHeight | shrinks every tab's hero 17% so shelves peek | all hero-bleed tabs |
 | `extraHeight: 200` | `BrunoHomeView` hero call | grows hero down; shelf position; backdrop reveal | the wordmark being an overlay |
 | `barHeight = 116` | `BrunoMenuBar` | menu row height **and** `topBleed` | both must use the same value |
 | `36` | `LazyVStack(spacing:)` (all tabs) | row gaps; `topBleed`; wordmark offset | duplicated as a literal in `topBleed` + wordmark offset |
