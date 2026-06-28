@@ -44,6 +44,10 @@ struct BrunoHeroView: View {
     /// centered below the nav. Home also uses it to restore the space the wordmark row vacated.
     var extraHeight: CGFloat = 0
 
+    /// The host LazyVStack's row spacing (the menu-bar↔hero gap). The top-bleed must clear exactly
+    /// this gap to reach the physical top. Defaults to 36 (Kids/Movies/TV); Home passes 24.
+    var rowSpacing: CGFloat = 36
+
     /// INV-8: while the home spine is still streaming in, hold the spotlight auto-advance so a
     /// backdrop swap never competes with shelves rising into place (two motion events at once reads
     /// as "busy/loading", not cinematic). The page passes `state == .content` once it has settled.
@@ -94,9 +98,10 @@ struct BrunoHeroView: View {
         // otherwise a lighter ambient strip shows above the hero (the dimmer-short-of-top bug). topBleed
         // is pure background overflow (never measured), so growing it moves no sibling; layoutHeight is
         // untouched (adding barHeight there too would double-count and over-grow the banner).
-        // +36: the LazyVStack row spacing between the menu-bar row and the hero row. Every hero-bleed host
-        // (Home/Kids/Movies/TV) uses spacing: 36, so without this term the bleed lands 36pt short.
-        let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight + 36 : 0
+        // +rowSpacing: the LazyVStack row spacing between the menu-bar row and the hero row. Without this
+        // term the bleed lands one gap short. Most hero-bleed hosts (Kids/Movies/TV) use spacing: 36 (the
+        // default); Home tightened to 24 and passes rowSpacing: 24 so its bleed still reaches the top.
+        let topBleed = bleedsTop ? insets.top + BrunoMenuBar.barHeight + rowSpacing : 0
         // Three independent knobs (see swift-reference / hero notes):
         //  • layoutHeight  — the ONLY height the parent VStack measures, so it alone fixes the banner's
         //    bottom edge and the shelves below. extraHeight grows it downward (Home restores the
