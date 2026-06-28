@@ -42,10 +42,6 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "heist", "modern war", "on the run", "revenge", "sailing & high seas",
             "space opera", "spy", "superhero", "survival", "vigilante",
         ]),
-        .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
-            "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
-            "monster movies", "science fiction", "space opera", "superhero", "time travel",
-        ]),
         .init(id: "comedy", title: "Comedy", members: [
             "buddy cop", "college", "comedy", "coming of age", "cubicle",
             "dude approved romance", "ensemble", "fish out of water", "heist", "lgbtq",
@@ -62,15 +58,19 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "classic romance", "dude approved romance", "erotic thriller", "lgbtq", "romance",
             "romantic comedy", "romantic drama", "romcom all-timers", "teen romance", "twee",
         ]),
-        .init(id: "crime", title: "Crime", members: [
-            "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
-            "on the run", "prison", "vigilante", "whodunits",
+        .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
+            "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
+            "monster movies", "science fiction", "space opera", "superhero", "time travel",
         ]),
         .init(id: "thriller", title: "Thriller", members: [
             "con artists", "courtroom", "cubicle", "dystopia", "ensemble", "erotic thriller",
             "gangster", "heist", "isolation", "journalism", "mind blowers", "monster movies",
             "mystery", "noir", "obsession", "on the run", "paranoia", "political thriller",
             "prison", "revenge", "spy", "thriller", "twist", "whodunits",
+        ]),
+        .init(id: "crime", title: "Crime", members: [
+            "buddy cop", "con artists", "crime", "drug movies", "gangster", "heist", "noir",
+            "on the run", "prison", "vigilante", "whodunits",
         ]),
         .init(id: "horror", title: "Horror", members: [
             "horror", "horror sub-genres", "isolation", "monster movies",
