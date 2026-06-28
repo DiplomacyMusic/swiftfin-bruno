@@ -41,6 +41,10 @@ struct BrunoScrollingMenuBar: View {
     /// Selection binding in EXPLICIT mode. Ignored in tab-root mode (the coordinator's binding is used).
     private let explicitSelection: Binding<String?>?
 
+    /// When true, the BRUNO wordmark is overlaid at the leading edge, vertically centered with the pills.
+    /// Home enables it (matching where the wordmark lived before the un-pin); other tabs leave it off.
+    private let showsWordmark: Bool
+
     /// Tab-root mode: the live coordinator carries the tab list + current selection. EnvironmentObject
     /// (not @Injected) because each tab root already receives it via `.environmentObject(tabCoordinator)`.
     @EnvironmentObject
@@ -53,16 +57,18 @@ struct BrunoScrollingMenuBar: View {
 
     /// TAB-ROOT mode (the only mode used today): the tab list + selection come from the environment
     /// `TabCoordinator`. Inject as the first row of a tab root's `LazyVStack`.
-    init() {
+    init(showsWordmark: Bool = false) {
         self.explicitTabs = nil
         self.explicitSelection = nil
+        self.showsWordmark = showsWordmark
     }
 
     /// EXPLICIT mode (seam for a future cover mode): pass the tab list + a selection binding directly,
     /// for surfaces that don't inherit the environment coordinator (e.g. fullScreenCovers). Not used yet.
-    init(tabs: [TabItem], selection: Binding<String?>) {
+    init(tabs: [TabItem], selection: Binding<String?>, showsWordmark: Bool = false) {
         self.explicitTabs = tabs
         self.explicitSelection = selection
+        self.showsWordmark = showsWordmark
     }
 
     var body: some View {
@@ -73,5 +79,25 @@ struct BrunoScrollingMenuBar: View {
         )
         .frame(height: BrunoMenuBar.barHeight) // INV-1: fixed height, independent of focus/content
         .focusSection()
+        // BRUNO wordmark on the menu line: leading, vertically centered with the pills (pills stay
+        // centered via BrunoMenuBar's maxWidth frame). Home-only via showsWordmark.
+        .overlay(alignment: .leading) {
+            if showsWordmark {
+                HStack(spacing: 8) {
+                    // swiftlint:disable:next hard_coded_display_string
+                    Text("BRUNO")
+                        .font(.brunoDisplay(40, weight: .bold))
+                        .tracking(6)
+                        .foregroundStyle(Color.bruno.fg)
+                    Circle()
+                        .fill(Color.bruno.accent)
+                        .frame(width: 12, height: 12)
+                }
+                .padding(.leading, 50)
+                // Optical nudge onto the pills' centerline (the capsule floats slightly high via
+                // BrunoMenuBar's top:8/bottom:14). Tune on the sim if it reads off.
+                .padding(.bottom, 6)
+            }
+        }
     }
 }

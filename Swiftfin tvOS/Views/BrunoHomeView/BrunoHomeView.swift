@@ -127,7 +127,9 @@ struct BrunoHomeView: View {
                     // reaches the top edge behind the bar. The bar keeps .zIndex(1) so it paints above the
                     // hero's upward backdrop spill.
                     VStack(spacing: 0) {
-                        BrunoScrollingMenuBar()
+                        // showsWordmark: BRUNO sits at the leading edge of the bar, in line / centered
+                        // with the pills (Home only).
+                        BrunoScrollingMenuBar(showsWordmark: true)
                             .zIndex(1)
 
                         BrunoHeroView(
@@ -232,16 +234,10 @@ struct BrunoHomeView: View {
         }
     }
 
+    // The BRUNO wordmark now lives in the menu bar (BrunoScrollingMenuBar showsWordmark), in line with
+    // the pills. This hero overlay keeps only the trailing build-stamp diagnostic.
     private var header: some View {
         HStack(spacing: 8) {
-            Text("BRUNO")
-                .font(.brunoDisplay(40, weight: .bold))
-                .tracking(6)
-                .foregroundStyle(Color.bruno.fg)
-            Circle()
-                .fill(Color.bruno.accent)
-                .frame(width: 12, height: 12)
-
             Spacer()
 
             // Build stamp: the app executable's build time. Auto-updates every build, so it's an
