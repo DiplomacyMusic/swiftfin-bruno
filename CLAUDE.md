@@ -25,6 +25,9 @@ change through the maps first — local edits ripple.
 
 **Agents:** Swift/SwiftUI/Xcode mechanics → `swift-xcode-expert`; "where/how does Bruno do X" → `bruno-expert`.
 
+**Workflow:** Work in a worktree → open a PR; the owner merges. Don't push `main` directly. Keep edits in
+the worktree (so the desktop app's file links resolve).
+
 ## 1. Think before coding
 State assumptions; if uncertain, ask. Multiple interpretations → present them, don't pick silently.
 Simpler approach exists → say so, push back when warranted. Unclear → stop, name it, ask.
