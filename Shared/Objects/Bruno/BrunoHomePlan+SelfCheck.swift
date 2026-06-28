@@ -56,6 +56,14 @@ extension BrunoHomePlan {
         )
         guard !build(seed: 1, snapshot: sparse, now: june).contains(where: { $0.id == "eras" }) else { return false }
 
+        // Sub-genre generator (C3): pure + non-nil over the mock's "Genres" children, tagged
+        // `.subgenre` with a `subgenre:` dedupe key. Exercised directly because the shuffled tail
+        // key may not fall in `build`'s initial 5 slots (and `appendExplore` isn't otherwise covered).
+        let sub1 = explore(key: "subgenre", seed: 4242, snapshot: mock, now: june)
+        let sub2 = explore(key: "subgenre", seed: 4242, snapshot: mock, now: june)
+        guard let sub1, sub1.id == sub2?.id, sub1.kind == .subgenre,
+              sub1.dedupeKey.hasPrefix("subgenre:") else { return false }
+
         return true
     }
 
