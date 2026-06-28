@@ -48,6 +48,9 @@ struct BrunoShelfView: View {
                         .foregroundStyle(Color.bruno.fg)
                 }
                 .padding(.horizontal, 50)
+                // Portrait shelves only: keep the focus-scaled leading cell from growing up into this
+                // header (see BrunoShelfMetrics.portraitHeaderBottomInset).
+                .padding(.bottom, viewModel.posterType == .portrait ? BrunoShelfMetrics.portraitHeaderBottomInset : 0)
 
                 // New Releases (the .recentlyAdded spine shelf) shows the full release date in the
                 // poster subtitle line — movies' item.subtitle is nil there, so BrunoTitleDateContentView

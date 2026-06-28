@@ -389,6 +389,9 @@ struct BrunoCategoryShelves: View {
                     .foregroundStyle(Color.bruno.fg)
             }
             .padding(.horizontal, 50)
+            // BrunoShelfRow is always portrait: keep the focus-scaled leading cell from growing up into
+            // this header (see BrunoShelfMetrics.portraitHeaderBottomInset).
+            .padding(.bottom, BrunoShelfMetrics.portraitHeaderBottomInset)
 
             BrunoShelfRow(
                 items: shelfItems(for: category),

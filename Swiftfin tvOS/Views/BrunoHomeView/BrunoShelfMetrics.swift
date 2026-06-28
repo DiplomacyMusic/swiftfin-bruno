@@ -51,4 +51,11 @@ enum BrunoShelfMetrics {
     static func posterMaxWidth(for type: PosterDisplayType) -> CGFloat {
         type == .landscape ? landscapePosterMaxWidth : portraitPosterMaxWidth
     }
+
+    // Portrait headroom: the focused poster scales up under the borderless/card focus style and, at the
+    // leading edge (continuousLeadingEdge), the focused FIRST cell grows UP into the eyebrow+title that
+    // sits directly above it. Reserve extra space below a portrait shelf's header so the scaled cell-1
+    // clears the title. Tall portrait cards (~362h) collide; short landscape cards (~249h) don't, so
+    // this offset is portrait-only. NOT an INV constant — it doesn't touch the pinned row height.
+    static let portraitHeaderBottomInset: CGFloat = 20
 }
