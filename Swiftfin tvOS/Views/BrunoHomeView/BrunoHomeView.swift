@@ -48,12 +48,11 @@ struct BrunoHomeView: View {
     @State
     private var visibleShelfCount = 4
 
-    /// Drives an explicit focus move back to the hero when the user taps "Back to Top" — `scrollTo`
-    /// moves the content, not the focus, so the off-screen pill would otherwise keep the focus ring.
-    @FocusState
-    private var homeFocus: HomeFocus?
-
-    private enum HomeFocus: Hashable { case hero }
+    /// Whether the top menu bar holds focus (reported by BrunoScrollingMenuBar). Drives the Menu-to-exit
+    /// gate: Menu on the bar (the top) falls through to the system; Menu in the content scrolls to the
+    /// top and returns focus to the bar.
+    @State
+    private var barIsFocused = false
 
     private var spotlightItem: BaseItemDto? {
         viewModel.heroItems[safe: spotlightIndex] ?? viewModel.heroItems.first
@@ -72,13 +71,12 @@ struct BrunoHomeView: View {
                 case let .error(error):
                     errorView(error)
                 default:
-                    // Focusable so cold launch has SOMETHING focusable in the content section — else the
-                    // focus engine strands focus on the menu bar (the only focusable on screen) and the
-                    // user lands on the bar, not the hero. We hand focus to the hero once it streams in.
+                    // Loading spinner — non-focusable. Cold-launch focus rests on the top menu: the Home
+                    // pill claims it via TabCoordinator.pendingBarFocus when the bar mounts, so this
+                    // placeholder no longer needs to anchor focus or hand it to the hero.
                     ProgressView()
                         .scaleEffect(2)
                         .tint(Color.bruno.accent)
-                        .focusable()
                 }
             }
         }
@@ -102,12 +100,6 @@ struct BrunoHomeView: View {
             // Tab switch-back (Home re-selected): re-pick the hero, mirroring the old onAppear behaviour.
             reshuffleHeroIfReady()
         }
-        .onChange(of: viewModel.heroItems.isEmpty) { _, isEmpty in
-            // Hero just streamed in on a cold launch → move focus off the loading placeholder onto it.
-            // Defer a runloop (like "Back to Top") so the hero is in the tree before we focus it.
-            guard !isEmpty, tabCoordinator.selectedTabID == "home" else { return }
-            Task { @MainActor in homeFocus = .hero }
-        }
     }
 
     private func reshuffleHeroIfReady() {
@@ -122,7 +114,7 @@ struct BrunoHomeView: View {
                 LazyVStack(alignment: .leading, spacing: 24) {
                     // The menu bar is now the FIRST scrolling row (was a pinned ZStack peer in
                     // MainTabView): it scrolls up and off with the content and reappears at the top.
-                    BrunoScrollingMenuBar()
+                    BrunoScrollingMenuBar(barFocused: $barIsFocused)
                         .zIndex(1) // paint above the hero's upward backdrop spill (next row)
 
                     BrunoHeroView(
@@ -145,9 +137,6 @@ struct BrunoHomeView: View {
                     // one surface that also shows the build-stamp diagnostic.
                     .brunoHeroWordmark(showBuildStamp: true)
                         .id("bruno-top")
-                        // Back-to-Top focus target: setting `homeFocus = .hero` pulls focus here after
-                        // the scroll (the hero stays the natural first-focus element otherwise — INV-7).
-                        .focused($homeFocus, equals: .hero)
 
                     // INV-2: cap-and-grow window — mount only the first `visibleShelfCount` of the
                     // already-revealed sections, keyed on the section's stable id (not array index).
@@ -193,8 +182,8 @@ struct BrunoHomeView: View {
                                 }
                                 BrunoSelectorCard(title: "Back to Top") {
                                     viewModel.send(.scrollToTop)
-                                    // scrollTo moves content, not focus — pull focus back to the hero.
-                                    Task { @MainActor in homeFocus = .hero }
+                                    // scrollTo moves content, not focus — return focus to the top menu bar.
+                                    tabCoordinator.pendingBarFocus = "home"
                                 }
                                 Spacer()
                             }
@@ -215,13 +204,13 @@ struct BrunoHomeView: View {
                     if !Set(new).isSuperset(of: Set(old)) { visibleShelfCount = 4 }
                 }
             }
-            // Menu/Back while scrolled into the shelves returns to the TOP (and re-seats the hero) rather
-            // than exiting. A nil action once already at the top (hero focused) falls through to the system
+            // Menu/Back while scrolled into the shelves returns to the TOP (focus to the menu bar) rather
+            // than exiting. A nil action once the bar is focused (at the top) falls through to the system
             // so Menu exits the app as usual. Stable modifier (only the closure swaps) — no identity churn.
-            .onExitCommand(perform: homeFocus == .hero ? nil : {
+            .onExitCommand(perform: barIsFocused ? nil : {
                 viewModel.send(.scrollToTop)
-                // scrollTo moves content, not focus — pull focus back to the hero (mirrors Back to Top).
-                Task { @MainActor in homeFocus = .hero }
+                // scrollTo moves content, not focus — return focus to the top menu bar (mirrors Back to Top).
+                tabCoordinator.pendingBarFocus = "home"
             })
             .onChange(of: viewModel.scrollResetToken) { _, _ in
                 if reduceMotion {
