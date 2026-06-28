@@ -110,19 +110,8 @@ struct BrunoHeroView: View {
         let layoutHeight = 720 + extraHeight
         let visualHeight = layoutHeight + topBleed
         return ZStack(alignment: .bottomLeading) {
-            // Left scrim for copy legibility (leading→trailing).
-            LinearGradient(
-                colors: [Color.bruno.page.opacity(0.96), Color.bruno.page.opacity(0.1)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            // Bottom darkening scrim DISABLED (was: bottom→center page→clear).
-            // LinearGradient(
-            //     colors: [Color.bruno.page, .clear],
-            //     startPoint: .bottom,
-            //     endPoint: .center
-            // )
-
+            // Scrims moved onto the backdrop box below (.background) so they cover the full visible art,
+            // including the strip that bleeds up behind the menu. Bottom darkening scrim stays disabled.
             content(for: item)
                 // +overscan keeps the copy title-safe after the card bleeds left to the screen edge.
                     .padding(.leading, 50 + insets.left)
@@ -142,6 +131,16 @@ struct BrunoHeroView: View {
             .frame(maxWidth: .infinity)
             .frame(height: visualHeight, alignment: imageAnchor)
             .clipped()
+            // Left scrim for copy legibility — applied to the backdrop box (visualHeight) so its top
+            // edge reaches the physical top with the art. In the front (layoutHeight) box its top edge
+            // sat below the menu, leaving a bright strip behind the nav and a hard horizontal seam.
+            .overlay {
+                LinearGradient(
+                    colors: [Color.bruno.page.opacity(0.96), Color.bruno.page.opacity(0.1)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
             .id(item.id)
             .transition(.opacity)
         }
