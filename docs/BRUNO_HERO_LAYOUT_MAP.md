@@ -30,7 +30,7 @@ so scroll content begins at the tvOS top safe-area inset.
 | — | top safe-area inset (`insets.top`, ~60pt) | reserved | scroll content starts below it |
 | Row 1 | `BrunoScrollingMenuBar()` | `barHeight = 116` (fixed) | `.zIndex(1)` so it paints **over** the hero's upward backdrop spill |
 | gap | `LazyVStack` row spacing | `36` | applies between every row |
-| Row 2 | `BrunoHeroView(bleedsTop: true, extraHeight: 200)` + BRUNO wordmark overlay | `layoutHeight = 920` | `.id("bruno-top")`, `.focused($homeFocus, equals: .hero)` |
+| Row 2 | `BrunoHeroView(bleedsTop: true, extraHeight: 160)` + BRUNO wordmark overlay | `layoutHeight ≈ 730` | `.id("bruno-top")`, `.focused($homeFocus, equals: .hero)` |
 | gap | row spacing | `36` | |
 | Row 3+ | `ForEach(sections)` shelves → window-grow sentinel → appendExplore sentinel → terminal footer | per shelf | `.padding(.bottom, 60)` on the stack |
 
@@ -43,7 +43,7 @@ The hero is the natural first-focus element (INV-7). The menu bar sits **above**
 
 ```
 let topBleed     = bleedsTop ? insets.top + BrunoMenuBar.barHeight + 36 : 0   // = insets.top + 116 + 36
-let layoutHeight = (720 + extraHeight) * 0.83          // Home: 920×0.83≈764 · Kids/Movies/TV: 880×0.83≈730
+let layoutHeight = (720 + extraHeight) * 0.83          // all tabs: extraHeight 160 → 880×0.83 ≈ 730
 let visualHeight = layoutHeight + topBleed
 ```
 
@@ -153,7 +153,7 @@ Because it is an `.overlay`, this never affects sibling layout.
 |---|---|---|---|
 | `720` | `BrunoHeroView` layoutHeight base | hero base height | — |
 | `×0.83` | `BrunoHeroView` layoutHeight | shrinks every tab's hero 17% so shelves peek | all hero-bleed tabs |
-| `extraHeight: 200` | `BrunoHomeView` hero call | grows hero down; shelf position; backdrop reveal | the wordmark being an overlay |
+| `extraHeight: 160` | every tab's hero call | grows hero down; shelf position; backdrop reveal | all tabs use 160 → equal hero height |
 | `barHeight = 116` | `BrunoMenuBar` | menu row height **and** `topBleed` | both must use the same value |
 | `36` | `LazyVStack(spacing:)` (all tabs) | row gaps; `topBleed`; wordmark offset | duplicated as a literal in `topBleed` + wordmark offset |
 | `insets.top` | safe area | `topBleed`; title-safe insets | tvOS overscan |

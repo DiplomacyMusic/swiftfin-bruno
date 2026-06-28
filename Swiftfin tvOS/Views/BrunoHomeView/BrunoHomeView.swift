@@ -129,9 +129,10 @@ struct BrunoHomeView: View {
                         items: viewModel.heroItems,
                         index: $spotlightIndex,
                         bleedsTop: true,
-                        // Taller banner: restores the vacated wordmark-row space AND shows more of the
-                        // backdrop (incl. its top) so the subject reads centered below the nav.
-                        extraHeight: 200,
+                        // 160 matches every other tab so all heroes resolve to the same height
+                        // ((720+160)×0.83 ≈ 730). The wordmark is now a shared overlay, so Home no longer
+                        // needs extra space to restore a wordmark row.
+                        extraHeight: 160,
                         // Also gate on Home being the ACTIVE tab: the custom container keeps Home mounted
                         // while hidden, so without this the hero would keep crossfading backdrops offscreen.
                         autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
