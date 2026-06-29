@@ -62,6 +62,12 @@ struct BrunoBoxSetShelvesView: View {
     @State
     private var commitTask: Task<Void, Never>?
 
+    /// The pending PREFETCH of the focused decade's per-year set. Warmed on focus (short debounce) so the
+    /// fetch overlaps the 500 ms commit window and the per-year shelves are usually in hand by the time the
+    /// pill commits — no decade-overview fallback flash. Cancelled by each new focus and on `onDisappear`.
+    @State
+    private var warmTask: Task<Void, Never>?
+
     /// INV-7 guard: true only AFTER the first paint, so the focus engine's initial focus assignment to
     /// the pill row can't fire a filter (or the per-year fetch) on cold enter. Until set, a commit no-ops.
     @State
@@ -197,6 +203,8 @@ struct BrunoBoxSetShelvesView: View {
         .onDisappear {
             commitTask?.cancel()
             commitTask = nil
+            warmTask?.cancel()
+            warmTask = nil
             // Tear down an in-flight streaming load if the user backs out mid-stream (structured cancel
             // propagates to every in-flight child fetch).
             viewModel.cancelLoad()
@@ -269,6 +277,22 @@ struct BrunoBoxSetShelvesView: View {
         guard focusedDecade != decade || selectedDecade != decade else { return }
 
         focusedDecade = decade
+
+        // PREFETCH: warm the focused decade's per-year set EARLY (shorter debounce than the commit) so the
+        // single GetItems round-trip overlaps the 500 ms commit window. On a deliberate pause the memoized
+        // `yearShelvesByDecadeID` is usually populated by the time `selectedDecade` commits, so `shownCategories`
+        // goes straight to the per-year set (led by "Best of the <Decade>") with no decade-overview fallback
+        // flash. The 150 ms gate keeps a fast scrub from fetching (preserving the commit-debounce intent below);
+        // `loadYearShelves` is memoized, so the commit's own fetch is then a no-op.
+        warmTask?.cancel()
+        if let decade, let category = viewModel.categories.first(where: { $0.name == decade }) {
+            warmTask = Task {
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled, focusedDecade == decade else { return }
+                await viewModel.loadYearShelves(for: category)
+            }
+        }
+
         commitTask?.cancel()
         commitTask = Task {
             // 500 ms: long enough that quickly tapping through years doesn't bog down (the per-year fetch
