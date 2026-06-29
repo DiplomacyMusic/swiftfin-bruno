@@ -17,13 +17,11 @@ import SwiftUI
 
 //
 // The Rewatchables drill-in: the favorited "Rewatchables" BoxSet (the films from Bill Simmons' podcast,
-// each carrying its episode number in a `rewatchables-ep:NN` item tag) bucketed into the 11 broad
-// BrunoCoreGenre genres and rendered as one shelf per non-empty bucket through the shared
-// BrunoCategoryShelves. Each poster shows its "Episode NN" caption (BrunoRewatchablesContentView, via
-// the surface-wide showsEpisode flag); each genre shelf's "Show all" opens that genre's full grid
-// (DrillStyle.genreGrid). A film appears under EVERY broad genre it matches (intentional, mirroring the
-// Genres surface); a film matching none of the 11 buckets is omitted from the broad-genre view (still
-// reachable via the collection itself).
+// each carrying its episode number in a `rewatchables-ep:NN` item tag) rendered as ONE flat, dense
+// portrait grid — the SAME BrunoBoxSetGridView the Directors "Show all" uses — over the branded
+// RewatchablesHero backdrop. Each poster shows its "Episode NN" caption (BrunoRewatchablesContentView,
+// via the grid's showsEpisode flag). Members are fetched WITH .tags (the caption source); no genre
+// bucketing — the whole collection is one grid.
 struct BrunoRewatchablesView: View {
 
     let parent: BaseItemDto
@@ -38,27 +36,25 @@ struct BrunoRewatchablesView: View {
                     .scaleEffect(2)
                     .tint(Color.bruno.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.categories.isEmpty {
+            } else if viewModel.films.isEmpty {
                 emptyState
             } else {
-                BrunoCategoryShelves(
-                    categories: viewModel.categories,
-                    eyebrow: "The Rewatchables",
-                    // "Just the broad genre shelves": no scroll-jump category row, each shelf's "Show all"
-                    // reaches its genre grid. Name the Show-all cards with the genre ("Show all · Comedy").
-                    showCategoryRow: false,
-                    namesShowAllCards: true,
-                    // Render each poster's "Episode NN" caption from the rewatchables-ep:NN tag (INV-1:
-                    // BrunoRewatchablesContentView is a geometry-faithful clone, row height unchanged).
-                    showsEpisode: true,
-                    // Branded full-bleed background (the podcast art) instead of a movie hero.
-                    staticBackgroundAsset: "RewatchablesHero"
-                )
-                // Pushed COVER (isTabRoot defaults false) ⇒ BrunoCategoryShelves injects the scrolling
-                // BrunoCoverMenuBarRow as its first row, like the Genres / Decades / Curated covers.
+                ZStack {
+                    // Branded full-bleed backdrop (the podcast art) as a SIBLING layer behind the
+                    // transparent CollectionVGrid — INV-6: not a scroll `.background`. The grid's
+                    // UICollectionView has `backgroundColor = nil`, so the backdrop reads through.
+                    BrunoAmbientBackground(item: nil, staticAsset: "RewatchablesHero")
+                    // Reuse the Directors "Show all" grid as-is: one flat, dense portrait grid of every
+                    // rewatchable film, each poster captioned with its "Episode NN" (showsEpisode).
+                    BrunoBoxSetGridView(
+                        title: "Rewatchables",
+                        items: viewModel.films,
+                        posterType: .portrait,
+                        showsEpisode: true
+                    )
+                }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
             Task { await viewModel.load(parent: parent) }
         }
@@ -84,7 +80,7 @@ struct BrunoRewatchablesView: View {
 final class BrunoRewatchablesViewModel: ViewModel {
 
     @Published
-    private(set) var categories: [BrunoCollectionCategory] = []
+    private(set) var films: [BaseItemDto] = []
     @Published
     private(set) var isLoading = true
 
@@ -96,29 +92,8 @@ final class BrunoRewatchablesViewModel: ViewModel {
         let client = userSession.client
         let userID = userSession.user.id
 
-        let films = await Self.fetchMembers(client: client, userID: userID, parentID: parentID)
-        categories = Self.bucket(films)
+        films = await Self.fetchMembers(client: client, userID: userID, parentID: parentID)
         isLoading = false
-    }
-
-    /// Bucket the collection's films into the 11 BrunoCoreGenre buckets (in BrunoCoreGenre.all order) by
-    /// matching each film's raw .genres against the bucket members. A film lands in EVERY bucket it
-    /// matches; empty buckets are dropped. Pure over the fetched set (no RNG; server order preserved
-    /// within a bucket), so the surface is stable for a given library.
-    private static func bucket(_ films: [BaseItemDto]) -> [BrunoCollectionCategory] {
-        BrunoCoreGenre.all.compactMap { core in
-            let members = films.filter { film in
-                (film.genres ?? []).contains { core.matches($0) }
-            }
-            guard members.isNotEmpty else { return nil }
-            // Synthetic per-bucket category: a label-only boxSet stub (stable unique id per bucket so
-            // focus identity holds — INV-2) whose Show-all opens the bucket's portrait grid (.genreGrid).
-            return BrunoCollectionCategory(
-                boxSet: BaseItemDto(id: "rewatchables-\(core.id)", name: core.title),
-                children: members,
-                drillStyle: .genreGrid
-            )
-        }
     }
 
     private nonisolated static func fetchMembers(
@@ -130,9 +105,9 @@ final class BrunoRewatchablesViewModel: ViewModel {
         parameters.userID = userID
         parameters.parentID = parentID
         parameters.includeItemTypes = [.movie]
-        // .tags carries rewatchables-ep:NN for the poster caption; .genres feeds the bucketing AND the
-        // hero child-safety filter (brunoHeroEligible). 300 > 214 so the whole collection lands at once.
-        parameters.fields = .MinimumFields + [.genres, .tags]
+        // .tags carries rewatchables-ep:NN for the per-poster "Episode NN" caption. 300 > 214 so the
+        // whole collection lands in one page.
+        parameters.fields = .MinimumFields + [.tags]
         parameters.enableUserData = true
         parameters.limit = 300
         do {

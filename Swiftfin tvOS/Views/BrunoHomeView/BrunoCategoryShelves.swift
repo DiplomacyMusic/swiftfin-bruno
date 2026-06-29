@@ -35,12 +35,9 @@ struct BrunoCollectionCategory: Identifiable, Codable {
         /// A grid of this category's own `children` — for synthetic categories with no parent
         /// BoxSet (e.g. Boxed Sets, a computed set of box sets).
         case items
-        /// The Rewatchables surface: the favorited "Rewatchables" BoxSet bucketed into broad-genre
-        /// shelves with per-poster episode captions (BrunoRewatchablesView).
+        /// The Rewatchables surface: the favorited "Rewatchables" BoxSet as one flat portrait grid
+        /// with per-poster episode captions (BrunoRewatchablesView).
         case rewatchables
-        /// A portrait grid of this category's own `children` — a client-side slice with no server
-        /// parent (one broad-genre bucket of the Rewatchables BoxSet). Like `.items` but portrait.
-        case genreGrid
     }
 
     let boxSet: BaseItemDto
@@ -514,9 +511,8 @@ struct BrunoCategoryShelves: View {
         case .shelves:
             // "Show all" opens a richer drill-in (shelf-per-sub-group, e.g. Decades): simple preview.
             return Array(items.prefix(shelfCap))
-        case .rewatchables, .genreGrid:
-            // Rewatchables tile + its broad-genre buckets: a simple capped movie preview; "Show all"
-            // opens the genre breakdown / the bucket's grid.
+        case .rewatchables:
+            // Rewatchables tile: a simple capped movie preview; "Show all" opens the full flat grid.
             return Array(items.prefix(shelfCap))
         }
     }

@@ -86,19 +86,8 @@ func brunoRouteToShowAll(
             in: namespace
         )
     case .rewatchables:
-        // The favorited "Rewatchables" BoxSet: open the broad-genre breakdown with episode captions.
+        // The favorited "Rewatchables" BoxSet: open the flat, episode-captioned portrait grid.
         router.route(to: .brunoRewatchables(parent: category.boxSet))
-    case .genreGrid:
-        // One broad-genre bucket of Rewatchables: a portrait grid of these exact films (a client-side
-        // genre slice, no server parent), so route a STATIC grid of the children.
-        router.route(
-            to: .brunoBoxSetGrid(
-                title: category.name,
-                items: category.children,
-                posterType: .portrait
-            ),
-            in: namespace
-        )
     case .grid:
         // Dated flat-movie group (New Releases): route to the Bruno-owned grid so posters carry the
         // full release date — the shared stock paged library can't, and editing it would leak dates
