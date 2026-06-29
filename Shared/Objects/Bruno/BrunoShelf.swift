@@ -28,6 +28,9 @@ struct BrunoShelf: Identifiable {
         case recentlyAdded
         case newReleases
         case spotlight
+        /// Actor-in-focus (a "Movie Stars" actor's films). Distinct from `.spotlight` (director) so the
+        /// two read as different roles; routes via the `default` query path in brunoHomeRouteToShowAll.
+        case actor
         case genre
         case subgenre
         case series
