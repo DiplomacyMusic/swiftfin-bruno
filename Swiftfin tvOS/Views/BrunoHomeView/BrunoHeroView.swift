@@ -240,8 +240,12 @@ struct BrunoHeroView: View {
                 }
                 .padding(.top, 8)
                 .focusSection()
+                // .userInitiated (NOT .automatic): re-entry must land on the CURRENT spotlight dot, not
+                // the engine-restored last-focused one — else auto-advance moving `index` while unfocused
+                // makes the next DOWN-into-the-dots page the spotlight BACKWARD. (Sibling chip rows use
+                // .automatic because they WANT to restore the last pill; the hero wants the live index.)
                 .backport
-                .defaultFocus($focusedDot, index)
+                .defaultFocus($focusedDot, index, priority: .userInitiated)
                 // Move-to-select paging: landing focus on a dot pages the spotlight to it. The
                 // `focused != index` guard skips a redundant crossfade when entering on the current dot.
                 .onChange(of: focusedDot) { _, focused in
