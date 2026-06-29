@@ -18,6 +18,11 @@ struct PosterHStack<Element: Poster, Data: Collection>: View where Data.Element 
     private var type: PosterDisplayType
     private var label: (Element) -> any View
     private var trailingCard: (() -> any View)?
+    // Lazy reveal: fired by the trailing CollectionHStack when the row scrolls within `.columns(5)` of
+    // its trailing edge, so a Bruno Home shelf can grow its revealed window. Defaulted nil so the
+    // synthesized memberwise init keeps a default and the public convenience init (which omits this arg)
+    // is unchanged — every stock PosterHStack caller stays source- and behaviour-identical.
+    private var onReachedTrailingEdge: (() -> Void)?
     private let action: (Element) -> Void
 
     // A poster cell or the trailing "Show all" sentinel. The sentinel is appended ONLY when a
@@ -40,10 +45,14 @@ struct PosterHStack<Element: Poster, Data: Collection>: View where Data.Element 
         }
     }
 
-    // The capped poster set (the existing dataPrefix(20) behaviour) plus the trailing card as the
-    // last element, so "Show all" sits at the end of the row exactly like the browse surfaces.
+    // The poster set the caller hands us (already sliced to its revealed window — see
+    // BrunoShelfViewModel.revealedItems) plus the trailing card as the last element, so "Show all" sits
+    // at the end of the row exactly like the browse surfaces. We do NOT re-cap here: capping at a
+    // constant would pin `dataPrefix`/`effectiveItemCount` and the trailing-edge callback would fire on
+    // the wrong index and the grown tail would never render. The reveal count drives the slice the
+    // caller passes, and `.dataPrefix(trailingCards.count)` below tracks it.
     private var trailingCards: [Card] {
-        Array(data.prefix(20)).map(Card.item) + [.showAll]
+        data.map(Card.item) + [.showAll]
     }
 
     var body: some View {
@@ -88,6 +97,12 @@ struct PosterHStack<Element: Poster, Data: Collection>: View where Data.Element 
                 .insets(horizontal: EdgeInsets.edgePadding, vertical: 20)
                 .itemSpacing(EdgeInsets.edgePadding - 20)
                 .scrollBehavior(.continuousLeadingEdge)
+                // Grow the revealed window as the row nears its trailing edge. `.columns(5)` fires when
+                // the max-visible index crosses `count - 5` — the container-level analogue of "focus
+                // reached the Nth-from-last tile". Scroll-position driven (scrollViewDidScroll), never a
+                // per-cell focus hook, so it cannot re-trigger the INV-10 held-scroll freeze. No-ops when
+                // the caller set no closure (every `.trailing` caller is a Bruno Home shelf, which does).
+                .onReachedTrailingEdge(offset: .columns(5)) { onReachedTrailingEdge?() }
             } else {
                 CollectionHStack(
                     uniqueElements: data,
@@ -134,5 +149,11 @@ extension PosterHStack {
 
     func trailing(@ViewBuilder _ content: @escaping () -> any View) -> Self {
         copy(modifying: \.trailingCard, with: content)
+    }
+
+    /// Opt-in (Bruno Home shelves): grow the revealed window when the row nears its trailing edge.
+    /// Wired only on the trailing-card path; stock callers never set it and are unaffected.
+    func onReachedTrailingEdge(_ action: @escaping () -> Void) -> Self {
+        copy(modifying: \.onReachedTrailingEdge, with: action)
     }
 }

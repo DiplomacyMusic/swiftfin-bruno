@@ -176,14 +176,28 @@ struct BrunoShelfView: View {
         PosterHStack(
             title: nil,
             type: viewModel.posterType,
-            items: viewModel.items,
+            items: viewModel.revealedItems,
             action: { handleTap($0) },
             label: label
         )
         .trailing { BrunoShowAllCard(type: viewModel.posterType, action: showAll) }
+        .onReachedTrailingEdge { reveal() }
         .frame(height: height)
         // INV-1 conflict watch (perf telemetry, release-inert). See BrunoShelfRow / BrunoDebugInstrument.
         .brunoPerfHeightWatch(site: site, expected: height)
+    }
+
+    /// Lazy reveal: grow the revealed window when the row nears its trailing edge, then warm ONLY the
+    /// newly revealed tail at the cell width (INV-4) so the grown cells aren't blank. The onAppear warm
+    /// covers just the first screenful by design; this covers the tail the user actually scrolled to.
+    /// `revealMore` caps the window, so repeated edge hits past the cap are cheap no-ops.
+    private func reveal() {
+        let previous = viewModel.revealedCount
+        viewModel.revealMore()
+        let grown = viewModel.revealedCount
+        guard grown > previous else { return }
+        let tail = Array(viewModel.items.elements.dropFirst(previous).prefix(grown - previous))
+        prefetcher.warm(tail, type: viewModel.posterType, count: grown - previous)
     }
 
     /// D1: route this shelf's "Show all" to the SAME destination as its browse twin.
@@ -223,7 +237,7 @@ struct BrunoShelfView: View {
     }
 
     private var carouselCards: [CarouselCard] {
-        Array(viewModel.items.prefix(20)).map(CarouselCard.item) + [.showAll]
+        viewModel.revealedItems.map(CarouselCard.item) + [.showAll]
     }
 
     /// Mirrors PosterHStack's CollectionHStack layout exactly (same columns / insets / spacing /
@@ -262,6 +276,8 @@ struct BrunoShelfView: View {
         .insets(horizontal: EdgeInsets.edgePadding, vertical: 20)
         .itemSpacing(EdgeInsets.edgePadding - 20)
         .scrollBehavior(.continuousLeadingEdge)
+        // Lazy reveal for box-set carousels too (Directors/Studios can exceed the initial window).
+        .onReachedTrailingEdge(offset: .columns(5)) { reveal() }
         .focusSection()
     }
 }
