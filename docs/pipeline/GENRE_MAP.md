@@ -96,7 +96,10 @@ Adventure (195) · Mystery (92) · Family (92) · Animation (77) · History (60)
 | **Bruno Vibes** → Indie Stress (19), Hangout (39), Mind Blowers (57), Ratatat (17) | — | [NEW] your personal genres, grouped |
 
 > The per-film "Winner/Nominated (year)" second line under Oscar posters is **not** a Jellyfin collection
-> capability — deferred as a possible Bruno app annotation, separate from these shelves.
+> capability — it ships as a Bruno app annotation fed by a per-item tag. **BUILT** (PR for branch
+> `claude/modest-goodall-5fe0fc`): producer `enrich/p9_oscars.py` stamps `oscar:<CATEGORY>:<won|nom>:<YEAR>`
+> per film; the app renders *Winner (Year)* / Nominee (Year) and orders Oscar shelves reverse-chron
+> (`BrunoOscarContentView`, `BrunoOscar`). Owner runs `LIVE=1 p9_oscars.py` to apply.
 
 ---
 
