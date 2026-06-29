@@ -71,12 +71,14 @@ struct BrunoHomeView: View {
                 case let .error(error):
                     errorView(error)
                 default:
-                    // Loading spinner — non-focusable. Cold-launch focus rests on the top menu: the Home
-                    // pill claims it via TabCoordinator.pendingBarFocus when the bar mounts, so this
-                    // placeholder no longer needs to anchor focus or hand it to the hero.
+                    // Loading spinner — focusable ONLY so the both-empty load frame has a focus target
+                    // (the menu bar isn't mounted until content streams in). Once content appears the Home
+                    // pill claims focus via TabCoordinator.pendingBarFocus, so this never hands focus to the
+                    // hero — it just avoids a dead-remote window while the first refresh is in flight.
                     ProgressView()
                         .scaleEffect(2)
                         .tint(Color.bruno.accent)
+                        .focusable()
                 }
             }
         }
@@ -204,9 +206,11 @@ struct BrunoHomeView: View {
                     if !Set(new).isSuperset(of: Set(old)) { visibleShelfCount = 4 }
                 }
             }
-            // Menu/Back while scrolled into the shelves returns to the TOP (focus to the menu bar) rather
-            // than exiting. A nil action once the bar is focused (at the top) falls through to the system
-            // so Menu exits the app as usual. Stable modifier (only the closure swaps) — no identity churn.
+            // Menu/Back model = "up one level": from the shelves OR the hero it scrolls to the TOP and
+            // moves focus to the menu bar — so Menu from the hero is a deliberate TWO-press exit (first
+            // press lands on the bar; owner-chosen). Once the bar is focused (the top), the nil action
+            // falls through to the system so the next Menu exits the app. Stable modifier (only the closure
+            // swaps) — no identity churn.
             .onExitCommand(perform: barIsFocused ? nil : {
                 viewModel.send(.scrollToTop)
                 // scrollTo moves content, not focus — return focus to the top menu bar (mirrors Back to Top).

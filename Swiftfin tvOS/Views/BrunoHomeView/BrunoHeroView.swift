@@ -229,7 +229,7 @@ struct BrunoHeroView: View {
                 HStack(spacing: 10) {
                     ForEach(items.indices, id: \.self) { offset in
                         Button {
-                            router.route(to: .item(item: item))
+                            router.route(to: .item(item: items[offset]))
                         } label: {
                             dot(for: offset)
                         }
