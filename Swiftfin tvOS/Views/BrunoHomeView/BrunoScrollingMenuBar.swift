@@ -41,6 +41,10 @@ struct BrunoScrollingMenuBar: View {
     /// Selection binding in EXPLICIT mode. Ignored in tab-root mode (the coordinator's binding is used).
     private let explicitSelection: Binding<String?>?
 
+    /// Optional reporter: mirrors whether THIS bar holds focus up to the host (Home uses it to gate its
+    /// Menu-to-exit behaviour — Menu on the bar = "at the top"). nil for tabs that don't need it.
+    private let barFocused: Binding<Bool>?
+
     /// Tab-root mode: the live coordinator carries the tab list + current selection. EnvironmentObject
     /// (not @Injected) because each tab root already receives it via `.environmentObject(tabCoordinator)`.
     @EnvironmentObject
@@ -58,9 +62,10 @@ struct BrunoScrollingMenuBar: View {
 
     /// TAB-ROOT mode (the only mode used today): the tab list + selection come from the environment
     /// `TabCoordinator`. Inject as the first row of a tab root's `LazyVStack`.
-    init() {
+    init(barFocused: Binding<Bool>? = nil) {
         self.explicitTabs = nil
         self.explicitSelection = nil
+        self.barFocused = barFocused
     }
 
     /// EXPLICIT mode (seam for a future cover mode): pass the tab list + a selection binding directly,
@@ -68,6 +73,7 @@ struct BrunoScrollingMenuBar: View {
     init(tabs: [TabItem], selection: Binding<String?>) {
         self.explicitTabs = tabs
         self.explicitSelection = selection
+        self.barFocused = nil
     }
 
     /// Selection binding for the pills. In tab-root mode the setter (which fires ONLY on a pill PRESS —
@@ -106,6 +112,13 @@ struct BrunoScrollingMenuBar: View {
         // Claim the pending pill focus when THIS tab becomes active: onChange covers switching back to an
         // already-mounted tab; onAppear covers a first-time lazy mount (isActive already true, no change).
         .onChange(of: isActive) { _, nowActive in claimPendingBarFocus(active: nowActive) }
+        // In-tab claim: cold launch + Back-to-Top + Menu-from-shelves set pendingBarFocus while THIS tab
+        // is already active + mounted, so neither onAppear nor onChange(isActive) re-fires — observe the
+        // intent directly. Race-free on a tab switch: onChange sees the post-render isActive, so only the
+        // active bar's `guard active` passes, and claimPendingBarFocus nil-clears the one-shot (idempotent).
+        .onChange(of: tabCoordinator.pendingBarFocus) { _, _ in claimPendingBarFocus(active: isActive) }
         .onAppear { claimPendingBarFocus(active: isActive) }
+        // Mirror this bar's focus up to the host (Home's Menu-to-exit gate). barFocus is nil ⇔ unfocused.
+        .onChange(of: barFocus) { _, focused in barFocused?.wrappedValue = (focused != nil) }
     }
 }

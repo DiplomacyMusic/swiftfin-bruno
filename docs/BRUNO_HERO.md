@@ -34,12 +34,15 @@ so scroll content begins at the tvOS top safe-area inset.
 | — | top safe-area inset (`insets.top`, ~60pt) | reserved | scroll content starts below it |
 | Row 1 | `BrunoScrollingMenuBar()` | `barHeight = 116` (fixed) | `.zIndex(1)` so it paints **over** the hero's upward backdrop spill |
 | gap | `LazyVStack` row spacing | `36` | applies between every row |
-| Row 2 | `BrunoHeroView(bleedsTop: true, extraHeight: 160)` + BRUNO wordmark overlay | `layoutHeight ≈ 730` | `.id("bruno-top")`, `.focused($homeFocus, equals: .hero)` |
+| Row 2 | `BrunoHeroView(bleedsTop: true, extraHeight: 160)` + BRUNO wordmark overlay | `layoutHeight ≈ 730` | `.id("bruno-top")`; a multi-item hero's **page-dot row** is the focusable pager (no `homeFocus` anchor) |
 | gap | row spacing | `36` | |
 | Row 3+ | `ForEach(sections)` shelves → window-grow sentinel → appendExplore sentinel → terminal footer | per shelf | `.padding(.bottom, 60)` on the stack |
 
-The hero is the natural first-focus element (INV-7). The menu bar sits **above** it and the first
-shelf **below** it; UP/DOWN move between them (now plain vertical scroll moves — see Up-nav model).
+Launch focus rests on the **menu bar** (the Home pill, via `TabCoordinator.pendingBarFocus`), not the
+hero. The menu bar sits **above** the hero and the first shelf **below** it; UP/DOWN move between them
+(plain vertical scroll moves — see Up-nav model). For a multi-item hero the focusable element is its
+**page-dot row** (LEFT/RIGHT pages the spotlight); single-item heroes keep the whole card as one
+focusable Button.
 
 ### The hero's three height knobs (`BrunoHeroView.heroCard`)
 
@@ -193,28 +196,38 @@ plain vertical moves** and the trap is architecturally dissolved.
 
 - Menu bar un-pinned: `4a721438`. Hero `.onMoveCommand` dropped: `e94e07fd`.
 - The hero's backdrop still reaches the physical top via the existing `topBleed` bleed (see Layout).
-- Manual click L/R hero paging was intentionally dropped with this resolution; auto-advance still
-  rotates.
+- Manual L/R spotlight paging is **restored** via focusable page-indicator dots: a multi-item hero's
+  dot row is a `.focusSection()` of focusable buttons (move-to-select), so LEFT/RIGHT pages the
+  spotlight while UP/DOWN still escape — no `.onMoveCommand` sink. Auto-advance still rotates while
+  unfocused. (`BrunoHeroView`, 2026-06-28.)
 
 ### Invariants any edit must preserve
 
-An edit to this region must keep **left/right spotlight stepping working AND let Up escape upward** —
-both, simultaneously (every past attempt broke one to fix the other). Concretely:
+An edit to this region must keep **left/right spotlight paging working AND let Up escape upward** —
+both, simultaneously (every past attempt broke one to fix the other). The dots-as-focus-section model
+delivers both: LEFT/RIGHT traverses sibling dots, UP/DOWN escape the section. Concretely:
 
 - **INV-1** — the bar row stays **fixed-height** (`barHeight`); no focus-driven height change.
-- **INV-7** — cold-launch focus lands on the **hero, not a bar pill**; keep first-focus /
-  `.focused($homeFocus, equals: .hero)` on the hero wrapper (`BrunoHomeView`). Device-verify.
-- **INV-10** — the bar row tree stays constant across focus (opacity/scale only); no conditional view
-  insertion on focus (re-introduces the focus-stall freeze).
+- **INV-7 (owner override)** — focus now rests on the **menu bar** at launch / tab-select /
+  Back-to-Top, NOT the hero (the owner's choice; supersedes the old "cold-launch lands on the hero").
+  The menu bar is always the first row, so focus never strands; launch / Back-to-Top / Menu-from-shelves
+  all route through `TabCoordinator.pendingBarFocus` (the Home bar claims the pill). Device-verify.
+- **INV-10** — both the bar row AND the hero dots stay constant across focus (opacity/scale only); no
+  conditional view insertion on focus (re-introduces the focus-stall freeze).
 - Keep `bleedsTop: true` so the hero art reaches the physical top.
-- Keep **exactly one unambiguous hero focusable** — the `homeFocus/.hero` anchor drives cold-launch
-  and Back-to-Top; splitting or duplicating it strands those.
-- Do **not** re-pin the bar or re-add `.onMoveCommand` to the hero — that reverts the resolution.
+- Multi-item heroes expose their **page-dot `.focusSection()`** as the focusable pager; **single-item
+  heroes keep exactly one whole-card focusable Button** so a call site's external `.focused(...)` (e.g.
+  `BrunoCategoryShelves`) still binds — do not wrap the single-item branch in a focusSection.
+- Do **not** re-pin the bar or add `.onMoveCommand` to the hero — that reverts the resolution / re-traps UP.
 
-### On-device confirm (the only remaining step)
+### On-device confirm
 
-Verify on a **real Apple TV + Siri Remote** (sim focus is unreliable): on DOWN the bar scrolls fully
-off and on UP fully back; DOWN reaches the first shelf; cold-launch hands focus to the hero, not a
-pill (INV-7); hero art still reaches the physical top (no light strip / no over-spill crop) after the
-`topBleed` math; tab-switching works from the scrolling bar; held-scroll doesn't stall crossing the
-bar row (INV-10).
+Verify on a **real Apple TV + Siri Remote** (sim focus is unreliable): cold-launch focus rests on the
+Home pill (not the hero); DOWN from the bar reaches the hero (its current dot focused, Play pill
+bright); LEFT/RIGHT pages the spotlight one item per press; UP from a dot returns to the bar; DOWN
+reaches the first shelf; Select on a dot opens the spotlight item; Back-to-Top and Menu-from-shelves
+return focus to the bar, and Menu while on the bar exits the app; single-item heroes
+(Movies / Collections covers) still focus the whole card and their Back-to-Top still lands on it; hero
+art still reaches the physical top (no light strip / no over-spill crop) after the `topBleed` math;
+tab-switching works from the scrolling bar; held-scroll doesn't stall crossing the bar row (INV-10);
+Reduce Motion makes paging instant.

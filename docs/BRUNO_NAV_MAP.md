@@ -304,7 +304,7 @@ Director card tap both hit `.grid → brunoBoxSetGrid(portrait, artCarousel)` wi
 
 | # | Question |
 |---|---|
-| 1 | Do the Collections / Movies / TV / Kids heroes auto-rotate like Home? Each passes a single `featured`/`items:[one]` to `BrunoHeroView`, suggesting **static** (Home is the only multi-item auto-advancing hero) — not confirmed against `BrunoHeroView.autoAdvanceEnabled`. |
+| 1 | ~~Do the Collections / Movies / TV / Kids heroes auto-rotate like Home?~~ **ANSWERED (2026-06-28):** three multi-item auto-rotating heroes — **Home** (`BrunoHomeViewModel` `.prefix(5)`), **Kids** (`BrunoKidsView` `.prefix(5)`), **TV Shows** (`BrunoMediaView` `.prefix(5)`). **Movies / Collections / Decades / Genres covers are single-item** (`BrunoCategoryShelves` `items: [featured]`). Multi-item heroes now expose a focusable page-dot pager; single-item keep the whole-card Button. |
 | 2 | Boxed Sets (`.items`) Show-all: confirm `category.children` are all `.boxSet` and never include the parent group, so the landscape grid can't list the group itself. |
 | 3 | "Best of the {Decade}" (mismatch #1): is dropping the significance order on Show-all intended, or should it route to a tag-filtered/sig-ordered library? Currently it cannot (Jellyfin has no `bruno-sig` server filter). |
 | 4 | **Largely answered by #41 (D1+D2).** The Eras/Auteurs/Collections shelves now reach the branded drill-ins via their trailing "Show all" (and an Eras tile-tap deep-links the decade pill). Only a Director/Collection *tile-tap* still lands on stock `.item` detail — open whether to brand that last tap too. |

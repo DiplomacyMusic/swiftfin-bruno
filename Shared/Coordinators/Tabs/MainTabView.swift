@@ -63,6 +63,9 @@ struct MainTabView: View {
         if tabCoordinator.selectedTabID == nil {
             tabCoordinator.selectedTabID = "home"
         }
+        // Launch focus rests on the top menu (the Home pill), not the hero: the Home bar consumes this
+        // one-shot when it first appears. Supersedes the old "hand focus to the hero on stream-in".
+        tabCoordinator.pendingBarFocus = "home"
         routePendingDeepLink()
     }
 
@@ -74,7 +77,9 @@ struct MainTabView: View {
     // (BrunoScrollingMenuBar), so it scrolls up and off-screen like every other shelf and reappears at
     // the top. MainTabView therefore no longer reserves a top inset or owns the bar's focus.
 
-    /// Default-focus scope so launch / DOWN-from-bar land in CONTENT, not the bar.
+    /// Default-focus scope for the content section. Launch focus itself rests on the menu pill via
+    /// `TabCoordinator.pendingBarFocus` (see `landOnHomeThenDeepLink`); this scope steers other entries
+    /// into CONTENT, not the bar.
     @Namespace
     private var rootNamespace
 
@@ -103,8 +108,9 @@ struct MainTabView: View {
         // The menu bar is no longer a pinned peer here — each Bruno tab root injects it as the first
         // scrolling row of its own LazyVStack (BrunoScrollingMenuBar), so it scrolls off with the
         // content. MainTabView therefore reserves no top inset and owns no bar focus: it is just the
-        // mounted-tab switcher. The content stays a `.focusSection()` under the `.focusScope` so
-        // `prefersDefaultFocus` still lands launch focus in CONTENT (the hero), not the bar row.
+        // mounted-tab switcher. The content stays a `.focusSection()` under the `.focusScope`;
+        // `prefersDefaultFocus` steers focus into CONTENT, while launch focus is claimed by the menu bar
+        // via `TabCoordinator.pendingBarFocus` (`landOnHomeThenDeepLink`).
         ZStack {
             ForEach(tabCoordinator.tabs, id: \.item.id) { tab in
                 if mountedIDs.contains(tab.item.id) {

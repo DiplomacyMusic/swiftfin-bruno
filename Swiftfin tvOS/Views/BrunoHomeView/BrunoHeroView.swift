@@ -20,11 +20,13 @@ import UIKit
 // plan §D). Full-bleed backdrop + left scrim, Oswald title, meta, and a Play / More-Info hint
 // that routes to the stock item detail (Play-for-the-proto, plan §C4).
 //
-// Focus model (Apple-TV-app feel): the whole hero is ONE chrome-less focusable element — a
-// click down from the top menu lands on it with no button highlight. UP/DOWN escape to the focus
-// engine (the menu bar above, the shelves below); manual left/right paging was removed (the dots
-// are a passive page indicator, not focusable buttons). Select opens the spotlight item.
-// Auto-advance pauses while focused so the backdrop never swaps focus out from under the user.
+// Focus model (Apple-TV-app feel): the chrome-less hero shows focus through its own affordances
+// (the brightened Play pill), not a card highlight. A MULTI-item spotlight makes the page dots a
+// focusable `.focusSection()` row — LEFT/RIGHT pages the spotlight (move-to-select); UP/DOWN escape
+// to the focus engine (menu bar above, shelves below) with NO `.onMoveCommand` sink (that trapped
+// UP). Select on a dot opens the spotlight item. A SINGLE-item hero keeps the whole card as one
+// focusable Button so a call site's external `.focused(...)` still binds.
+// Auto-advance pauses while a dot is focused so the backdrop never swaps focus out from under you.
 struct BrunoHeroView: View {
 
     let items: [BaseItemDto]
@@ -62,6 +64,16 @@ struct BrunoHeroView: View {
     @FocusState
     private var isFocused: Bool
 
+    /// Which spotlight dot holds focus (multi-item hero); nil ⇒ none. Drives move-to-select paging
+    /// and the auto-advance pause. Single-item heroes use `isFocused` (the whole-card Button) instead.
+    @FocusState
+    private var focusedDot: Int?
+
+    /// The hero reads as "focused" when its card Button (single-item) or any page dot (multi-item) is.
+    private var isHeroFocused: Bool {
+        isFocused || focusedDot != nil
+    }
+
     /// Auto-advance cadence for the spotlight (paused while focused).
     private let autoAdvance = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
@@ -71,20 +83,24 @@ struct BrunoHeroView: View {
 
     var body: some View {
         if let current {
-            Button {
-                router.route(to: .item(item: current))
-            } label: {
+            if items.count > 1 {
+                // Multi-item: the card is a non-focusable backdrop; the page dots (in content(for:))
+                // are the focusable pager. Auto-advance still pauses while a dot is focused (INV-8).
                 heroCard(for: current)
-            }
-            .buttonStyle(BrunoHeroButtonStyle())
-            .focused($isFocused)
-            // Manual left/right spotlight paging was removed so UP/DOWN escape to the focus engine
-            // (the menu bar above and the shelves below). The hero still auto-rotates via its timer.
-            .onReceive(autoAdvance) { _ in
-                // Pause while focused (TV-app behaviour) so the swap never yanks focus, and while the
-                // spine is still streaming in (autoAdvanceEnabled — INV-8).
-                guard autoAdvanceEnabled, !reduceMotion, !isFocused, items.count > 1 else { return }
-                step(by: 1)
+                    .onReceive(autoAdvance) { _ in
+                        guard autoAdvanceEnabled, !reduceMotion, focusedDot == nil else { return }
+                        step(by: 1)
+                    }
+            } else {
+                // Single-item (covers): the whole card stays ONE focusable Button so a call site's
+                // external `.focused(...)` (e.g. BrunoCategoryShelves) binds to it. No dots, no rotate.
+                Button {
+                    router.route(to: .item(item: current))
+                } label: {
+                    heroCard(for: current)
+                }
+                .buttonStyle(BrunoHeroButtonStyle())
+                .focused($isFocused)
             }
         }
     }
@@ -116,7 +132,7 @@ struct BrunoHeroView: View {
         // below it (and the bottom-pinned title block sits closer to the menu). Applies to every tab —
         // layoutHeight is shared by all BrunoHeroView callers. Safe for the top-bleed: visualHeight =
         // layoutHeight + topBleed, so layoutHeight cancels in the backdrop-top math and the art still
-        // reaches the physical top. See docs/BRUNO_HERO_LAYOUT_MAP.md §2.
+        // reaches the physical top. See docs/BRUNO_HERO.md.
         let layoutHeight = (720 + extraHeight) * 0.83
         let visualHeight = layoutHeight + topBleed
         return ZStack(alignment: .bottomLeading) {
@@ -125,7 +141,7 @@ struct BrunoHeroView: View {
             // Bottom darkening scrim for copy legibility — fades out by center (top half stays as art).
             // ⚠ LOAD-BEARING: this gradient is also required for the hero to hold its full layoutHeight —
             // removing it pushes the first shelf off-screen when the hero is focused (verified A/B,
-            // 2026-06-27). Do not delete; see docs/BRUNO_HERO_LAYOUT_MAP.md §3b.
+            // 2026-06-27). Do not delete; see docs/BRUNO_HERO.md.
             LinearGradient(
                 colors: [Color.bruno.page, .clear],
                 startPoint: .bottom,
@@ -207,15 +223,34 @@ struct BrunoHeroView: View {
             .padding(.top, 6)
 
             if items.count > 1 {
+                // Focusable page dots = the manual L/R pager (the dots are "a shelf of their own").
+                // Each is a chrome-less button; the row is a .focusSection() so LEFT/RIGHT move between
+                // dots and UP/DOWN escape to the menu bar / first shelf with no .onMoveCommand sink.
                 HStack(spacing: 10) {
                     ForEach(items.indices, id: \.self) { offset in
-                        Circle()
-                            .fill(offset == index ? Color.bruno.accent : Color.bruno.fgSubtle.opacity(0.4))
-                            .frame(width: 14, height: 14)
+                        Button {
+                            router.route(to: .item(item: items[offset]))
+                        } label: {
+                            dot(for: offset)
+                        }
+                        .buttonStyle(BrunoHeroButtonStyle())
+                        .focused($focusedDot, equals: offset)
+                        .accessibilityLabel("Spotlight \(offset + 1) of \(items.count)")
                     }
                 }
                 .padding(.top, 8)
-                .accessibilityHidden(true)
+                .focusSection()
+                // .userInitiated (NOT .automatic): re-entry must land on the CURRENT spotlight dot, not
+                // the engine-restored last-focused one — else auto-advance moving `index` while unfocused
+                // makes the next DOWN-into-the-dots page the spotlight BACKWARD. (Sibling chip rows use
+                // .automatic because they WANT to restore the last pill; the hero wants the live index.)
+                .backport
+                .defaultFocus($focusedDot, index, priority: .userInitiated)
+                // Move-to-select paging: landing focus on a dot pages the spotlight to it. The
+                // `focused != index` guard skips a redundant crossfade when entering on the current dot.
+                .onChange(of: focusedDot) { _, focused in
+                    if let focused, focused != index { step(to: focused) }
+                }
             }
         }
     }
@@ -223,17 +258,36 @@ struct BrunoHeroView: View {
     private func heroPill(_ title: String, systemImage: String, prominent: Bool) -> some View {
         Label(title, systemImage: systemImage)
             .font(.brunoBody(24, weight: .semibold))
-            .foregroundStyle(prominent && isFocused ? Color.bruno.page : Color.bruno.fg)
+            .foregroundStyle(prominent && isHeroFocused ? Color.bruno.page : Color.bruno.fg)
             .padding(.horizontal, 30)
             .padding(.vertical, 12)
             .background {
                 Capsule()
                     .fill(
                         prominent
-                            ? (isFocused ? Color.bruno.accent : Color.bruno.fg.opacity(0.18))
+                            ? (isHeroFocused ? Color.bruno.accent : Color.bruno.fg.opacity(0.18))
                             : Color.bruno.fg.opacity(0.12)
                     )
             }
+    }
+
+    /// One page-indicator dot: accent-filled for the current spotlight, with a focus halo + lift while
+    /// it holds focus. The ring and scale are opacity/transform on an always-present view (INV-10 —
+    /// never `if`-inserted), and the lift honors reduce-motion (INV-9).
+    private func dot(for offset: Int) -> some View {
+        let isCurrent = offset == index
+        let hasFocus = focusedDot == offset
+        return Circle()
+            .fill(isCurrent ? Color.bruno.accent : Color.bruno.fgSubtle.opacity(0.4))
+            .frame(width: 14, height: 14)
+            .overlay {
+                Circle()
+                    .stroke(Color.bruno.accent, lineWidth: 3)
+                    .padding(-6)
+                    .opacity(hasFocus ? 1 : 0)
+            }
+            .scaleEffect(hasFocus ? 1.4 : 1.0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: hasFocus)
     }
 
     private func step(by delta: Int) {
@@ -242,6 +296,14 @@ struct BrunoHeroView: View {
         let next = ((index + delta) % count + count) % count
         withAnimation(.easeInOut(duration: 0.45)) {
             index = next
+        }
+    }
+
+    /// Page directly to `target` — the dot the focus cursor landed on. Honors reduce-motion (INV-9).
+    private func step(to target: Int) {
+        guard items.indices.contains(target) else { return }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
+            index = target
         }
     }
 
