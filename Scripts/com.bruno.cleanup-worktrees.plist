@@ -17,6 +17,15 @@
     launchctl bootout gui/$(id -u)/com.bruno.cleanup-worktrees
     rm ~/Library/LaunchAgents/com.bruno.cleanup-worktrees.plist
 
+  BEFORE YOU BOOTSTRAP THIS: the very first 03:30 firing is a live, unattended
+  `--apply` (real deletions). Run `Scripts/cleanup-worktrees.sh` (dry-run) and
+  then `--apply` BY HAND once, watch the output, and only then install this.
+  To shield a merged+clean worktree you keep open, `git worktree lock` it.
+
+  "Daily" is best-effort: launchd does NOT wake the Mac, and with RunAtLoad
+  false a missed 03:30 (asleep/off) fires at most one catch-up on next wake —
+  so on a laptop that sleeps overnight, reclaim can lag a day or more.
+
   NOTE: the script path below points at the MAIN checkout, since the owner's
   Xcode builds `main`. Ensure cleanup-worktrees.sh is merged to `main` (or
   adjust the path) before the job runs.
