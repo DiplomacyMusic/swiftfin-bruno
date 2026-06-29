@@ -36,6 +36,10 @@ struct BrunoLabelArtCard: View {
 
     let item: BaseItemDto
     let style: BrunoLabelArtStyle
+    /// Decades only: the "best of the decade" film whose dimmed cover backs the card AT REST (under the
+    /// amber gradient), so an unfocused decade card shows the film instead of bare amber. nil ⇒ gradient
+    /// only (the prior look). Mirrors `BrunoEraCard.restBackground`'s cover composite; ignored by `.poster`.
+    var restCover: BaseItemDto?
     let action: () -> Void
 
     var body: some View {
@@ -74,6 +78,16 @@ struct BrunoLabelArtCard: View {
                     .overlay(Color.black.opacity(0.75)) // dim (0.5 → +50%, owner request) so the title reads
             case let .gradient(top, bottom):
                 LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+                // Decades: dim the best-of-decade cover UNDER the amber wash so unfocused cards show the
+                // film, not bare amber (same composite as BrunoEraCard.restBackground). Focus art still
+                // cross-fades the decade's films on top via BrunoFocusArtCycle.
+                if let restCover {
+                    PosterImage(item: restCover, type: .portrait)
+                        .overlay(
+                            LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+                                .opacity(0.7)
+                        )
+                }
             }
 
             // Legibility wash where the label sits (matches BrunoCategoryTile).
