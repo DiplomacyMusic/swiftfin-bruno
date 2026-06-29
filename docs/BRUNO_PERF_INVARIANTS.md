@@ -29,7 +29,7 @@ them. The fragile *constants* live in one place — `BrunoShelfMetrics` (`Swiftf
 | INV-4 | Prefetch width == cell width (portrait 200 / landscape 300, q90), mirror `PosterImage`. | `BrunoShelfMetrics`, `BrunoPosterPrefetcher` |
 | INV-5 | Disk item-cache is seed+user keyed and excludes live user-state rows (resume/nextUp/recentlyAdded/hero picks). | `BrunoHomeCache` (`persistPayload`) |
 | INV-6 | Ambient background is a sibling layer at low res (maxWidth 480), not a scroll `.background`. | `BrunoAmbientBackground` |
-| INV-7 | Focus lands on the hero until a real shelf exists; placeholders are non-focusable. | `BrunoHomeView`, `BrunoHeroView` |
+| INV-7 | ⚠️ **OVERRIDDEN (#45):** launch focus rests on the **menu bar** (`TabCoordinator.pendingBarFocus`), not the hero — owner's call; see `BRUNO_HERO.md`. Anti-race half still holds: streaming/placeholder shelves stay non-focusable until they carry real content. | `BrunoHomeView`, `BrunoHeroView`, `MainTabView` |
 | INV-8 | Reveal cadence is strictly top-down regardless of completion order; hero auto-advance gated on settle. | `streamReveal`, `BrunoHomeView` |
 | INV-9 | Every reveal/transition animation honors reduce-motion (collapse to instant). | `BrunoHomeView` (`reduceMotion`) |
 | INV-10 | Shelf cells are structurally stable across focus; gate work (not view presence), load per-item data key-aware, no `.id` in the package. | `BrunoFocusArtCycle` (`// INV-10`), forked CollectionHStack |
@@ -76,6 +76,13 @@ life. Reconcile reuses the *same* VM instance for a matching id.
 **Safe change:** when you add/reorder shelves, keep ids derived from stable domain data. Never switch the
 `ForEach` to `.enumerated()` / indices. Never rebuild a VM for an id that already exists on screen — update
 its items in place (`BrunoShelfViewModel.hydrate(items:)`).
+**Cell-level corollary (the #41→#43 regression).** The same rule applies one level down, to the CELLS in a
+row: anything fed to `CollectionHStack(uniqueElements:)` must key its `id` off `item.id` (a constant
+sentinel for a trailing "Show all" card), **never `self`**. A wrapper enum with `var id { self }` makes
+identity the full *mutable* item value, which churns on every in-place update (streaming reveal, SWR
+reconcile filling lean fields); the forked CollectionHStack's live hosting-controller reuse then paints a
+stale async poster onto the re-identified cell — right label, wrong art. Fixed at `PosterHStack.Card` and
+`BrunoShelfView.CarouselCard`; mirror `BrunoShelfRow.Card`.
 
 ### INV-3 — The settled spine is deterministic and in plan order
 **What:** Shelves are *revealed* in plan order and the final `sections` array is exactly plan order;
@@ -133,14 +140,18 @@ less decode.
 the decode small. Don't bind it to the rotating hero backdrop.
 
 ### INV-7 — Focus lands on the hero until a real shelf exists
-**What:** On first paint the hero is the first focusable element; focus rests there while shelves are still
-streaming in. Shelves only become focusable once they carry real content (they don't render until
-`items.isNotEmpty`).
+> **⚠️ OVERRIDDEN (#45, owner's call):** launch first-focus no longer lands on the hero — it rests on the
+> **menu bar** (the Home pill, via `TabCoordinator.pendingBarFocus`), and the cold-load frame is
+> deliberately focusable so the remote is never dead during load. The full focus model lives in
+> `docs/BRUNO_HERO.md`. Only the **anti-race half below still holds.**
+
+**What (anti-race, still in force):** Shelves only become focusable once they carry real content (they
+don't render until `items.isNotEmpty`), so focus never lands on an empty/placeholder card.
 **Why:** if focus could land on an empty/placeholder card that then fills with art, the art appears to
 "change under the ring" — unsettling on a 10-ft screen.
 **Break symptom:** the focus ring sits on a blank/loading card and the poster swaps beneath it.
 **Safe change:** if you add a skeleton/placeholder row, make it **non-focusable** until it has real items.
-Keep the hero as the natural first-focus target.
+Launch first-focus is the **menu bar** now (not the hero) — see the override above + `BRUNO_HERO.md`.
 
 ### INV-8 — Reveal cadence is top-down regardless of completion order
 **What:** Shelves are loaded in parallel but revealed strictly top-down (`streamReveal` flushes consecutive

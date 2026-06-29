@@ -24,6 +24,21 @@ SessionStart hook output that injected this doc into your context.
 
 ---
 
+## Working agreement — commit at high resolution
+
+The receipt is written **once, before** you edit. This rule applies for the **whole change**:
+
+**Land each verifiable step as its own commit — _before_ you start the next one. Don't batch.**
+If you've made 3+ logical changes with nothing committed, stop and commit now. The end of the task
+must never be your first commit; a single fat end-of-work commit fails this rule.
+
+Why it's load-bearing: Bruno's worst regressions are **silent** — perf/scroll/focus/determinism
+breakage doesn't crash or fail a build, so it can sit unnoticed across many commits, and a coarse
+history makes `git bisect` useless when one surfaces later. Frequent atomic commits are exactly what
+let the #41 cover-art regression get traced to a single commit. Full rule + rationale: `CLAUDE.md` §5.
+
+---
+
 ## Why this exists
 
 Bruno's tvOS Home is fast and correct because of **invisible, load-bearing

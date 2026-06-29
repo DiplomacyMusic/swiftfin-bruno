@@ -51,7 +51,10 @@ never claim green you didn't see.
 Commit early and often — **one logical change per commit**, message saying what + why. Frequent atomic
 commits keep the `git bisect` window tight when a regression surfaces — and Bruno's worst regressions
 (perf/scroll/focus/determinism) are **silent**: they don't crash or fail a build, so they can sit
-unnoticed across many commits, and a coarse history makes the culprit unfindable. Don't batch hours of work into one fat commit; land each verifiable step as its own commit.
+unnoticed across many commits, and a coarse history makes the culprit unfindable. **Commit each verifiable step _before_ you start the next — don't batch.** If you've made 3+ logical
+changes with nothing committed, stop and commit now; the end of the task must never be your first commit
+(a single fat end-of-work commit fails this rule). Onboarding-critical — see the Working agreement in
+`.claude/CERTIFICATION.md`.
 Commits stay on the worktree branch; the owner merges via PR. **This repo is a fork of
 `jellyfin/Swiftfin`,** so `gh pr create` defaults the base to upstream — always pass
 `--repo DiplomacyMusic/swiftfin-bruno --base main` to keep the PR inside the fork.
