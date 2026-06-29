@@ -19,9 +19,10 @@ import SwiftUI
 // The Ebert drill-in: an "Ebert Thumbs Up"/"Down" curated BoxSet rendered as the cinematic item-detail
 // shape — a tall hero band (the Roger Ebert photo) that scrolls away under a descending blur, with a
 // dense portrait grid of every film beneath it, each captioned with its star rating
-// (BrunoEbertContentView). A clone of BrunoRewatchablesView, with two differences: the grid is ordered by
+// (BrunoEbertContentView). A clone of BrunoRewatchablesView with two additions: the grid is ordered by
 // Ebert rating (Thumbs Up highest-first, Thumbs Down lowest-first — `ascending`), and a "Browse by" genre
-// pill row sub-filters the in-memory members by tagged TMDB genre (added in a later step).
+// pill row sub-filters the in-memory members by tagged TMDB genre (the same pattern as the Movies/genre
+// surface — see docs/BRUNO_GENRE_PILLS_HOWTO.md).
 struct BrunoEbertView: View {
 
     let parent: BaseItemDto
@@ -44,6 +45,27 @@ struct BrunoEbertView: View {
         count: 7
     )
 
+    // MARK: Genre pill filter state (mirrors BrunoGenresView)
+
+    /// COMMITTED filter; nil ⇒ "All". The grid follows this (debounced).
+    @State
+    private var selectedCore: BrunoCoreGenre?
+    /// Transient focused highlight (cheap/instant) — the filter follows ~500 ms later.
+    @State
+    private var focusedCore: BrunoCoreGenre?
+    /// Pending debounced write of focusedCore → selectedCore; each new focus cancels the prior.
+    @State
+    private var commitTask: Task<Void, Never>?
+    /// INV-7: flipped true only after first paint, so the engine's initial pill assignment can't filter.
+    @State
+    private var filterRowAppeared = false
+    /// Flips true once a pill is focused; arms defaultFocus (.userInitiated cold, .automatic after).
+    @State
+    private var didEnterChipRow = false
+
+    @FocusState
+    private var focusedChip: String?
+
     var body: some View {
         Group {
             if viewModel.isLoading {
@@ -60,6 +82,10 @@ struct BrunoEbertView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
             Task { await viewModel.load(parent: parent, ascending: ascending) }
+        }
+        .onDisappear {
+            commitTask?.cancel()
+            commitTask = nil
         }
     }
 
@@ -79,6 +105,9 @@ struct BrunoEbertView: View {
                         header
                             .frame(height: proxy.size.height - 150)
                             .padding(.bottom, 50)
+
+                        pillRow
+                            .padding(.bottom, 30)
 
                         grid
                     }
@@ -119,11 +148,58 @@ struct BrunoEbertView: View {
         .padding(.horizontal, 50)
     }
 
+    // "Browse by" genre pills — sub-filter the in-memory members by tagged TMDB genre. Verbatim
+    // choreography from BrunoGenresView.corePanel (no trailing "All Movies" / hero re-arm: the header
+    // is non-focusable Text, so didEnterChipRow latches on first chip focus and .automatic thereafter).
+    private var pillRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Browse by".uppercased())
+                .font(.brunoBody(20, weight: .semibold))
+                .tracking(3)
+                .foregroundStyle(Color.bruno.accent)
+                .padding(.horizontal, 50)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 24) {
+                    BrunoSelectorCard(
+                        title: "All",
+                        isSelected: focusedCore == nil,
+                        selectsOnFocus: true
+                    ) {
+                        commitFocus(nil)
+                    }
+                    .focused($focusedChip, equals: "all")
+
+                    ForEach(shownCores) { core in
+                        BrunoSelectorCard(
+                            title: core.title,
+                            isSelected: focusedCore?.id == core.id,
+                            selectsOnFocus: true
+                        ) {
+                            commitFocus(core)
+                        }
+                        .focused($focusedChip, equals: core.id)
+                    }
+                }
+                .padding(.horizontal, 50)
+                .padding(.vertical, 8)
+            }
+            .focusSection()
+            .backport
+            .defaultFocus($focusedChip, "all", priority: didEnterChipRow ? .automatic : .userInitiated)
+            .onChange(of: focusedChip) { _, newValue in
+                if newValue != nil { didEnterChipRow = true }
+            }
+        }
+        // INV-7: only after first paint, so the cold focus assignment can't fire a filter.
+        .task { filterRowAppeared = true }
+    }
+
     // Portrait posters, 7 across, each captioned with its Ebert star rating — laid out in a LazyVGrid so
     // they scroll inside the cinematic ScrollView beneath the hero band.
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: EdgeInsets.edgePadding) {
-            ForEach(viewModel.films, id: \.id) { item in
+            ForEach(shownFilms, id: \.id) { item in
                 PosterButton(item: item, type: .portrait) {
                     router.route(to: .item(item: item))
                 } label: {
@@ -146,6 +222,60 @@ struct BrunoEbertView: View {
         }
         .padding(60)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: Genre filtering
+
+    // BROAD ONLY: each bucket maps to its broad TMDB genre(s) and nothing else (matches the Rewatchables
+    // pills, owner's call). Keys MUST equal a BrunoCoreGenre.all id. Grid films carry raw TMDB `.genres`,
+    // NOT the curated BoxSet names in BrunoCoreGenre.members — so this LOCAL map bridges bucket → TMDB
+    // genre and matches item.genres (read-only; genre-layers hard rule). "international" is intentionally
+    // omitted (no TMDB equivalent) so it auto-hides via shownCores.
+    private static let tmdbGenresByCoreID: [String: Set<String>] = [
+        "action-adventure": ["action", "adventure"],
+        "comedy": ["comedy"],
+        "drama": ["drama"],
+        "romance": ["romance"],
+        "scifi-fantasy": ["science fiction", "fantasy"],
+        "thriller": ["thriller"],
+        "crime": ["crime"],
+        "horror": ["horror"],
+        "history": ["history"],
+        "family": ["family"],
+    ]
+
+    private func filmMatches(_ item: BaseItemDto, _ core: BrunoCoreGenre) -> Bool {
+        guard let tmdb = Self.tmdbGenresByCoreID[core.id] else { return false }
+        let genres = Set((item.genres ?? []).map { $0.lowercased() })
+        return !genres.isDisjoint(with: tmdb)
+    }
+
+    /// The already-star-sorted members for "All", else only those whose TMDB genres fall in the selected
+    /// bucket. In-memory ⇒ instant; the filter preserves the VM's star order.
+    private var shownFilms: [BaseItemDto] {
+        guard let selectedCore else { return viewModel.films }
+        return viewModel.films.filter { filmMatches($0, selectedCore) }
+    }
+
+    /// Only buckets matching ≥1 loaded film — a pill can never filter to an empty grid (the G3 guard).
+    private var shownCores: [BrunoCoreGenre] {
+        BrunoCoreGenre.all.filter { core in viewModel.films.contains { filmMatches($0, core) } }
+    }
+
+    /// Record the focused core instantly (highlight) and DEBOUNCE the write to selectedCore (~500 ms),
+    /// so scrubbing across the row never re-filters the grid mid-move. No-ops before first paint (INV-7).
+    private func commitFocus(_ core: BrunoCoreGenre?) {
+        guard filterRowAppeared else { return }
+        guard focusedCore?.id != core?.id || selectedCore?.id != core?.id else { return }
+
+        focusedCore = core
+        commitTask?.cancel()
+        commitTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            guard focusedCore?.id == core?.id, selectedCore?.id != core?.id else { return }
+            selectedCore = core
+        }
     }
 }
 
