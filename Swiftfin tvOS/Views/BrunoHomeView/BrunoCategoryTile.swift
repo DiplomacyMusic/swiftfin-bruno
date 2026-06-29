@@ -74,16 +74,15 @@ struct BrunoCategoryTile: View {
         let palette = Self.palette(for: category.name)
         Group {
             if category.name.lowercased() == "rewatchables" {
-                // Self-titled brand art ("THE REWATCHABLES" is baked into RewatchablesCard), so NO
-                // text-title overlay — it would double the wordmark. Dim it like the sibling tiles
-                // (Decades/Curated) by reusing BrunoCollectionArtBackground (which needs the
-                // "rewatchables" → ["RewatchablesCard"] mapping in BrunoCollectionArtwork.byCategory),
-                // and add only the accent-underline half of the lockup, centered beneath the wordmark.
+                // Self-titled brand art ("THE REWATCHABLES" is baked into RewatchablesCard). Owner
+                // wants the standard "REWATCHABLES" title shown anyway — it was the only tile without
+                // one — accepting the text-on-text overlap with the baked wordmark. Dim it like the
+                // sibling tiles (Decades/Curated) by reusing BrunoCollectionArtBackground (which needs
+                // the "rewatchables" → ["RewatchablesCard"] mapping in BrunoCollectionArtwork.byCategory),
+                // and draw the full title lockup (title + accent underline) like every other tile.
                 ZStack {
                     BrunoCollectionArtBackground(categoryName: category.name, palette: palette)
-                    Capsule()
-                        .fill(palette.underline)
-                        .frame(width: 64, height: 5)
+                    foreground(palette: palette)
                 }
             } else if let asset = BrunoCuratedCard.assetName(for: category.name) {
                 // Oscar / Ebert curated card: a PINNED bundled photo (owner: the image is the point,
