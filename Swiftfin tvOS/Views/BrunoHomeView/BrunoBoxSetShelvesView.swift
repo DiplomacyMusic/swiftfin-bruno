@@ -110,16 +110,23 @@ struct BrunoBoxSetShelvesView: View {
     /// never vanish. Falls back to the single decade shelf until the fetch lands.
     private var shownCategories: [BrunoCollectionCategory] {
         guard isDecades, let selectedDecade, let category = selectedDecadeCategory else {
-            // Curated hub: collapse the six "Oscar — *" sub-collections into ONE "Oscars" card whose
-            // Show-all opens a shelf-per-Oscar-category drill-in. The six stay in the snapshot for
-            // standalone Home/Curated shelves; this only changes the Curated hub's display.
-            return isCurated ? Self.consolidateEbert(Self.consolidateOscars(viewModel.categories)) : viewModel.categories
+            // The SHELVES show the un-collapsed set — so Curated renders the individual "Ebert Thumbs
+            // Up/Down" + the six "Oscar — *" category film shelves. The CARD ROW separately collapses
+            // these into single "Ebert"/"Oscars" cards via `cardRowCategories`.
+            return viewModel.categories
         }
         if let id = category.boxSet.id, let perYear = viewModel.yearShelvesByDecadeID[id] {
             return perYear
         }
         // Not yet fetched: show the single decade shelf until loadYearShelves lands.
         return viewModel.categories.filter { $0.name == selectedDecade }
+    }
+
+    /// The CARD ROW source (top of the Curated drill-in). Curated collapses the two Ebert + six Oscar
+    /// children into single "Ebert"/"Oscars" cards (consolidateEbert/consolidateOscars); the shelves
+    /// below stay un-collapsed (`shownCategories`). Every other surface mirrors its shelves.
+    private var cardRowCategories: [BrunoCollectionCategory] {
+        isCurated ? Self.consolidateEbert(Self.consolidateOscars(viewModel.categories)) : viewModel.categories
     }
 
     /// Collapse the six "Oscar — <Category>" sub-collections into ONE synthetic "Oscars" category
@@ -173,6 +180,7 @@ struct BrunoBoxSetShelvesView: View {
                 // switching the shown decade in place. Other groups (Curated) keep the card row.
                 BrunoCategoryShelves(
                     categories: shownCategories,
+                    cardRowCategories: cardRowCategories,
                     eyebrow: lensEyebrow,
                     header: isDecades ? AnyView(decadePanel) : nil,
                     showCategoryRow: !isDecades,
@@ -542,7 +550,16 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                     return
                 }
                 let oscarCategory = BrunoOscarCategory(boxSetName: sub.displayTitle)
-                let fetch = childFetch
+                // Ebert shelves: order by star rating (Up highest-first, Down lowest-first); nil for
+                // non-Ebert. The server has no ebert-stars sort, so fetch the FULL membership and sort
+                // client-side — the preview's top cap then shows the true top/bottom, not an arbitrary
+                // slice (1000 > the largest Ebert BoxSet, ~559).
+                let ebertAscending: Bool? = {
+                    let name = sub.displayTitle.lowercased()
+                    guard name.hasPrefix("ebert") else { return nil }
+                    return name.contains("down")
+                }()
+                let fetch = ebertAscending == nil ? childFetch : 1000
                 group.addTask {
                     let children = await Self.fetchChildren(
                         client: client,
@@ -556,6 +573,10 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                         // reverse-chronologically and matches the "Winner/Nominee (Year)" caption. More
                         // deterministic than the shuffle it replaces — INV-3 safe.
                         BrunoOscar.reverseChronological(children, category: oscarCategory)
+                    } else if let ebertAscending {
+                        // Ebert shelves: order by star rating so the preview's top cap shows the
+                        // highest/lowest-rated films (untagged sink to the bottom). INV-3 safe.
+                        BrunoEbert.ordered(children, ascending: ebertAscending)
                     } else {
                         // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
                         // server index → identical ordering to the prior implementation.
