@@ -90,3 +90,6 @@ carries a trailing "Show all" → its browse twin (#41). Full taxonomy + generat
 - **Work in a worktree → open a PR; the owner merges.** Don't push `main` directly (the owner builds
   `main` in Xcode; keeping edits in the worktree keeps the desktop app's file links resolving). PRs are
   a fork of `jellyfin/Swiftfin`, so pass `--repo DiplomacyMusic/swiftfin-bruno --base main`.
+- **Worktree/DerivedData disk reclaim:** `Scripts/cleanup-worktrees.sh` (dry-run by default; `--apply`
+  to delete) removes merged+clean worktrees and orphaned Xcode DerivedData; a daily launchd job
+  (`Scripts/com.bruno.cleanup-worktrees.plist`) automates it. See `CLAUDE.md` → Maintenance.
