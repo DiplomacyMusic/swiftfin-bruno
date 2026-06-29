@@ -261,6 +261,14 @@ struct BrunoCategoryShelves: View {
     /// the Decades label-art shelf backs each unfocused card with that film's cover instead of bare amber.
     /// nil ⇒ gradient-only (callers that don't have the snapshot, e.g. the decade drill-in, are unaffected).
     var decadeBestOf: [String: BaseItemDto]?
+    /// Optional procedural tail (Collections tab only): Home-style shelves appended BELOW the static
+    /// group shelves, each a realized `BrunoShelfViewModel` (the caller owns realization). Empty for every
+    /// other surface ⇒ no tail. Shares the SAME cap-and-grow mount window as the categories (INV-8).
+    var tailShelves: [BrunoShelfViewModel] = []
+    /// The library snapshot, threaded in only when `tailShelves` is non-empty so each tail shelf's
+    /// trailing "Show all" can resolve its destination via `brunoHomeRouteToShowAll`. `.empty` default
+    /// keeps every other caller unchanged.
+    var snapshot: BrunoLibrarySnapshot = .empty
 
     @Router
     private var router
@@ -372,18 +380,31 @@ struct BrunoCategoryShelves: View {
                         shelf(for: category)
                     }
 
-                    // Grow the mounted window as the user nears the bottom (append-only — INV-2 keeps focus/identity).
-                    if visibleShelfCount < categories.count {
+                    // Procedural tail (Collections tab only — empty everywhere else): Home-style shelves
+                    // appended BELOW the static group shelves, sharing the SAME cap-and-grow window so the
+                    // top-down reveal (INV-8) holds across the seam. Each tail shelf is a realized
+                    // BrunoShelfView, identical to the Home render path (depth/lazy-reveal, captions,
+                    // Show-all routing). `tailShelves` is empty for every other surface ⇒ no change.
+                    if !tailShelves.isEmpty {
+                        let tailShown = max(0, visibleShelfCount - categories.count)
+                        ForEach(tailShelves.prefix(tailShown)) { vm in
+                            BrunoShelfView(viewModel: vm, snapshot: snapshot)
+                        }
+                    }
+
+                    // Grow the mounted window as the user nears the bottom (append-only — INV-2 keeps
+                    // focus/identity). Bound by categories + tail so the window reveals straight across the seam.
+                    if visibleShelfCount < categories.count + tailShelves.count {
                         Color.clear
                             .frame(height: 1)
-                            .onAppear { visibleShelfCount = min(visibleShelfCount + 4, categories.count) }
+                            .onAppear { visibleShelfCount = min(visibleShelfCount + 4, categories.count + tailShelves.count) }
                     }
 
                     // Terminal footer (Movies/genre tab only — gated on `showAllMoviesAction`; Collections
                     // is deferred). Renders ONLY once every shelf is mounted (the surface's "exhausted"
                     // point), on its own bottom row, appended last — so there is zero UI/layout impact
                     // until the user has scrolled to the true end. "Show all Movies" + "Back to Top".
-                    if let showAllMoviesAction, visibleShelfCount >= categories.count {
+                    if let showAllMoviesAction, visibleShelfCount >= categories.count + tailShelves.count {
                         HStack(spacing: 24) {
                             Spacer()
                             BrunoSelectorCard(title: "Show all Movies") { showAllMoviesAction() }
