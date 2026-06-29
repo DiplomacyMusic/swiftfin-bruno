@@ -66,4 +66,17 @@ enum BrunoShelfMetrics {
     // clears the title. Tall portrait cards (~362h) collide; short landscape cards (~249h) don't, so
     // this offset is portrait-only. NOT an INV constant — it doesn't touch the pinned row height.
     static let portraitHeaderBottomInset: CGFloat = 20
+
+    // Lazy reveal: a Home shelf renders only an initial slice of its already-fetched items, then grows
+    // the slice toward `maxRevealCount` as the row scrolls within `.columns(5)` of its trailing edge
+    // (BrunoShelfViewModel.revealMore, fired by PosterHStack/carousel `.onReachedTrailingEdge`). This
+    // bounds the cold cell-realization burst — the cost the old fixed `prefix(20)` window was tuned
+    // against — while still reaching ~2.5x the old display depth. NOT an INV-1/INV-4 constant: it
+    // changes the horizontal cell COUNT, never the pinned row height or the poster request width.
+    // Co-located here (the "one place" rule) so the reveal window can't desync between the view model
+    // and the prefetch re-warm tail. Most query shelves fetch 60 (BrunoQuery.limit), so growth to 50 is
+    // pure reveal of in-hand items — no new network.
+    static let initialRevealCount: Int = 18
+    static let maxRevealCount: Int = 50
+    static let revealGrowStep: Int = 16
 }
