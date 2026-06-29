@@ -17,17 +17,28 @@ import SwiftUI
 
 //
 // The Rewatchables drill-in: the favorited "Rewatchables" BoxSet (the films from Bill Simmons' podcast,
-// each carrying its episode number in a `rewatchables-ep:NN` item tag) rendered as ONE flat, dense
-// portrait grid — the SAME BrunoBoxSetGridView the Directors "Show all" uses — over the branded
-// RewatchablesHero backdrop. Each poster shows its "Episode NN" caption (BrunoRewatchablesContentView,
-// via the grid's showsEpisode flag). Members are fetched WITH .tags (the caption source); no genre
-// bucketing — the whole collection is one grid.
+// each carrying its episode number in a `rewatchables-ep:NN` item tag) rendered as the cinematic
+// item-detail shape — a tall RewatchablesHero hero band that scrolls away under a descending blur, with
+// a dense portrait grid of every film beneath it. A LITERAL copy of BrunoStudiosGridView (itself a copy
+// of the stock ItemView.CinematicScrollView — the "big hero band over a flat grid" the owner pointed at
+// via the Directors detail page), swapping the landscape studio cards for portrait posters with the
+// per-poster "Episode NN" caption (BrunoRewatchablesContentView). Members are fetched WITH .tags (the
+// caption source); no genre bucketing — the whole collection is one grid.
 struct BrunoRewatchablesView: View {
 
     let parent: BaseItemDto
 
     @StateObject
     private var viewModel = BrunoRewatchablesViewModel()
+
+    @Router
+    private var router
+
+    // 7-up portrait, matching the stock library / Directors grid cell scale.
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: EdgeInsets.edgePadding),
+        count: 7
+    )
 
     var body: some View {
         Group {
@@ -39,25 +50,89 @@ struct BrunoRewatchablesView: View {
             } else if viewModel.films.isEmpty {
                 emptyState
             } else {
-                ZStack {
-                    // Branded full-bleed backdrop (the podcast art) as a SIBLING layer behind the
-                    // transparent CollectionVGrid — INV-6: not a scroll `.background`. The grid's
-                    // UICollectionView has `backgroundColor = nil`, so the backdrop reads through.
-                    BrunoAmbientBackground(item: nil, staticAsset: "RewatchablesHero")
-                    // Reuse the Directors "Show all" grid as-is: one flat, dense portrait grid of every
-                    // rewatchable film, each poster captioned with its "Episode NN" (showsEpisode).
-                    BrunoBoxSetGridView(
-                        title: "Rewatchables",
-                        items: viewModel.films,
-                        posterType: .portrait,
-                        showsEpisode: true
-                    )
-                }
+                content
             }
         }
+        // Draw our own cinematic title instead of the system nav title (mirrors BrunoStudiosGridView /
+        // the other full-screen Bruno detail surfaces).
+        .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
             Task { await viewModel.load(parent: parent) }
         }
+    }
+
+    private var content: some View {
+        GeometryReader { proxy in
+            ZStack {
+                // Full-bleed brand backdrop (the podcast art) — fills the whole screen, edge to edge,
+                // mirroring the detail page's ImageView layer. Image(_:) loads the asset-catalog still.
+                Image("RewatchablesHero")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        header
+                            .frame(height: proxy.size.height - 150)
+                            .padding(.bottom, 50)
+
+                        grid
+                    }
+                    // The SAME BlurView(.dark) + descending gradient-mask as the detail page / Studios:
+                    // as the grid scrolls up, the hero blurs and its colors descend behind the posters.
+                    // (Deliberately a scroll-coupled `.background` blur — the INV-6 carve-out Studios
+                    // already takes — because that descending blur IS the cinematic effect being matched.)
+                    .background {
+                        BlurView(style: .dark)
+                            .mask {
+                                VStack(spacing: 0) {
+                                    LinearGradient(gradient: Gradient(stops: [
+                                        .init(color: .white, location: 0),
+                                        .init(color: .white.opacity(0.7), location: 0.4),
+                                        .init(color: .white.opacity(0), location: 1),
+                                    ]), startPoint: .bottom, endPoint: .top)
+                                        .frame(height: proxy.size.height - 150)
+
+                                    Color.white
+                                }
+                            }
+                    }
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    // The "Rewatchables" title, bottom-left over the backdrop — the place the detail page puts the
+    // title/logo.
+    private var header: some View {
+        VStack(alignment: .leading) {
+            Spacer()
+            Text("Rewatchables")
+                .font(.brunoDisplay(72, weight: .semibold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.6), radius: 12, y: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 50)
+    }
+
+    // Portrait posters, 7 across, each captioned with its "Episode NN" — laid out in a LazyVGrid so they
+    // scroll inside the cinematic ScrollView beneath the hero band.
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: EdgeInsets.edgePadding) {
+            ForEach(viewModel.films, id: \.id) { item in
+                PosterButton(item: item, type: .portrait) {
+                    router.route(to: .item(item: item))
+                } label: {
+                    BrunoRewatchablesContentView(item: item)
+                }
+            }
+        }
+        .padding(.horizontal, EdgeInsets.edgePadding)
+        .padding(.bottom, 50)
     }
 
     private var emptyState: some View {
