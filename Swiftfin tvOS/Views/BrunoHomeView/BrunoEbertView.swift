@@ -16,22 +16,20 @@ import SwiftUI
 // MARK: - BrunoEbertView (tvOS only)
 
 //
-// The Ebert drill-in: an "Ebert Thumbs Up"/"Down" curated BoxSet rendered as the cinematic item-detail
-// shape — a tall hero band (the Roger Ebert photo) that scrolls away under a descending blur, with a
-// dense portrait grid of every film beneath it, each captioned with its star rating
-// (BrunoEbertContentView). A clone of BrunoRewatchablesView with two additions: the grid is ordered by
-// Ebert rating (Thumbs Up highest-first, Thumbs Down lowest-first — `ascending`), and a "Browse by" genre
-// pill row sub-filters the in-memory members by tagged TMDB genre (the same pattern as the Movies/genre
-// surface — see docs/BRUNO_GENRE_PILLS_HOWTO.md).
+// The Ebert drill-in: the "Ebert Thumbs Up" + "Ebert Thumbs Down" curated BoxSets rendered as ONE
+// cinematic surface — a tall hero band (the Roger Ebert photo) over a portrait grid of every film,
+// each captioned with its star rating (BrunoEbertContentView). A flip toggle above the genre pills
+// switches between the two verdicts: pressing it swaps the thumb icon, the toggle label, the hero
+// title, the film set, the star-sort direction (Up highest-first / Down lowest-first), and the pills —
+// all in-memory (both sets load on appear), so the switch is instant. A clone of BrunoRewatchablesView's
+// hero+grid shape; the "Browse by" pills mirror the Movies/genre surface (docs/BRUNO_GENRE_PILLS_HOWTO.md).
+//
+// `down == nil` ⇒ a single-set entry (e.g. a lone Ebert shelf surfaced on Home): no toggle, sort taken
+// from `up`'s own name.
 struct BrunoEbertView: View {
 
-    let parent: BaseItemDto
-
-    /// Lowest-rating-first when true (the Thumbs Down shelf), highest-first when false (Thumbs Up).
-    /// Derived from the BoxSet name so a single route serves both shelves.
-    private var ascending: Bool {
-        parent.displayTitle.lowercased().contains("down")
-    }
+    let up: BaseItemDto
+    let down: BaseItemDto?
 
     @StateObject
     private var viewModel = BrunoEbertViewModel()
@@ -45,26 +43,38 @@ struct BrunoEbertView: View {
         count: 7
     )
 
+    /// Which verdict is shown. Only meaningful when `down != nil`.
+    @State
+    private var showingDown = false
+
     // MARK: Genre pill filter state (mirrors BrunoGenresView)
 
-    /// COMMITTED filter; nil ⇒ "All". The grid follows this (debounced).
     @State
     private var selectedCore: BrunoCoreGenre?
-    /// Transient focused highlight (cheap/instant) — the filter follows ~500 ms later.
     @State
     private var focusedCore: BrunoCoreGenre?
-    /// Pending debounced write of focusedCore → selectedCore; each new focus cancels the prior.
     @State
     private var commitTask: Task<Void, Never>?
     /// INV-7: flipped true only after first paint, so the engine's initial pill assignment can't filter.
     @State
     private var filterRowAppeared = false
-    /// Flips true once a pill is focused; arms defaultFocus (.userInitiated cold, .automatic after).
     @State
     private var didEnterChipRow = false
 
     @FocusState
     private var focusedChip: String?
+    @FocusState
+    private var toggleFocused: Bool
+
+    /// The film set currently shown (already star-sorted by the VM). The pill filter operates on this.
+    private var films: [BaseItemDto] {
+        showingDown ? viewModel.downFilms : viewModel.upFilms
+    }
+
+    /// Hero + toggle title for the shown verdict.
+    private var displayedTitle: String {
+        showingDown ? (down?.displayTitle ?? up.displayTitle) : up.displayTitle
+    }
 
     var body: some View {
         Group {
@@ -73,7 +83,7 @@ struct BrunoEbertView: View {
                     .scaleEffect(2)
                     .tint(Color.bruno.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.films.isEmpty {
+            } else if films.isEmpty {
                 emptyState
             } else {
                 content
@@ -81,7 +91,7 @@ struct BrunoEbertView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
-            Task { await viewModel.load(parent: parent, ascending: ascending) }
+            Task { await viewModel.load(up: up, down: down) }
         }
         .onDisappear {
             commitTask?.cancel()
@@ -105,6 +115,12 @@ struct BrunoEbertView: View {
                         header
                             .frame(height: proxy.size.height - 150)
                             .padding(.bottom, 50)
+
+                        // The Up ⇄ Down switch, above the pills — only when both verdicts are present.
+                        if down != nil {
+                            verdictToggle
+                                .padding(.bottom, 24)
+                        }
 
                         pillRow
                             .padding(.bottom, 30)
@@ -135,11 +151,11 @@ struct BrunoEbertView: View {
         .ignoresSafeArea()
     }
 
-    // The shelf title, bottom-left over the backdrop ("Ebert Thumbs Up" / "Ebert Thumbs Down").
+    // The shelf title, bottom-left over the backdrop — swaps with the toggle ("Ebert Thumbs Up"/"Down").
     private var header: some View {
         VStack(alignment: .leading) {
             Spacer()
-            Text(parent.displayTitle)
+            Text(displayedTitle)
                 .font(.brunoDisplay(72, weight: .semibold))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.6), radius: 12, y: 4)
@@ -148,9 +164,52 @@ struct BrunoEbertView: View {
         .padding(.horizontal, 50)
     }
 
+    // The flip switch: a big thumb icon + label. Pressing flips the verdict — and with it the icon,
+    // label, hero title, film set, sort, and pills. The accent focus ring is ALWAYS present and
+    // opacity-toggled (never an `if`-inserted view) and the icon swaps via content, so the focused
+    // subtree stays structurally constant (INV-10). Styled like BrunoSelectorCard's pills.
+    private var verdictToggle: some View {
+        Button(action: flipVerdict) {
+            HStack(spacing: 22) {
+                Image(systemName: showingDown ? "hand.thumbsdown.fill" : "hand.thumbsup.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                Text(showingDown ? "Thumbs Down" : "Thumbs Up")
+                    .font(.brunoBody(28, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.bruno.accent)
+            .padding(.horizontal, 40)
+            .padding(.vertical, 18)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(Color.bruno.fg.opacity(toggleFocused ? 0.22 : 0.12))
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(Color.bruno.accent, lineWidth: 3)
+                    .opacity(toggleFocused ? 1 : 0)
+            }
+            .scaleEffect(toggleFocused ? 1.05 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: toggleFocused)
+        }
+        .buttonStyle(BrunoChromelessButtonStyle())
+        .focused($toggleFocused)
+        // Its own focus region (sibling above the pills) so UP/DOWN escape to hero / pills correctly.
+        .focusSection()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 50)
+    }
+
+    private func flipVerdict() {
+        showingDown.toggle()
+        // The new set has a different genre mix; reset the filter to "All".
+        selectedCore = nil
+        focusedCore = nil
+        commitTask?.cancel()
+    }
+
     // "Browse by" genre pills — sub-filter the in-memory members by tagged TMDB genre. Verbatim
-    // choreography from BrunoGenresView.corePanel (no trailing "All Movies" / hero re-arm: the header
-    // is non-focusable Text, so didEnterChipRow latches on first chip focus and .automatic thereafter).
+    // choreography from BrunoGenresView.corePanel.
     private var pillRow: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Browse by".uppercased())
@@ -250,16 +309,16 @@ struct BrunoEbertView: View {
         return !genres.isDisjoint(with: tmdb)
     }
 
-    /// The already-star-sorted members for "All", else only those whose TMDB genres fall in the selected
-    /// bucket. In-memory ⇒ instant; the filter preserves the VM's star order.
+    /// The shown set for "All", else only films whose TMDB genres fall in the selected bucket. In-memory
+    /// ⇒ instant; the filter preserves the VM's star order.
     private var shownFilms: [BaseItemDto] {
-        guard let selectedCore else { return viewModel.films }
-        return viewModel.films.filter { filmMatches($0, selectedCore) }
+        guard let selectedCore else { return films }
+        return films.filter { filmMatches($0, selectedCore) }
     }
 
-    /// Only buckets matching ≥1 loaded film — a pill can never filter to an empty grid (the G3 guard).
+    /// Only buckets matching ≥1 film in the shown set — a pill can never filter to an empty grid.
     private var shownCores: [BrunoCoreGenre] {
-        BrunoCoreGenre.all.filter { core in viewModel.films.contains { filmMatches($0, core) } }
+        BrunoCoreGenre.all.filter { core in films.contains { filmMatches($0, core) } }
     }
 
     /// Record the focused core instantly (highlight) and DEBOUNCE the write to selectedCore (~500 ms),
@@ -279,28 +338,46 @@ struct BrunoEbertView: View {
     }
 }
 
+// MARK: - BrunoChromelessButtonStyle
+
+// Suppresses the system's default tvOS button highlight so the toggle's OWN accent ring is the focus
+// cursor (mirrors BrunoSelectorCard's private BrunoSelectorButtonStyle).
+private struct BrunoChromelessButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
+}
+
 // MARK: - BrunoEbertViewModel
 
 @MainActor
 final class BrunoEbertViewModel: ViewModel {
 
     @Published
-    private(set) var films: [BaseItemDto] = []
+    private(set) var upFilms: [BaseItemDto] = []
+    @Published
+    private(set) var downFilms: [BaseItemDto] = []
     @Published
     private(set) var isLoading = true
 
-    func load(parent: BaseItemDto, ascending: Bool) async {
-        guard let userSession, let parentID = parent.id else {
+    func load(up: BaseItemDto, down: BaseItemDto?) async {
+        guard let userSession, let upID = up.id else {
             isLoading = false
             return
         }
         let client = userSession.client
         let userID = userSession.user.id
 
-        let members = await Self.fetchMembers(client: client, userID: userID, parentID: parentID)
-        // Sort ONCE here (not per body pass) by Ebert rating; the pill filter downstream only filters,
-        // preserving this order.
-        films = BrunoEbert.ordered(members, ascending: ascending)
+        // The "up" set is highest-first; a lone single-set entry instead sorts by its OWN name (so a
+        // standalone "Thumbs Down" shelf still reads lowest-first).
+        let upAscending = down == nil && up.displayTitle.lowercased().contains("down")
+        let upMembers = await Self.fetchMembers(client: client, userID: userID, parentID: upID)
+        upFilms = BrunoEbert.ordered(upMembers, ascending: upAscending)
+
+        if let down, let downID = down.id {
+            let downMembers = await Self.fetchMembers(client: client, userID: userID, parentID: downID)
+            downFilms = BrunoEbert.ordered(downMembers, ascending: true) // Thumbs Down: lowest-first
+        }
         isLoading = false
     }
 
@@ -331,12 +408,13 @@ final class BrunoEbertViewModel: ViewModel {
 
 extension NavigationRoute {
 
+    /// The merged Ebert grid. `down == nil` ⇒ single-set (no toggle).
     @MainActor
-    static func brunoEbert(parent: BaseItemDto) -> NavigationRoute {
+    static func brunoEbert(up: BaseItemDto, down: BaseItemDto?) -> NavigationRoute {
         NavigationRoute(
-            id: "bruno-ebert-\(parent.id ?? parent.displayTitle)"
+            id: "bruno-ebert-\(up.id ?? up.displayTitle)"
         ) {
-            BrunoEbertView(parent: parent)
+            BrunoEbertView(up: up, down: down)
         }
     }
 }

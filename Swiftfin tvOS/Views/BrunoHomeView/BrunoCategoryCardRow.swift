@@ -69,6 +69,15 @@ func brunoRouteToShowAll(
     case .genres:
         router.route(to: .brunoGenres(parent: category.boxSet, core: nil))
     case .shelves:
+        // The synthetic "Ebert" tile opens the MERGED toggle grid (Up ⇄ Down) instead of a
+        // shelf-per-child drill-in. Resolve up/down from its children by name (the "down" one is
+        // Thumbs Down); fall back to the stub if a child is missing.
+        if category.boxSet.id == "curated-ebert" {
+            let down = category.children.first { $0.displayTitle.lowercased().contains("down") }
+            let up = category.children.first { !$0.displayTitle.lowercased().contains("down") } ?? category.boxSet
+            router.route(to: .brunoEbert(up: up, down: down))
+            return
+        }
         // Pass the category's own children as the sub-groups so a SYNTHETIC parent (the "Oscars" tile,
         // a label-only stub with no server children) still renders; real group tiles (Decades/Curated)
         // pass their snapshot children, which is exactly what the drill-in would otherwise fetch.
@@ -107,12 +116,10 @@ func brunoRouteToShowAll(
             return
         }
 
-        // Ebert "Show all": route to the score-ordered, star-captioned Bruno grid (Thumbs Up
-        // highest-first, Thumbs Down lowest-first — derived from the BoxSet name). Like the Oscar
-        // redirect, the stock ItemLibrary below can't render the star line or rank by the ebert-stars
-        // tag, so we own the grid (BrunoEbertView clones BrunoRewatchablesView).
+        // A lone Ebert BoxSet surfaced outside the consolidated tile (e.g. a Home explore shelf):
+        // open the single-set grid (no toggle — `down: nil`), still score-ordered + star-captioned.
         if category.name.lowercased().hasPrefix("ebert") {
-            router.route(to: .brunoEbert(parent: category.boxSet))
+            router.route(to: .brunoEbert(up: category.boxSet, down: nil))
             return
         }
 
