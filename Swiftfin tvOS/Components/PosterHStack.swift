@@ -27,8 +27,16 @@ struct PosterHStack<Element: Poster, Data: Collection>: View where Data.Element 
         case item(Element)
         case showAll
 
-        var id: Card {
-            self
+        // Cell identity is the stable Jellyfin item id (INV-10 — the cell-level analogue of INV-2),
+        // NOT the whole value. Items mutate in place (top-down streaming reveal, SWR reconcile filling
+        // lean poster fields, userData/playback), so a value-identity id flips on every mutation and the
+        // forked hosting-controller reuse recycles a live cell — with its already-loaded async art —
+        // onto a different item: right label, wrong poster. Generic Element ⇒ erase to AnyHashable.
+        var id: AnyHashable {
+            switch self {
+            case let .item(item): item.id
+            case .showAll: "bruno-show-all"
+            }
         }
     }
 
