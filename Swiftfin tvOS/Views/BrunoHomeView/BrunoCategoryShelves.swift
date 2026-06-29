@@ -212,6 +212,10 @@ func brunoFeaturedItem(in categories: [BrunoCollectionCategory]) -> BaseItemDto?
 struct BrunoCategoryShelves: View {
 
     let categories: [BrunoCollectionCategory]
+    /// Optional SEPARATE list for the top card row. nil ⇒ the card row mirrors `categories`. Curated
+    /// passes the CONSOLIDATED set here (single "Ebert"/"Oscars" cards) while `categories` stays
+    /// un-collapsed, so the shelves below show the individual Ebert/Oscar film shelves.
+    var cardRowCategories: [BrunoCollectionCategory]?
     let eyebrow: String
     /// Optional content rendered above everything (e.g. the Genres core-category panel).
     var header: AnyView?
@@ -353,7 +357,7 @@ struct BrunoCategoryShelves: View {
                     }
 
                     if showCategoryRow {
-                        BrunoCategoryCardRow(categories: categories)
+                        BrunoCategoryCardRow(categories: cardRowCategories ?? categories)
                             .padding(.top, (header == nil && featured == nil) ? 20 : 0)
                             // Mutually exclusive with `header`; anchored too so any selector-row surface
                             // that adopts pillScrollKey lands here.
@@ -440,6 +444,27 @@ struct BrunoCategoryShelves: View {
         }
     }
 
+    /// "Show all" for a shelf. An Ebert film shelf opens the MERGED toggle grid pre-set to its verdict
+    /// (resolving both Ebert BoxSets from the un-collapsed shelf list this view already holds); every
+    /// other shelf uses the shared routing.
+    private func showAll(for category: BrunoCollectionCategory) {
+        if category.name.lowercased().hasPrefix("ebert"), let route = ebertToggleRoute(for: category) {
+            router.route(to: route)
+            return
+        }
+        brunoRouteToShowAll(category, router: router, namespace: namespace)
+    }
+
+    /// The merged Ebert grid pre-set to `category`'s verdict (Down if its name contains "down"). nil when
+    /// both Ebert BoxSets aren't in `categories` (a lone Ebert entry falls back to the single-set grid).
+    private func ebertToggleRoute(for category: BrunoCollectionCategory) -> NavigationRoute? {
+        let ebert = categories.filter { $0.name.lowercased().hasPrefix("ebert") }
+        guard let up = ebert.first(where: { !$0.name.lowercased().contains("down") })?.boxSet,
+              let down = ebert.first(where: { $0.name.lowercased().contains("down") })?.boxSet
+        else { return nil }
+        return .brunoEbert(up: up, down: down, showingDown: category.name.lowercased().contains("down"))
+    }
+
     private func shelf(for category: BrunoCollectionCategory) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             VStack(alignment: .leading, spacing: 0) {
@@ -473,7 +498,7 @@ struct BrunoCategoryShelves: View {
                 BrunoShelfRow(
                     items: shelfItems(for: category),
                     onItem: { router.route(to: .item(item: $0)) },
-                    onShowAll: { brunoRouteToShowAll(category, router: router, namespace: namespace) },
+                    onShowAll: { showAll(for: category) },
                     showAllTitle: namesShowAllCards ? category.name : nil,
                     artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
                     // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
