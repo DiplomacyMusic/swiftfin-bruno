@@ -76,6 +76,13 @@ life. Reconcile reuses the *same* VM instance for a matching id.
 **Safe change:** when you add/reorder shelves, keep ids derived from stable domain data. Never switch the
 `ForEach` to `.enumerated()` / indices. Never rebuild a VM for an id that already exists on screen — update
 its items in place (`BrunoShelfViewModel.hydrate(items:)`).
+**Cell-level corollary (the #41→#43 regression).** The same rule applies one level down, to the CELLS in a
+row: anything fed to `CollectionHStack(uniqueElements:)` must key its `id` off `item.id` (a constant
+sentinel for a trailing "Show all" card), **never `self`**. A wrapper enum with `var id { self }` makes
+identity the full *mutable* item value, which churns on every in-place update (streaming reveal, SWR
+reconcile filling lean fields); the forked CollectionHStack's live hosting-controller reuse then paints a
+stale async poster onto the re-identified cell — right label, wrong art. Fixed at `PosterHStack.Card` and
+`BrunoShelfView.CarouselCard`; mirror `BrunoShelfRow.Card`.
 
 ### INV-3 — The settled spine is deterministic and in plan order
 **What:** Shelves are *revealed* in plan order and the final `sections` array is exactly plan order;
