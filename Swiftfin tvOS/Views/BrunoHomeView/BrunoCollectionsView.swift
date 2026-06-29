@@ -86,72 +86,11 @@ final class BrunoCollectionsViewModel: ViewModel {
         // library on every Home -> Collections navigation.
         let snapshot = await BrunoLibrarySnapshot.loadShared(client: client, userID: userID)
 
-        // The favorited group tiles (Directors, Decades, …), built + ranked from the snapshot. Shared
-        // with the Home feed's terminal footer via `fromSnapshot` (which also flags New Releases dates).
-        var built = BrunoCollectionCategory.fromSnapshot(snapshot)
-
-        // Boxed Sets: every box set NOT already surfaced by a curated group (or as a group child),
-        // i.e. the standalone franchise collections. Director collections (e.g. "Joel Coen",
-        // "Ethan Coen") belong to the Directors section — exclude any standalone box set whose name
-        // matches a Directors-group child (the id-exclusion below already drops director collections
-        // that ARE nested under Directors; this catches name-identical standalone duplicates). A
-        // genuinely orphan director collection — one that is neither nested nor name-matched — is a
-        // server-curation gap (add it under Directors); the DEBUG log below surfaces strays.
-        let groupIDs = Set(snapshot.favoriteGroupBoxSets.compactMap(\.id))
-        let childIDs = Set(snapshot.childrenByGroupName.values.flatMap(\.self).compactMap(\.id))
-        let directorNames = Set(snapshot.directorBoxSets.compactMap { $0.name?.trimmedLowercased })
-        let franchiseBoxSets = await Self.fetchAllBoxSets(client: client, userID: userID)
-            .filter { boxSet in
-                guard let id = boxSet.id else { return false }
-                guard !groupIDs.contains(id), !childIDs.contains(id) else { return false }
-                if let name = boxSet.name?.trimmedLowercased, directorNames.contains(name) { return false }
-                return true
-            }
-        if franchiseBoxSets.isNotEmpty {
-            built.append(
-                BrunoCollectionCategory(
-                    boxSet: BaseItemDto(name: "Boxed Sets"),
-                    children: franchiseBoxSets,
-                    drillStyle: .items,
-                    lens: "Franchises"
-                )
-            )
-            #if DEBUG
-            print("[Bruno] Boxed Sets (\(franchiseBoxSets.count)): \(franchiseBoxSets.compactMap(\.name).sorted())")
-            #endif
-        }
-
-        // Re-apply the fixed top-shelf order now that "Boxed Sets" is appended (owner request). Stable
-        // decorate-with-index sort; reordering doesn't change any category's id, so focus identity holds.
-        categories = built.enumerated()
-            .sorted { lhs, rhs in
-                let l = BrunoCollectionCategory.rank(for: lhs.element.name)
-                let r = BrunoCollectionCategory.rank(for: rhs.element.name)
-                return l != r ? l < r : lhs.offset < rhs.offset
-            }
-            .map(\.element)
+        // The full group-tile set (Directors, Decades, …, plus the synthetic Boxed Sets), built and
+        // rank-ordered from the shared snapshot. `fromSnapshot` now surfaces Boxed Sets from the
+        // snapshot's cached `franchiseBoxSets`, so the Collections hub, the Home footer, and the Home
+        // "Browse the Collection" shelf are byte-identical (same cards, same order, same destinations).
+        categories = BrunoCollectionCategory.fromSnapshot(snapshot)
         isLoading = false
-    }
-
-    private nonisolated static func fetchAllBoxSets(client: JellyfinClient, userID: String) async -> [BaseItemDto] {
-        var parameters = Paths.GetItemsParameters()
-        parameters.userID = userID
-        parameters.isRecursive = true
-        parameters.includeItemTypes = [.boxSet]
-        // .childCount feeds the "N films" line on the landscape collection cards; it is NOT in
-        // MinimumFields, so without this the count is nil and that line is hidden.
-        parameters.fields = .MinimumFields + [.childCount]
-        parameters.enableUserData = true
-        parameters.sortBy = [.name]
-        parameters.sortOrder = [.ascending]
-        // The library has 300+ box sets; a 200 cap (sorted by name) silently dropped late-alphabet
-        // franchises (Star Wars, The Lord of the Rings, …). Fetch them all.
-        parameters.limit = 1000
-        do {
-            let response = try await client.send(Paths.getItems(parameters: parameters))
-            return response.value.items ?? []
-        } catch {
-            return []
-        }
     }
 }

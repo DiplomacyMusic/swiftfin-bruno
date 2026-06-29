@@ -52,8 +52,10 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
     @Published
     private(set) var scrollResetToken = 0
 
-    /// The collection group tiles for the Home feed's terminal footer — the same group set as the
-    /// Collections tab (minus the network-only "Boxed Sets"), pure over the already-loaded snapshot.
+    /// The collection group tiles — the full Collections-tab set (the favorited groups plus the
+    /// synthetic "Boxed Sets", which `fromSnapshot` now resolves from the snapshot's cached
+    /// `franchiseBoxSets`), pure over the already-loaded snapshot. Feeds BOTH the Home "Browse the
+    /// Collection" spine shelf and the terminal footer, so both match the Collections tab 1:1.
     var collectionCategories: [BrunoCollectionCategory] {
         BrunoCollectionCategory.fromSnapshot(snapshot)
     }

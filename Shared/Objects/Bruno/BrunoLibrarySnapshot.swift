@@ -31,9 +31,14 @@ struct BrunoLibrarySnapshot: Codable {
     let genres: [String]
     /// Distinct production years present (for the "year" explore generator).
     let years: [Int]
+    /// The standalone franchise BoxSets — every box set that is NOT a curated group or a group's
+    /// child — i.e. the members of the synthetic "Boxed Sets" tile. Fetched here so the single shared
+    /// builder (`BrunoCollectionCategory.fromSnapshot`) can surface Boxed Sets on Home AND Collections
+    /// from one snapshot. Optional so older on-disk payloads (no key) decode to nil (see BrunoHomeCache).
+    let franchiseBoxSets: [BaseItemDto]?
 
     static var empty: BrunoLibrarySnapshot {
-        .init(favoriteGroupBoxSets: [], childrenByGroupName: [:], genres: [], years: [])
+        .init(favoriteGroupBoxSets: [], childrenByGroupName: [:], genres: [], years: [], franchiseBoxSets: nil)
     }
 
     // Case-insensitive group lookups (group names are owner-authored).
@@ -89,6 +94,10 @@ extension BrunoLibrarySnapshot {
         async let groupsTask = fetchGroupBoxSets(client: client, userID: userID)
         async let genresTask = fetchGenres(client: client, userID: userID)
         async let yearsTask = fetchYears(client: client, userID: userID)
+        // Every box set in the library — narrowed to standalone franchises below. Fetched up front and
+        // concurrently so the synthetic "Boxed Sets" tile resolves from this one snapshot (no separate
+        // per-surface fetch). Awaited on the single return path after the children are known.
+        async let allBoxSetsTask = fetchAllBoxSets(client: client, userID: userID)
 
         let groups = await groupsTask
 
@@ -107,11 +116,31 @@ extension BrunoLibrarySnapshot {
             }
         }
 
+        // Boxed Sets = every box set NOT already a curated group, a group's child, or a name-duplicate
+        // of a Directors child (those belong under Directors). This is the filter the Collections hub
+        // used to run locally, centralized here so Home and Collections share one franchise list.
+        let groupIDs = Set(groups.compactMap(\.id))
+        let childIDs = Set(childrenByName.values.flatMap(\.self).compactMap(\.id))
+        // Inline trim+lowercase (not the tvOS-only `String.trimmedLowercased`) so this Shared file stays
+        // buildable in every target; same normalization for both sides of the name comparison.
+        let directorNames = Set(
+            (childrenByName.first { $0.key.lowercased() == "directors" }?.value ?? [])
+                .compactMap { $0.name?.trimmingCharacters(in: .whitespaces).lowercased() }
+        )
+        let franchiseBoxSets = await allBoxSetsTask.filter { boxSet in
+            guard let id = boxSet.id else { return false }
+            guard !groupIDs.contains(id), !childIDs.contains(id) else { return false }
+            if let name = boxSet.name?.trimmingCharacters(in: .whitespaces).lowercased(),
+               directorNames.contains(name) { return false }
+            return true
+        }
+
         return await BrunoLibrarySnapshot(
             favoriteGroupBoxSets: groups,
             childrenByGroupName: childrenByName,
             genres: genresTask,
-            years: yearsTask
+            years: yearsTask,
+            franchiseBoxSets: franchiseBoxSets
         )
     }
 
@@ -135,6 +164,23 @@ extension BrunoLibrarySnapshot {
         parameters.fields = .MinimumFields + [.genres]
         parameters.enableUserData = true
         parameters.limit = 200
+        return await send(client: client, parameters: parameters)
+    }
+
+    private static func fetchAllBoxSets(client: JellyfinClient, userID: String) async -> [BaseItemDto] {
+        var parameters = Paths.GetItemsParameters()
+        parameters.userID = userID
+        parameters.isRecursive = true
+        parameters.includeItemTypes = [.boxSet]
+        // .childCount feeds the "N films" line on the franchise cards + the weighted preview; it is
+        // NOT in MinimumFields, so without it the count is nil and that line is hidden.
+        parameters.fields = .MinimumFields + [.childCount]
+        parameters.enableUserData = true
+        parameters.sortBy = [.name]
+        parameters.sortOrder = [.ascending]
+        // The library has 300+ box sets; fetch them all (a 200 cap silently dropped late-alphabet
+        // franchises like Star Wars / The Lord of the Rings).
+        parameters.limit = 1000
         return await send(client: client, parameters: parameters)
     }
 
@@ -191,6 +237,12 @@ extension BrunoLibrarySnapshot {
             guard self.userID == userID,
                   let snapshot, let loadedAt,
                   !snapshot.isEmpty,
+                  // A snapshot persisted before `franchiseBoxSets` existed decodes the field to nil. A
+                  // fresh `load` ALWAYS sets it (possibly []), so nil means "never computed" — treat it
+                  // as a miss so `loadShared` does a real fetch and fills the Boxed Sets list, instead
+                  // of serving a Boxed-Sets-less snapshot all session (the cache would otherwise be
+                  // re-seeded from such a payload on every cold launch).
+                  snapshot.franchiseBoxSets != nil,
                   Date().timeIntervalSince(loadedAt) < maxAge
             else { return nil }
             return snapshot

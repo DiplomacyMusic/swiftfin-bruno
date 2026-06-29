@@ -52,7 +52,8 @@ extension BrunoHomePlan {
             favoriteGroupBoxSets: boxSets("g", 7),
             childrenByGroupName: ["Decades": boxSets("d", 1)],
             genres: ["Drama"],
-            years: [1999]
+            years: [1999],
+            franchiseBoxSets: nil
         )
         guard !build(seed: 1, snapshot: sparse, now: june).contains(where: { $0.id == "eras" }) else { return false }
 
@@ -83,7 +84,8 @@ extension BrunoHomePlan {
                 "Seasonal": boxSets("seas", 4),
             ],
             genres: ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Thriller", "Romance", "Crime"],
-            years: [1965, 1972, 1984, 1994, 1999, 2003, 2010, 2017, 2021]
+            years: [1965, 1972, 1984, 1994, 1999, 2003, 2010, 2017, 2021],
+            franchiseBoxSets: nil
         )
     }
 }
