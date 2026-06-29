@@ -61,7 +61,18 @@ struct BrunoStudiosGridView: View {
                             .frame(height: proxy.size.height - 150)
                             .padding(.bottom, 50)
 
-                        grid
+                        // Top: the curated, daily-rotated "Household Names" — only the recognizable
+                        // studios, ≤20, with a stable membership whose on-screen order reshuffles
+                        // each day (same rotating-seed idea as the Home spotlight).
+                        if topStudios.isNotEmpty {
+                            sectionTitle("Household Names")
+                            grid(for: topStudios)
+                        }
+
+                        // Beneath: the full studios grid, unchanged — every studio in alphanumeric
+                        // (server) order, the top names intentionally NOT excluded.
+                        sectionTitle("All Studios")
+                        grid(for: items)
                     }
                     .background {
                         BlurView(style: .dark)
@@ -103,13 +114,25 @@ struct BrunoStudiosGridView: View {
         .padding(.horizontal, 50)
     }
 
+    // A small left-aligned shelf title, matching the house shelf-header style
+    // (BrunoShelfView uses brunoDisplay ~36-40, semibold), kerned in from the card edge.
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.brunoDisplay(40, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 8, y: 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, EdgeInsets.edgePadding)
+            .padding(.bottom, 24)
+    }
+
     // MARK: Grid
 
     // Landscape studio cards, 4 across — same cells as before, just laid out in a LazyVGrid so they
-    // can live inside the cinematic ScrollView.
-    private var grid: some View {
+    // can live inside the cinematic ScrollView. Parameterized so the top and full sections share it.
+    private func grid(for studios: [BaseItemDto]) -> some View {
         LazyVGrid(columns: columns, spacing: EdgeInsets.edgePadding) {
-            ForEach(items, id: \.id) { item in
+            ForEach(studios, id: \.id) { item in
                 BrunoArtCarouselCard(item: item, type: .landscape) {
                     router.route(to: .item(item: item))
                 } label: {
@@ -119,6 +142,77 @@ struct BrunoStudiosGridView: View {
         }
         .padding(.horizontal, EdgeInsets.edgePadding)
         .padding(.bottom, 50)
+    }
+
+    // MARK: Top studios (curated + daily-seeded rotation)
+
+    // The most recognizable studio names, in rough editorial order (household recognition ≈
+    // cumulative awards + box office — revenue/awards aren't on BaseItemDto app-side, so this list
+    // IS the ranking). Only the names actually present in `items` surface; the first ≤20 by this
+    // order form a stable membership, and the day-seed rotates their on-screen order so the shelf
+    // feels fresh daily without ever dropping a major. Matched case-/punctuation-insensitively.
+    private static let recognizableStudios: [String] = [
+        "Walt Disney Pictures",
+        "Warner Bros. Pictures",
+        "Universal Pictures",
+        "Paramount Pictures",
+        "Columbia Pictures",
+        "20th Century Fox",
+        "Metro-Goldwyn-Mayer",
+        "Marvel Studios",
+        "Pixar",
+        "Lucasfilm Ltd.",
+        "DreamWorks Pictures",
+        "DreamWorks Animation",
+        "New Line Cinema",
+        "Lionsgate",
+        "United Artists",
+        "TriStar Pictures",
+        "Touchstone Pictures",
+        "A24",
+        "Miramax",
+        "Studio Ghibli",
+        "Focus Features",
+        "Searchlight Pictures",
+        "Fox Searchlight Pictures",
+        "Legendary Pictures",
+        "Amblin Entertainment",
+        "Summit Entertainment",
+        "The Weinstein Company",
+        "Annapurna Pictures",
+        "Working Title Films",
+        "TOHO",
+        "StudioCanal",
+        "Marvel Entertainment",
+    ]
+
+    private static let topStudioLimit = 20
+
+    // Lowercase + keep only alphanumerics, so "Warner Bros. Pictures" matches "warnerbrospictures"
+    // and "A24"/"20th Century Fox" keep their digits (mirrors the producer's `norm`).
+    private static func normalizeStudio(_ name: String) -> String {
+        name.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    // Day-stamp seed (year*10000 + month*100 + day): stable within a calendar day, rotates each new
+    // day — the same per-day rotation the Home spotlight uses (BrunoHomeViewModel resolveDaySeed).
+    private var daySeed: UInt32 {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        return UInt32(truncatingIfNeeded: (c.year ?? 0) * 10000 + (c.month ?? 0) * 100 + (c.day ?? 0))
+    }
+
+    // Stable membership (top ≤20 recognizable studios present), order rotated by the day-seed.
+    private var topStudios: [BaseItemDto] {
+        var byName: [String: BaseItemDto] = [:]
+        for item in items {
+            guard let name = item.name else { continue }
+            let key = Self.normalizeStudio(name)
+            if byName[key] == nil { byName[key] = item }
+        }
+        let membership = Self.recognizableStudios
+            .compactMap { byName[Self.normalizeStudio($0)] }
+            .prefix(Self.topStudioLimit)
+        return BrunoRNG.shuffled(Array(membership), seed: daySeed)
     }
 }
 
