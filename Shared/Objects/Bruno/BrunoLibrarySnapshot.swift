@@ -68,6 +68,13 @@ struct BrunoLibrarySnapshot: Codable {
         group("Directors")
     }
 
+    /// The pre-built "Movie Stars" actor BoxSets (each an actor's films). Mirrors `directorBoxSets` so
+    /// the Collections tail's actor-in-focus generator works exactly like the director one. "Movie Stars"
+    /// is a favorited group, so its children are already fetched by `load()` — no new fetch.
+    var actorBoxSets: [BaseItemDto] {
+        group("Movie Stars")
+    }
+
     var decadeBoxSets: [BaseItemDto] {
         group("Decades")
     }
