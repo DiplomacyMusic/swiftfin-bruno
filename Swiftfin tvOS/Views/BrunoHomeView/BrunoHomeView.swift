@@ -113,9 +113,9 @@ struct BrunoHomeView: View {
     private var content: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                // Spine gap is the landscape inter-shelf value (20); portrait shelves add +4 below
-                // (BrunoShelfView) so they read 24. Tighter than the old uniform 24 → more shelves fit.
-                LazyVStack(alignment: .leading, spacing: 20) {
+                // Spine gap is the landscape inter-shelf value (12); portrait shelves add +4 below
+                // (BrunoShelfView) so they read 16. Tighter than the old 20 → more shelves fit.
+                LazyVStack(alignment: .leading, spacing: 12) {
                     // The menu bar is now the FIRST scrolling row (was a pinned ZStack peer in
                     // MainTabView): it scrolls up and off with the content and reappears at the top.
                     BrunoScrollingMenuBar(barFocused: $barIsFocused)
@@ -129,9 +129,9 @@ struct BrunoHomeView: View {
                         // ((720+160)×0.83 ≈ 730). The wordmark is now a shared overlay, so Home no longer
                         // needs extra space to restore a wordmark row.
                         extraHeight: 160,
-                        // Home tightened its LazyVStack to spacing: 20, so the hero bleed term must match
+                        // Home tightened its LazyVStack to spacing: 12, so the hero bleed term must match
                         // (other tabs keep the 36 default) — otherwise the backdrop lands short of the top.
-                        rowSpacing: 20,
+                        rowSpacing: 12,
                         // Also gate on Home being the ACTIVE tab: the custom container keeps Home mounted
                         // while hidden, so without this the hero would keep crossfading backdrops offscreen.
                         autoAdvanceEnabled: viewModel.state == .content && tabCoordinator.selectedTabID == "home"
