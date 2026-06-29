@@ -170,19 +170,23 @@ struct BrunoRewatchablesView: View {
     // The pills reuse the Movies-tab BrunoCoreGenre buckets, but those buckets' `members` are curated
     // sub-genre BoxSet NAMES — the Rewatchables films instead carry raw TMDB `.genres` strings. So map each
     // bucket to the TMDB genres that belong under it and match the film's `.genres` (read-only — the
-    // genre-layers hard rule). "International" has no TMDB-genre equivalent, so it matches no film and is
-    // auto-hidden by `shownCores`.
+    // genre-layers hard rule).
+    // BROAD ONLY: each bucket maps to its broad TMDB genre(s) and nothing else. Genres that GENRE_MAP.md
+    // treats as their own standalone core — Western, Music, Mystery, War, Animation — are deliberately NOT
+    // folded into a broader bucket; a film carrying only one of those reaches via the "All" pill (the same
+    // fallback BrunoCoreGenre uses for an un-bucketed sub-genre). "International" has no TMDB-genre
+    // equivalent either, so it matches no film and is auto-hidden by `shownCores`.
     private static let tmdbGenresByCoreID: [String: Set<String>] = [
-        "action-adventure": ["action", "adventure", "western"],
+        "action-adventure": ["action", "adventure"],
         "comedy": ["comedy"],
-        "drama": ["drama", "music"],
+        "drama": ["drama"],
         "romance": ["romance"],
         "scifi-fantasy": ["science fiction", "fantasy"],
-        "thriller": ["thriller", "mystery"],
+        "thriller": ["thriller"],
         "crime": ["crime"],
         "horror": ["horror"],
-        "history": ["history", "war"],
-        "family": ["family", "animation"],
+        "history": ["history"],
+        "family": ["family"],
     ]
 
     private func filmMatches(_ item: BaseItemDto, _ core: BrunoCoreGenre) -> Bool {
