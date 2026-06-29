@@ -30,6 +30,9 @@ struct BrunoEbertView: View {
 
     let up: BaseItemDto
     let down: BaseItemDto?
+    /// Which verdict to open on (set by the route — a "Thumbs Down" shelf opens on Down). Applied once
+    /// on first appear; only meaningful when `down != nil`.
+    var initialShowingDown: Bool = false
 
     @StateObject
     private var viewModel = BrunoEbertViewModel()
@@ -91,6 +94,7 @@ struct BrunoEbertView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .onFirstAppear {
+            showingDown = down != nil && initialShowingDown
             Task { await viewModel.load(up: up, down: down) }
         }
         .onDisappear {
@@ -410,11 +414,11 @@ extension NavigationRoute {
 
     /// The merged Ebert grid. `down == nil` ⇒ single-set (no toggle).
     @MainActor
-    static func brunoEbert(up: BaseItemDto, down: BaseItemDto?) -> NavigationRoute {
+    static func brunoEbert(up: BaseItemDto, down: BaseItemDto?, showingDown: Bool = false) -> NavigationRoute {
         NavigationRoute(
             id: "bruno-ebert-\(up.id ?? up.displayTitle)"
         ) {
-            BrunoEbertView(up: up, down: down)
+            BrunoEbertView(up: up, down: down, initialShowingDown: showingDown)
         }
     }
 }
