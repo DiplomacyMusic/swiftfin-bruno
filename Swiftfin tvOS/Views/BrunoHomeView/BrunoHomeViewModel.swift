@@ -179,7 +179,13 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
             userID: userSession.user.id,
             seed: seed,
             maxAge: 60 * 60 * 24
-        ), !Task.isCancelled, generation == refreshGeneration else { return false }
+        ),
+            // A payload written before `franchiseBoxSets` existed decodes the field to nil. Treat it as
+            // a hydrate MISS (mirroring the Cache.value guard) so the first post-update launch streams a
+            // fresh load WITH the Boxed Sets tile, instead of painting the collections shelf without it
+            // for the beat until revalidate lands. One-launch cost; later launches hydrate normally.
+            payload.snapshot.franchiseBoxSets != nil,
+            !Task.isCancelled, generation == refreshGeneration else { return false }
 
         snapshot = payload.snapshot
         // Let Collections / drill-ins reuse this snapshot in-session too.
