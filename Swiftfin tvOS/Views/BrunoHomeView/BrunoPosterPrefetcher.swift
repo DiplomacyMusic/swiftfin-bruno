@@ -40,8 +40,11 @@ final class BrunoPosterPrefetcher {
         prefetcher.priority = .low
     }
 
-    func warm(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) {
-        let urls = posterURLs(items, type: type)
+    /// Warm a row's posters. Defaults to the first `warmCount` (a screenful); pass an explicit `count`
+    /// to warm a freshly-revealed tail beyond that screenful (the lazy-reveal re-warm — see
+    /// BrunoShelfView.reveal). `nil` keeps the cheap default for the onAppear/tab-change paths.
+    func warm(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType, count: Int? = nil) {
+        let urls = posterURLs(items, type: type, limit: count ?? Self.warmCount)
         #if DEBUG
         if BrunoPerfLog.isEnabled {
             BrunoPerfLog.event("load", ["what": "prefetch", "phase": "start", "count": urls.count])
@@ -51,7 +54,7 @@ final class BrunoPosterPrefetcher {
     }
 
     func stop(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) {
-        let urls = posterURLs(items, type: type)
+        let urls = posterURLs(items, type: type, limit: Self.warmCount)
         #if DEBUG
         if BrunoPerfLog.isEnabled {
             BrunoPerfLog.event("load", ["what": "prefetch", "phase": "end", "count": urls.count])
@@ -60,10 +63,10 @@ final class BrunoPosterPrefetcher {
         prefetcher.stopPrefetching(with: urls)
     }
 
-    private func posterURLs(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType) -> [URL] {
+    private func posterURLs(_ items: some Sequence<BaseItemDto>, type: PosterDisplayType, limit: Int) -> [URL] {
         let width = BrunoShelfMetrics.posterMaxWidth(for: type)
         let quality = BrunoShelfMetrics.posterQuality
-        return items.prefix(Self.warmCount).compactMap { item in
+        return items.prefix(limit).compactMap { item in
             switch type {
             case .landscape:
                 item.landscapeImageSources(maxWidth: width, quality: quality).first?.url
