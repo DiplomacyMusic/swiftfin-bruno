@@ -38,6 +38,9 @@ struct BrunoBoxSetGridView: View {
     /// New Releases "Show all": render each poster's full release date on line 2 (the deeper New
     /// Releases collection, matching the Home/Collections inline rows). Portrait, non-collectionLabel.
     var showsDate: Bool = false
+    /// Rewatchables grid: each poster's "Episode NN" caption (BrunoRewatchablesContentView) parsed
+    /// from the rewatchables-ep:NN tag. Portrait, non-collectionLabel; items must be fetched WITH .tags.
+    var showsEpisode: Bool = false
 
     @Router
     private var router
@@ -100,6 +103,9 @@ struct BrunoBoxSetGridView: View {
         } else if showsDate {
             // New Releases "Show all": full release date on line 2.
             BrunoTitleDateContentView(item: item)
+        } else if showsEpisode {
+            // Rewatchables grid: "Episode NN" on line 2 (from the rewatchables-ep:NN tag).
+            BrunoRewatchablesContentView(item: item)
         } else if posterType == .landscape {
             PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
         } else {
