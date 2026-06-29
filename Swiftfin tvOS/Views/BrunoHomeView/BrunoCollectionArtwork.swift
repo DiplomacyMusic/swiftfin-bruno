@@ -32,7 +32,12 @@ enum BrunoCollectionArtwork {
         "directors": ["Directors04"],
         "boxed sets": ["BoxedSets01", "BoxedSets02"],
         "movie stars": ["MovieStars01"],
-        "curated": ["Curated01", "Curated02"],
+        // Locked to the Roger Ebert photo (Curated02) — a single-element list makes `dailyAsset`
+        // always resolve to it, so the resting tile no longer rotates. The Oscar statuette
+        // (Curated01) is intentionally dropped from this top-level tile; the imageset stays in the
+        // catalog (still used on the Oscar sub-collection card via BrunoCuratedCard). Mirrors the
+        // Coppola lock above.
+        "curated": ["Curated02"],
         "decades": ["Decades01", "Decades02", "Decades03"],
         "genres": ["Genre01", "Genre02"],
         "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
