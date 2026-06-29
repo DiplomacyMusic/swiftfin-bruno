@@ -40,7 +40,9 @@ struct BrunoCollectionsView: View {
                     featured: brunoFeaturedItem(in: viewModel.categories),
                     heroEyebrow: "Featured",
                     // Collections TAB ROOT → inject the scrolling menu bar as the first row.
-                    isTabRoot: true
+                    isTabRoot: true,
+                    // Back the unfocused Decades cards with each decade's best-of film cover.
+                    decadeBestOf: viewModel.decadeBestOf
                 )
             }
         }
@@ -73,6 +75,11 @@ final class BrunoCollectionsViewModel: ViewModel {
     private(set) var categories: [BrunoCollectionCategory] = []
     @Published
     private(set) var isLoading = true
+    /// Decade-name → best-of-decade film cover, lifted from the shared snapshot so the Decades shelf can
+    /// back each unfocused decade card with the film cover (same data the Home Eras cards use). nil for
+    /// pre-feature on-disk payloads ⇒ gradient fallback.
+    @Published
+    private(set) var decadeBestOf: [String: BaseItemDto]?
 
     func load() async {
         guard let userSession else {
@@ -91,6 +98,7 @@ final class BrunoCollectionsViewModel: ViewModel {
         // snapshot's cached `franchiseBoxSets`, so the Collections hub, the Home footer, and the Home
         // "Browse the Collection" shelf are byte-identical (same cards, same order, same destinations).
         categories = BrunoCollectionCategory.fromSnapshot(snapshot)
+        decadeBestOf = snapshot.decadeBestOf
         isLoading = false
     }
 }

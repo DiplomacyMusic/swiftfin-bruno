@@ -257,6 +257,10 @@ struct BrunoCategoryShelves: View {
     /// Optional bundled brand image used as the surface's full-bleed static background (the Rewatchables
     /// surface uses its podcast art) instead of the blurred featured-item backdrop. nil ⇒ default ambient.
     var staticBackgroundAsset: String?
+    /// Decade-name → best-of-decade film cover (from `BrunoLibrarySnapshot.decadeBestOf`). When present,
+    /// the Decades label-art shelf backs each unfocused card with that film's cover instead of bare amber.
+    /// nil ⇒ gradient-only (callers that don't have the snapshot, e.g. the decade drill-in, are unaffected).
+    var decadeBestOf: [String: BaseItemDto]?
 
     @Router
     private var router
@@ -509,7 +513,10 @@ struct BrunoCategoryShelves: View {
                     oscarCategory: BrunoOscarCategory(boxSetName: category.name),
                     // Per-category (the "Ebert *" curated shelves): "★★★½" star-rating caption.
                     showsEbertStars: category.name.lowercased().hasPrefix("ebert"),
-                    labelArt: Self.labelArtStyle(for: category.name)
+                    labelArt: Self.labelArtStyle(for: category.name),
+                    // Decades only: back each unfocused card with the best-of-decade film cover (when the
+                    // snapshot map was threaded in). nil for every other shelf ⇒ unchanged amber gradient.
+                    restCover: Self.decadeCoverResolver(for: category.name, map: decadeBestOf)
                 )
             }
         }
@@ -569,6 +576,22 @@ struct BrunoCategoryShelves: View {
         case "genres": .poster
         case "decades": .gradient(top: Color(hex: "201408"), bottom: Color(hex: "9C6A1E"))
         default: nil
+        }
+    }
+
+    /// Decades shelf only: a per-card resolver mapping a decade BoxSet to its best-of-decade film cover
+    /// (by decade name, case-insensitive — mirrors `BrunoLibrarySnapshot.decadeBestOfFilm`). Returns nil
+    /// for every other shelf, and when no `decadeBestOf` map was threaded in, so the gradient card path
+    /// degrades to its prior bare-amber look with no behaviour change.
+    private static func decadeCoverResolver(
+        for groupName: String,
+        map: [String: BaseItemDto]?
+    ) -> ((BaseItemDto) -> BaseItemDto?)? {
+        guard groupName.lowercased() == "decades", let map else { return nil }
+        return { item in
+            if let exact = map[item.displayTitle] { return exact }
+            let lower = item.displayTitle.lowercased()
+            return map.first { $0.key.lowercased() == lower }?.value
         }
     }
 

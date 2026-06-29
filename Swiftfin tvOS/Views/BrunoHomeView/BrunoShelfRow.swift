@@ -51,6 +51,10 @@ struct BrunoShelfRow: View {
     /// (title over the art, film art cycling on focus) — instead of a poster with a title below.
     /// nil ⇒ the standard PosterButton cell. Mutually exclusive with `artCarousel`.
     var labelArt: BrunoLabelArtStyle?
+    /// Decades label-art shelf only: resolves each card's at-rest best-of-decade cover from the item
+    /// (the decade BoxSet). nil ⇒ no cover (the gradient stays bare amber, as before). A stable function
+    /// of the item (same decade → same cover), so it adds no per-scroll churn — INV-10 safe.
+    var restCover: ((BaseItemDto) -> BaseItemDto?)?
 
     @FocusState
     private var showAllFocused: Bool
@@ -86,7 +90,7 @@ struct BrunoShelfRow: View {
             switch card {
             case let .item(item):
                 if let labelArt {
-                    BrunoLabelArtCard(item: item, style: labelArt) {
+                    BrunoLabelArtCard(item: item, style: labelArt, restCover: restCover?(item)) {
                         onItem(item)
                     }
                 } else if artCarousel {
