@@ -216,6 +216,14 @@ struct BrunoBoxSetShelvesView: View {
             if let category = selectedDecadeCategory {
                 Task { await viewModel.loadYearShelves(for: category) }
             }
+            // EAGER PREFETCH: warm the two NEWEST decades (2020s, 2010s) the instant the base set
+            // lands — they're the likeliest first picks, so their per-year shelves are ready before
+            // focus even reaches a pill (the cold-enter default focus on "All" fires no warm — INV-7).
+            if isDecades {
+                for category in viewModel.categories.prefix(2) {
+                    Task { await viewModel.loadYearShelves(for: category) }
+                }
+            }
         }
         // Trigger the COMPLETE per-year fetch when a specific decade is COMMITTED (the committed
         // selectedDecade, not the transient focus). Fires at most once per settled focus because the
@@ -304,18 +312,19 @@ struct BrunoBoxSetShelvesView: View {
 
         focusedDecade = decade
 
-        // PREFETCH: warm the focused decade's per-year set EARLY (shorter debounce than the commit) so the
-        // single GetItems round-trip overlaps the 500 ms commit window. On a deliberate pause the memoized
-        // `yearShelvesByDecadeID` is usually populated by the time `selectedDecade` commits, so `shownCategories`
-        // goes straight to the per-year set (led by "Best of the <Decade>") with no decade-overview fallback
-        // flash. The 150 ms gate keeps a fast scrub from fetching (preserving the commit-debounce intent below);
-        // `loadYearShelves` is memoized, so the commit's own fetch is then a no-op.
+        // PROXIMITY PREFETCH: warm every decade within 2 pills of the focused one, so by the time focus
+        // REACHES a decade its per-year set is already loading/loaded — no decade-overview fallback flash
+        // even on the first decade you stop on. Short debounce so a fast CONTINUOUS scrub just re-schedules
+        // (warms only once you slow near a target, which also keeps the warm's @Published writes off the
+        // held-scroll path — INV-10). `loadYearShelves` is memoized + in-flight-guarded, so re-warming the
+        // same decade across overlapping windows is a cheap no-op. The two newest decades are already eager-
+        // warmed on load (categories onChange above); this covers the rest as you approach them.
         warmTask?.cancel()
-        if let decade, let category = viewModel.categories.first(where: { $0.name == decade }) {
-            warmTask = Task {
-                try? await Task.sleep(for: .milliseconds(150))
-                guard !Task.isCancelled, focusedDecade == decade else { return }
-                await viewModel.loadYearShelves(for: category)
+        warmTask = Task {
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled, focusedDecade == decade else { return }
+            for category in decadesNearFocus(decade) {
+                Task { await viewModel.loadYearShelves(for: category) }
             }
         }
 
@@ -329,6 +338,18 @@ struct BrunoBoxSetShelvesView: View {
             guard focusedDecade == decade, selectedDecade != decade else { return }
             selectedDecade = decade
         }
+    }
+
+    /// The decades within two pills of the focused one (inclusive) — the proximity-prefetch window.
+    /// `nil` is the leftmost "All" chip (one slot left of index 0), so its window is the two newest
+    /// decades. Indices are into `viewModel.categories` (newest-first); out-of-range ends are clamped.
+    private func decadesNearFocus(_ decade: String?) -> [BrunoCollectionCategory] {
+        let cats = viewModel.categories
+        let focusIdx = decade.flatMap { name in cats.firstIndex { $0.name == name } } ?? -1
+        let lo = max(0, focusIdx - 2)
+        let hi = min(cats.count - 1, focusIdx + 2)
+        guard lo <= hi else { return [] }
+        return Array(cats[lo ... hi])
     }
 
     /// Singularised group name ("Genres" -> "Genre", "Decades" -> "Decade").
@@ -377,6 +398,12 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     /// sub-BoxSet id, which is per-snapshot, so a user/library switch can't serve stale buckets.
     @Published
     private(set) var yearShelvesByDecadeID: [String: [BrunoCollectionCategory]] = [:]
+
+    /// decadeIDs whose per-year fetch is currently IN FLIGHT — the in-flight half of the memoization
+    /// guard. Eager + proximity prefetch can ask for the same decade from overlapping windows; the
+    /// `yearShelvesByDecadeID == nil` guard only catches COMPLETED loads, so this stops a still-running
+    /// fetch from being duplicated. MainActor-serialized, so no data race across the `await`.
+    private var yearLoadsInFlight: Set<String> = []
 
     /// One past the shelf cap so the shared scaffold can tell whether "Show all" is warranted.
     private let perShelfFetch = 13
@@ -658,8 +685,12 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
     func loadYearShelves(for decade: BrunoCollectionCategory) async {
         guard let decadeID = decade.boxSet.id,
               yearShelvesByDecadeID[decadeID] == nil,
+              !yearLoadsInFlight.contains(decadeID),
               let userSession
         else { return }
+
+        yearLoadsInFlight.insert(decadeID)
+        defer { yearLoadsInFlight.remove(decadeID) }
 
         let client = userSession.client
         let userID = userSession.user.id
@@ -686,7 +717,11 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                 return parameters
             }
         } catch {
-            complete = []
+            // Don't memoize a FAILED fetch — leave the key nil so a later prefetch/selection retries.
+            // Critical now that prefetch warms decades the user never deliberately selected: a transient
+            // network blip must not permanently cache an empty per-year set (= an empty decade) for the
+            // session. (Previously this fell through with `complete = []` and cached the empty result.)
+            return
         }
 
         yearShelvesByDecadeID[decadeID] = Self.yearCategories(
