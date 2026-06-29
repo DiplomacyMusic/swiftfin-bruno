@@ -24,13 +24,18 @@ enum BrunoCollectionArtwork {
 
     /// Non-seasonal category (lowercased name) → its bundled art assets, in catalog-name form.
     private static let byCategory: [String: [String]] = [
-        "new releases": ["NewReleases01", "NewReleases02", "NewReleases03"],
+        // Locked to the concert-audience light-burst (NewReleases02) — single-element list pins it
+        // (see the Coppola/Ebert locks below). The empty-cinema (01) and dim-cinema (03) shots are
+        // dropped from this tile; their imagesets stay in the catalog.
+        "new releases": ["NewReleases02"],
         // Locked to the Francis Ford Coppola photo (Directors04) — a single-element list makes
         // `dailyAsset` always resolve to it, so the resting tile no longer rotates. The generic
         // crane-camera (Directors02) and director's-chair shots (Directors01 Hitchcock, Directors03
         // empty chair) are intentionally dropped from the tile; the imagesets stay in the catalog.
         "directors": ["Directors04"],
-        "boxed sets": ["BoxedSets01", "BoxedSets02"],
+        // Locked to the wall of DVD/VHS spines (BoxedSets01) — single-element list pins it. The
+        // film-reel archive aisle (02) is dropped from this tile; its imageset stays in the catalog.
+        "boxed sets": ["BoxedSets01"],
         "movie stars": ["MovieStars01"],
         // Locked to the Roger Ebert photo (Curated02) — a single-element list makes `dailyAsset`
         // always resolve to it, so the resting tile no longer rotates. The Oscar statuette
@@ -38,7 +43,10 @@ enum BrunoCollectionArtwork {
         // catalog (still used on the Oscar sub-collection card via BrunoCuratedCard). Mirrors the
         // Coppola lock above.
         "curated": ["Curated02"],
-        "decades": ["Decades01", "Decades02", "Decades03"],
+        // Locked to the drive-in with classic cars (Decades02) — single-element list pins it. The
+        // neon marquee (01) and 3D-glasses audience (03) shots are dropped from this tile; their
+        // imagesets stay in the catalog.
+        "decades": ["Decades02"],
         "genres": ["Genre01", "Genre02"],
         "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
         // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
