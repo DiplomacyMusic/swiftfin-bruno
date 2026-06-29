@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily cleanup of merged/stale git worktrees + orphaned Xcode DerivedData.
+  Runs Scripts/cleanup-worktrees.sh --apply once a day and logs to
+  ~/Library/Logs/bruno-cleanup-worktrees.log.
+
+  Install:
+    cp Scripts/com.bruno.cleanup-worktrees.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.bruno.cleanup-worktrees.plist
+    launchctl enable gui/$(id -u)/com.bruno.cleanup-worktrees
+
+  Run it once now (on demand), without waiting for the schedule:
+    launchctl kickstart -k gui/$(id -u)/com.bruno.cleanup-worktrees
+
+  Uninstall:
+    launchctl bootout gui/$(id -u)/com.bruno.cleanup-worktrees
+    rm ~/Library/LaunchAgents/com.bruno.cleanup-worktrees.plist
+
+  BEFORE YOU BOOTSTRAP THIS: the very first 03:30 firing is a live, unattended
+  `--apply` (real deletions). Run `Scripts/cleanup-worktrees.sh` (dry-run) and
+  then `--apply` BY HAND once, watch the output, and only then install this.
+  To shield a merged+clean worktree you keep open, `git worktree lock` it.
+
+  "Daily" is best-effort: launchd does NOT wake the Mac, and with RunAtLoad
+  false a missed 03:30 (asleep/off) fires at most one catch-up on next wake —
+  so on a laptop that sleeps overnight, reclaim can lag a day or more.
+
+  NOTE: the script path below points at the MAIN checkout, since the owner's
+  Xcode builds `main`. Ensure cleanup-worktrees.sh is merged to `main` (or
+  adjust the path) before the job runs.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bruno.cleanup-worktrees</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/danielbrunelle/Documents/Claude/Projects/bruno/Scripts/cleanup-worktrees.sh</string>
+        <string>--apply</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/danielbrunelle/Documents/Claude/Projects/bruno</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin</string>
+    </dict>
+
+    <!-- Daily at 03:30. Do NOT run at load — the schedule drives it, and we
+         want the owner to confirm a dry-run first. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/danielbrunelle/Library/Logs/bruno-cleanup-worktrees.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/danielbrunelle/Library/Logs/bruno-cleanup-worktrees.log</string>
+
+    <!-- Don't fight the user for CPU/IO; this is housekeeping. -->
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

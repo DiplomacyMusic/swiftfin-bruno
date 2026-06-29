@@ -28,6 +28,15 @@ change through the maps first — local edits ripple.
 **Workflow:** Work in a worktree → open a PR; the owner merges. Don't push `main` directly. Keep edits in
 the worktree (so the desktop app's file links resolve).
 
+**Maintenance:** All those worktrees pile up — each built one spawns a ~5 GB Xcode DerivedData folder, and
+deleting a worktree orphans its DerivedData. `Scripts/cleanup-worktrees.sh` reclaims both: it removes a
+worktree only when its branch is merged into the default branch **and** its tree is clean (never the main
+checkout, the current worktree, or unmerged/dirty work — `git worktree lock` one to shield it), then
+deletes DerivedData folders whose source project no longer exists (including the worktrees it just
+removed). **Defaults to `--dry-run`** (prints what it would remove + reclaimed sizes,
+deletes nothing); pass `--apply` to delete. A launchd LaunchAgent
+(`Scripts/com.bruno.cleanup-worktrees.plist`) runs it daily — install steps are in that plist's header.
+
 ## 1. Think before coding
 State assumptions; if uncertain, ask. Multiple interpretations → present them, don't pick silently.
 Simpler approach exists → say so, push back when warranted. Unclear → stop, name it, ask.
