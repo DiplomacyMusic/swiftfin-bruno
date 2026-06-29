@@ -29,14 +29,10 @@ struct BrunoEbertContentView: View {
 
     let item: BaseItemDto
 
-    private static let tagPrefix = "ebert-stars:"
-
     // Ebert's scale is 0–4 in half steps. Render four fixed slots so every rated film shows a uniform-width
     // row (full ★ / half ½ / empty ☆), which reads as a rating and stays distinct from a blank (un-rated) line.
     private var starsString: String {
-        guard let tag = item.tags?.first(where: { $0.hasPrefix(Self.tagPrefix) }),
-              let raw = Double(tag.dropFirst(Self.tagPrefix.count)), raw >= 0
-        else { return "" }
+        guard let raw = BrunoEbert.stars(on: item) else { return "" }
 
         let halfSteps = Int((min(raw, 4) * 2).rounded()) // 0...8
         let full = halfSteps / 2

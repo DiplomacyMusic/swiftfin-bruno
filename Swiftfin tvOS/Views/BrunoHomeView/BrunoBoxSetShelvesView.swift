@@ -499,8 +499,17 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                 guard let subID = sub.id else { slots[slotIndex] = .empty
                     return
                 }
-                let fetch = childFetch
                 let oscarCategory = BrunoOscarCategory(boxSetName: sub.displayTitle)
+                // Ebert shelves: order by star rating (Thumbs Up highest-first, Thumbs Down lowest-first);
+                // nil for non-Ebert. The server has no ebert-stars sort, so the preview's top cap is only
+                // correct if we fetch the FULL membership and sort client-side — hence the deep fetch below
+                // (1000 > the largest Ebert BoxSet, Thumbs Up ~559, so it lands in one page).
+                let ebertAscending: Bool? = {
+                    let name = sub.displayTitle.lowercased()
+                    guard name.hasPrefix("ebert") else { return nil }
+                    return name.contains("down")
+                }()
+                let fetch = ebertAscending == nil ? childFetch : 1000
                 group.addTask {
                     let children = await Self.fetchChildren(
                         client: client,
@@ -514,6 +523,10 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                         // reverse-chronologically and matches the "Winner/Nominee (Year)" caption. More
                         // deterministic than the shuffle it replaces — INV-3 safe.
                         BrunoOscar.reverseChronological(children, category: oscarCategory)
+                    } else if let ebertAscending {
+                        // Ebert shelves: order by star rating so the preview's top cap shows the
+                        // highest/lowest-rated films (untagged sink to the bottom). INV-3 safe (deterministic).
+                        BrunoEbert.ordered(children, ascending: ebertAscending)
                     } else {
                         // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
                         // server index → identical ordering to the prior implementation.
