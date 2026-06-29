@@ -794,7 +794,8 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         // .genres feeds the hero child-safety filter (brunoHeroEligible) on this drill-in's
         // "Featured Film"; MinimumFields omits genres, which would make the filter a no-op. .tags
         // carries `oscar:<cat>:<won|nom>:<year>` for the Oscar shelf caption + reverse-chron order
-        // (BrunoOscarContentView / BrunoOscar) — a tiny field, ignored everywhere it isn't read.
+        // (BrunoOscarContentView / BrunoOscar) and `ebert-stars:<n>` for the Ebert shelf caption
+        // (BrunoEbertContentView) — a tiny field, ignored everywhere it isn't read.
         parameters.fields = .MinimumFields + [.genres, .tags]
         parameters.enableUserData = true
         parameters.limit = limit

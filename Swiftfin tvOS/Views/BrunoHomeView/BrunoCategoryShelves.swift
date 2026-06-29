@@ -469,6 +469,8 @@ struct BrunoCategoryShelves: View {
                 showsEpisode: showsEpisode,
                 // Per-category (the six "Oscar — *" shelves): "Winner (Year)" / "Nominee (Year)" caption.
                 oscarCategory: BrunoOscarCategory(boxSetName: category.name),
+                // Per-category (the "Ebert *" curated shelves): "★★★½" star-rating caption.
+                showsEbertStars: category.name.lowercased().hasPrefix("ebert"),
                 labelArt: Self.labelArtStyle(for: category.name)
             )
         }

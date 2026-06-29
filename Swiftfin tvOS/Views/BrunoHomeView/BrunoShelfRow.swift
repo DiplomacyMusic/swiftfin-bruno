@@ -42,6 +42,11 @@ struct BrunoShelfRow: View {
     /// shared label. A per-shelf constant (the shelf's category), not per-scroll state. Takes precedence
     /// over showsEpisode/showsDate; artCarousel / labelArt untouched. INV-1: geometry-faithful clone.
     var oscarCategory: BrunoOscarCategory?
+    /// Ebert shelves only: render each poster's star rating ("★★★½", from the `ebert-stars:<n>` tag) on
+    /// line 2 via BrunoEbertContentView. Default false ⇒ the shared label. A surface-wide flag like
+    /// showsEpisode (the whole shelf is one Ebert collection). artCarousel / labelArt branches untouched.
+    /// INV-1: geometry-faithful clone.
+    var showsEbertStars: Bool = false
     /// Genres / Decades: render each item as a `BrunoLabelArtCard` — the category-tile treatment
     /// (title over the art, film art cycling on focus) — instead of a poster with a title below.
     /// nil ⇒ the standard PosterButton cell. Mutually exclusive with `artCarousel`.
@@ -96,6 +101,8 @@ struct BrunoShelfRow: View {
                     } label: {
                         if let oscarCategory {
                             BrunoOscarContentView(item: item, category: oscarCategory)
+                        } else if showsEbertStars {
+                            BrunoEbertContentView(item: item)
                         } else if showsEpisode {
                             BrunoRewatchablesContentView(item: item)
                         } else if showsDate {
