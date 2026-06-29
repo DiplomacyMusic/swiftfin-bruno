@@ -22,8 +22,15 @@ import SwiftUI
 // TODO: make Image and Placeholder generic constraints rather than any View
 struct ImageView<Failure: View>: View {
 
+    // Plain stored input (NOT @State): a stored property reflects the latest view value when the
+    // forked CollectionHStack swaps `rootView` on a recycled cell, so the displayed art tracks the
+    // CURRENT item. As @State, `sources` froze at the first item's value across reuse → right label,
+    // wrong art (the exact trap BrunoFocusArtCycle works around per-frame with `.id`). The only thing
+    // that must persist is the load-failure failover, kept in a URL-keyed set so a recycled cell never
+    // inherits another item's failures.
+    private let sources: [ImageSource]
     @State
-    private var sources: [ImageSource]
+    private var failedURLs: Set<URL> = []
 
     private var image: (Image) -> any View
     private var pipeline: ImagePipeline
@@ -40,8 +47,17 @@ struct ImageView<Failure: View>: View {
         }
     }
 
+    /// First source whose URL hasn't failed to load. Recomputed from `sources` on every render, so a
+    /// reused cell renders the CURRENT item's art rather than the stale first-bound one.
+    private var currentSource: ImageSource? {
+        sources.first { source in
+            guard let url = source.url else { return false }
+            return !failedURLs.contains(url)
+        }
+    }
+
     var body: some View {
-        if let currentSource = sources.first {
+        if let currentSource {
             LazyImage(url: currentSource.url, transaction: .init(animation: .linear)) { state in
                 if state.isLoading {
                     _placeholder(currentSource)
@@ -55,7 +71,7 @@ struct ImageView<Failure: View>: View {
                 } else if state.error != nil {
                     failure
                         .onAppear {
-                            sources.removeFirstSafe()
+                            if let url = currentSource.url { failedURLs.insert(url) }
                         }
                 }
             }
