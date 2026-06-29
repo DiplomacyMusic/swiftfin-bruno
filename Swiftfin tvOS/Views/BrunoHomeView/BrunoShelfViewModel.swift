@@ -39,6 +39,13 @@ final class BrunoShelfViewModel: ObservableObject, Identifiable {
         shelf.posterType
     }
 
+    /// The per-poster caption (star rating / Oscar standing), from the shelf's query. `.none` for
+    /// non-query sources — drives BrunoShelfView's portrait label switch.
+    var caption: BrunoShelfCaption {
+        if case let .query(query) = shelf.source { return query.caption }
+        return .none
+    }
+
     @Published
     private(set) var items: IdentifiedArrayOf<BaseItemDto> = []
 

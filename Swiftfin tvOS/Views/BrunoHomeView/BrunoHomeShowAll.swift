@@ -82,9 +82,40 @@ func brunoHomeRouteToShowAll(
     // a collections shelf's source is `.items`, not `.query`).
 
     default:
+        guard case let .query(query) = shelf.source else { return }
+        // Captioned curated shelves reach the SAME destination as their browse twins, so the caption
+        // (and the Ebert toggle / Oscar reverse-chron) carries through instead of a plain paged grid.
+        switch query.caption {
+        case .ebertStars:
+            let ebert = snapshot.curatedBoxSets.filter { ($0.name ?? "").lowercased().hasPrefix("ebert") }
+            if let up = ebert.first(where: { !($0.name ?? "").lowercased().contains("down") }),
+               let down = ebert.first(where: { ($0.name ?? "").lowercased().contains("down") })
+            {
+                // This shelf is the Down shelf iff its parent BoxSet is the Down BoxSet.
+                router.route(to: .brunoEbert(up: up, down: down, showingDown: down.id == query.parentID))
+                return
+            }
+        case let .oscar(category):
+            if let parentID = query.parentID,
+               let boxSet = snapshot.curatedBoxSets.first(where: { $0.id == parentID })
+            {
+                router.route(
+                    to: .brunoBoxSetGrid(
+                        title: BrunoCuratedCard.display(boxSet.name ?? shelf.title),
+                        items: [],
+                        posterType: .portrait,
+                        oscarCategory: category,
+                        oscarParent: boxSet
+                    ),
+                    in: namespace
+                )
+                return
+            }
+        case .none:
+            break
+        }
         // Every remaining shelf is query-backed: open the full, paged version of its own query — the
         // same films the shelf previews, just the complete grid.
-        guard case let .query(query) = shelf.source else { return }
         router.route(
             to: .library(library: BrunoQueryLibrary(query: query, displayTitle: shelf.title, id: shelf.id)),
             in: namespace

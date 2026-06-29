@@ -107,7 +107,16 @@ struct BrunoShelfView: View {
                         .frame(height: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                         .brunoPerfHeightWatch(site: "shelf:carousel", expected: BrunoShelfMetrics.shelfRowHeight(for: viewModel.posterType))
                 } else if viewModel.posterType == .portrait {
-                    posterRow(site: "shelf:portrait") { BrunoPosterTitleContentView(item: $0) }
+                    switch viewModel.caption {
+                    case .ebertStars:
+                        // Curated Ebert Home shelf: the ★★★½ star caption (same view the browse shelf uses).
+                        posterRow(site: "shelf:ebert") { BrunoEbertContentView(item: $0) }
+                    case let .oscar(category):
+                        // Curated Oscar Home shelf: the "Winner (Year)" / "Nominee (Year)" caption.
+                        posterRow(site: "shelf:oscar") { BrunoOscarContentView(item: $0, category: category) }
+                    case .none:
+                        posterRow(site: "shelf:portrait") { BrunoPosterTitleContentView(item: $0) }
+                    }
                 } else {
                     posterRow(site: "shelf:landscape") { PosterButton<BaseItemDto>.TitleSubtitleContentView(item: $0) }
                 }

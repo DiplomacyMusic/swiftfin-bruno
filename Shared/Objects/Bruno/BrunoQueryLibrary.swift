@@ -51,7 +51,10 @@ struct BrunoQueryLibrary: BaseItemKindLibrary {
         parameters.userID = pageState.userSession.user.id
         parameters.enableUserData = true
         parameters.isRecursive = true
-        parameters.fields = query.richFields ? [.overview, .genres, .people, .mediaSources] : Self.brunoPosterFields
+        var fields = query.richFields ? [.overview, .genres, .people, .mediaSources] : Self.brunoPosterFields
+        // Captioned shelves (Ebert stars / Oscar standing) read per-item tags; everyone else stays lean.
+        if query.caption.needsTags { fields.append(.tags) }
+        parameters.fields = fields
         parameters.limit = query.limit
         parameters.startIndex = pageState.pageOffset
 
