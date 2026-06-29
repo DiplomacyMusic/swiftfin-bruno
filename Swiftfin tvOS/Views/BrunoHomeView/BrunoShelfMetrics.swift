@@ -32,6 +32,14 @@ enum BrunoShelfMetrics {
     // LANDSCAPE (4 columns): card ~440w / 1.77 = ~249h + ~58 two-line label + 40 vertical insets ≈ 347.
     static let landscapeShelfRowHeight: CGFloat = 348
 
+    // INV-1 (collections row): the "Browse the Collection" category cards (BrunoCategoryTile) are
+    // portrait tiles with the label drawn ON the card, so the row has NO under-card label — it's the
+    // portrait card height + vertical insets WITHOUT the ~58pt two-line-label reserve the poster rows
+    // carry. PORTRAIT (7 columns): card ~362h + 40 vertical insets ≈ 402. Pins BrunoCategoryCardRow in
+    // the Home spine so the LazyVStack never re-reads CollectionHStack's intrinsic size (same contract
+    // as shelfRowHeight). Break symptom: the collections row hard-snaps / shifts on up-navigation.
+    static let categoryRowHeight: CGFloat = 402
+
     /// The pinned row height for a shelf of the given poster type.
     static func shelfRowHeight(for type: PosterDisplayType) -> CGFloat {
         type == .landscape ? landscapeShelfRowHeight : shelfRowHeight

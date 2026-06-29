@@ -26,7 +26,8 @@ import SwiftUI
 //   • D2: year and single-decade shelves, and the Eras decade tiles, deep-link into the Decades
 //     surface with that decade's PILL pre-selected (no new data); the Eras shelf itself opens the
 //     Decades overview.
-//   • the `.items` group shelves (Eras / Auteurs / Collections) → a box-set grid of their children.
+//   • the `.items` group shelves (Eras / Auteurs) → a box-set grid of their children. (The Collections
+//     shelf is the exception: it renders the branded category row with per-tile drill-in, no show-all.)
 //
 // This funnels Home into the same destination kinds the browse `brunoRouteToShowAll` produces, so
 // the two surfaces reach the same rooms.
@@ -75,11 +76,10 @@ func brunoHomeRouteToShowAll(
             in: namespace
         )
 
-    case .collections:
-        router.route(
-            to: .brunoBoxSetGrid(title: "Collections", items: snapshot.favoriteGroupBoxSets, posterType: .portrait),
-            in: namespace
-        )
+    // NB: `.collections` has no case here — the Home "Browse the Collection" shelf renders the branded
+    // BrunoCategoryCardRow (per-tile drill-in via brunoRouteToShowAll), with no trailing "Show all"
+    // card, so this router is never reached for it (it would otherwise no-op in `default` anyway, since
+    // a collections shelf's source is `.items`, not `.query`).
 
     default:
         // Every remaining shelf is query-backed: open the full, paged version of its own query — the
