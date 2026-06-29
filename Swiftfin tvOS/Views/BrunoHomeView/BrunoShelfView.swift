@@ -26,6 +26,11 @@ struct BrunoShelfView: View {
     /// empty for previews / non-Home callers — their "Show all" simply no-ops.
     var snapshot: BrunoLibrarySnapshot = .empty
 
+    /// The collection group tiles for the "Browse the Collection" shelf (kind == .collections). Passed
+    /// from BrunoHomeView so the Home spine shelf renders the SAME branded BrunoCategoryCardRow as the
+    /// Collections tab. Empty for every other shelf / non-Home caller (unused there).
+    var collectionCategories: [BrunoCollectionCategory] = []
+
     @Router
     private var router
 
@@ -43,8 +48,17 @@ struct BrunoShelfView: View {
     @State
     private var prefetcher = BrunoPosterPrefetcher()
 
+    /// Whether this shelf has anything to draw. The collections shelf renders `collectionCategories`
+    /// (a derived set: fromSnapshot drops empty-children groups and only adds Boxed Sets when present),
+    /// NOT the seeded `items`, so it must gate on that SAME quantity the Collections tab does — else an
+    /// all-empty-children snapshot would paint the header over a blank row. Every other shelf gates on
+    /// its seeded items, unchanged.
+    private var shelfHasContent: Bool {
+        viewModel.shelf.kind == .collections ? !collectionCategories.isEmpty : viewModel.items.isNotEmpty
+    }
+
     var body: some View {
-        if viewModel.items.isNotEmpty {
+        if shelfHasContent {
             VStack(alignment: .leading, spacing: 2) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(viewModel.lens.uppercased())
@@ -77,7 +91,14 @@ struct BrunoShelfView: View {
                 // recentlyAdded branch keeps its release-date poster label; portrait uses the Bruno
                 // two-line title; landscape uses the shared default — all with identical reserved
                 // label height, so INV-1's pinned row geometry is unchanged.
-                if viewModel.shelf.kind == .recentlyAdded {
+                if viewModel.shelf.kind == .collections {
+                    // "Browse the Collection": render the SAME branded category row the Collections tab
+                    // uses (BrunoCategoryTile + brunoRouteToShowAll) — dimmed-photo tiles, curated drill-in
+                    // destinations — NOT the server-poster carousel that routed to stock .item detail.
+                    // Checked BEFORE the .boxSet branch so the other group shelves (Studios / Directors /
+                    // Eras / …) keep the carousel path.
+                    categoryRow
+                } else if viewModel.shelf.kind == .recentlyAdded {
                     posterRow(site: "shelf:recentlyAdded") { BrunoTitleDateContentView(item: $0) }
                 } else if viewModel.items.first?.type == .boxSet {
                     // Collection shelves (Studios / Directors / Eras / Boxed Sets, …): focus-cycling
@@ -92,18 +113,18 @@ struct BrunoShelfView: View {
                 }
             }
             .onAppear {
-                prefetcher.warm(viewModel.items.elements, type: viewModel.posterType)
+                prefetcher.warm(warmItems, type: viewModel.posterType)
             }
             .onDisappear {
-                prefetcher.stop(viewModel.items.elements, type: viewModel.posterType)
+                prefetcher.stop(warmItems, type: viewModel.posterType)
             }
             .onChange(of: isActiveTab) { _, active in
                 // Tab hidden → cancel prefetch (no onDisappear fires for an opacity-hidden tab); tab
                 // shown again → re-warm the still-mounted row.
                 if active {
-                    prefetcher.warm(viewModel.items.elements, type: viewModel.posterType)
+                    prefetcher.warm(warmItems, type: viewModel.posterType)
                 } else {
-                    prefetcher.stop(viewModel.items.elements, type: viewModel.posterType)
+                    prefetcher.stop(warmItems, type: viewModel.posterType)
                 }
             }
             // Debug HUD instrumentation (inert unless a debug overlay is on): count shelf redraws
@@ -112,6 +133,24 @@ struct BrunoShelfView: View {
             .brunoDebugRedraw("shelf:\(viewModel.title)")
             .brunoDebugLayout("shelf:\(viewModel.title)")
         }
+    }
+
+    // MARK: - Collections row
+
+    /// Posters this shelf actually displays and should warm (INV-4). The collections row renders
+    /// branded category tiles (which self-load their art on focus), not the group posters, so it warms
+    /// nothing — `prefetcher.warm([])` is a no-op.
+    private var warmItems: [BaseItemDto] {
+        viewModel.shelf.kind == .collections ? [] : viewModel.items.elements
+    }
+
+    /// "Browse the Collection": the shared branded category cards (BrunoCategoryTile + the
+    /// brunoRouteToShowAll seam), identical to the Collections tab — same art, same destinations.
+    /// Pinned to the category-row height so the spine LazyVStack never re-reads intrinsic size (INV-1).
+    private var categoryRow: some View {
+        BrunoCategoryCardRow(categories: collectionCategories)
+            .frame(height: BrunoShelfMetrics.categoryRowHeight)
+            .brunoPerfHeightWatch(site: "shelf:collections", expected: BrunoShelfMetrics.categoryRowHeight)
     }
 
     // MARK: - Show all (D1) + tap routing

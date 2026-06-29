@@ -138,16 +138,18 @@ extension BrunoCollectionCategory {
         }
     }
 
-    /// The favorited "group" tiles (Directors, Decades, …) built purely from a loaded snapshot — NO
-    /// network — in the fixed order, dropping empties. Excludes the synthetic "Boxed Sets" category
-    /// (that needs its own box-set fetch). Reused by the Collections hub and the Home feed's footer.
+    /// The favorited "group" tiles (Directors, Decades, …) built from a loaded snapshot — PLUS the
+    /// synthetic "Boxed Sets" tile when the snapshot carries `franchiseBoxSets` (fetched once in
+    /// `BrunoLibrarySnapshot.load`) — in the fixed rank order, dropping empties. Reused by the
+    /// Collections hub, the Home feed's terminal footer, AND the Home "Browse the Collection" spine
+    /// shelf, so all three surface the identical set. Pure over the snapshot (no network here).
     static func fromSnapshot(_ snapshot: BrunoLibrarySnapshot) -> [BrunoCollectionCategory] {
-        snapshot.favoriteGroupBoxSets
+        var built = snapshot.favoriteGroupBoxSets
             .compactMap { boxSet -> BrunoCollectionCategory? in
                 guard let name = boxSet.name else { return nil }
-                // Genres is now the Movies tab (the genre-browse surface), so drop its card from both
-                // the Collections hub and the Home feed footer (this is the shared builder for both).
-                // The Movies tab resolves the Genres BoxSet straight from the snapshot, so it's unaffected.
+                // Genres is now the Movies tab (the genre-browse surface), so drop its card from every
+                // group-tile surface (this is the shared builder for all of them). The Movies tab
+                // resolves the Genres BoxSet straight from the snapshot, so it's unaffected.
                 guard name.lowercased() != "genres" else { return nil }
                 let children = snapshot.childrenByGroupName[name] ?? []
                 guard children.isNotEmpty else { return nil }
@@ -159,6 +161,21 @@ extension BrunoCollectionCategory {
                     showsDate: name.lowercased() == "new releases"
                 )
             }
+
+        // Boxed Sets: the standalone franchises computed in the snapshot. Same shape the Collections
+        // hub used to build inline; the `rank` map below has a "boxed sets" slot, so it sorts into place.
+        if let franchises = snapshot.franchiseBoxSets, franchises.isNotEmpty {
+            built.append(
+                BrunoCollectionCategory(
+                    boxSet: BaseItemDto(name: "Boxed Sets"),
+                    children: franchises,
+                    drillStyle: .items,
+                    lens: "Franchises"
+                )
+            )
+        }
+
+        return built
             .enumerated()
             .sorted { lhs, rhs in
                 let l = rank(for: lhs.element.name), r = rank(for: rhs.element.name)

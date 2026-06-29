@@ -52,8 +52,10 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
     @Published
     private(set) var scrollResetToken = 0
 
-    /// The collection group tiles for the Home feed's terminal footer — the same group set as the
-    /// Collections tab (minus the network-only "Boxed Sets"), pure over the already-loaded snapshot.
+    /// The collection group tiles — the full Collections-tab set (the favorited groups plus the
+    /// synthetic "Boxed Sets", which `fromSnapshot` now resolves from the snapshot's cached
+    /// `franchiseBoxSets`), pure over the already-loaded snapshot. Feeds BOTH the Home "Browse the
+    /// Collection" spine shelf and the terminal footer, so both match the Collections tab 1:1.
     var collectionCategories: [BrunoCollectionCategory] {
         BrunoCollectionCategory.fromSnapshot(snapshot)
     }
@@ -177,7 +179,13 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
             userID: userSession.user.id,
             seed: seed,
             maxAge: 60 * 60 * 24
-        ), !Task.isCancelled, generation == refreshGeneration else { return false }
+        ),
+            // A payload written before `franchiseBoxSets` existed decodes the field to nil. Treat it as
+            // a hydrate MISS (mirroring the Cache.value guard) so the first post-update launch streams a
+            // fresh load WITH the Boxed Sets tile, instead of painting the collections shelf without it
+            // for the beat until revalidate lands. One-launch cost; later launches hydrate normally.
+            payload.snapshot.franchiseBoxSets != nil,
+            !Task.isCancelled, generation == refreshGeneration else { return false }
 
         snapshot = payload.snapshot
         // Let Collections / drill-ins reuse this snapshot in-session too.
