@@ -337,7 +337,11 @@ enum BrunoHomePlan {
         case "curated", "world":
             // Strip the structured "Oscar — X" em-dash for display ("Oscar Cinematography"); a no-op
             // for every other curated name. (BrunoCuratedCard.display is the tvOS-side twin of this.)
-            return boxSetShelf(snapshot.curatedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed) { name in
+            // An Ebert/Oscar pick also carries its star / Winner caption (and renders portrait).
+            return boxSetShelf(
+                snapshot.curatedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed,
+                caption: { BrunoShelfCaption(curatedName: $0) }
+            ) { name in
                 name.replacingOccurrences(of: " — ", with: " ")
             }
 
@@ -460,17 +464,24 @@ enum BrunoHomePlan {
         lens: String,
         kind: BrunoShelf.Kind,
         seed: UInt32,
+        caption: (String) -> BrunoShelfCaption = { _ in .none },
         title: (String) -> String
     ) -> BrunoShelf? {
         guard let pick = seededPick(boxSets, seed: seed, salt: 3),
               let id = pick.id, let name = pick.name else { return nil }
+        let cap = caption(name)
+        var query = parentQuery(parentID: id, seed: seed, salt: 3)
+        query.caption = cap
         return .init(
             id: "\(idPrefix)-\(id)",
             lens: lens,
             title: title(name),
+            // Captioned shelves show movie POSTERS with the star / Winner line (portrait), like the
+            // browse Ebert/Oscar shelves; every other boxSetShelf keeps the landscape default.
+            posterType: cap == .none ? .landscape : .portrait,
             kind: kind,
             dedupeKey: "parent:\(id)",
-            source: .query(parentQuery(parentID: id, seed: seed, salt: 3))
+            source: .query(query)
         )
     }
 
