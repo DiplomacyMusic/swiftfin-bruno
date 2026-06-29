@@ -183,7 +183,7 @@ ranks in during the Halloween→Christmas window. Each header's "Show all" → `
 | Decades | Through the Years | Decades group boxSet children; newest-first | 14 preview | `brunoCategoryShelves(parent: Decades)` → drill-in (§3a) | shelf |
 | Curated | Hand-Picked | Curated group boxSet children | 14 preview | `brunoCategoryShelves(parent: Curated)` → drill-in (§3b) | shelf |
 | Rewatchables | Always Worth Rewatching | Favorited "Rewatchables" group (#40); flat — members are **movies**, not boxSets (like New Releases); present only if the server has the group (rank 7) | 14 preview | `brunoRewatchables(parent)` → `BrunoRewatchablesView` — broad-genre shelves with "Episode NN" captions (§3c) | shelf |
-| Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid | shelf |
+| Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid (curated **"Household Names"** top section + full A–Z grid) | shelf |
 | Seasonal | In Season | Seasonal group boxSet children (only Oct–Dec) | 14 preview | per `drillStyle(for:)` default `.grid` | shelf |
 
 `drillStyle(for:)` (`BrunoCategoryShelves.swift:115`): Genres→`.genres`, Decades→`.shelves`,
@@ -284,7 +284,7 @@ Series"`. No shelves.
 |---|---|---|
 | `brunoMoviesGrid` / `brunoTVGrid` → `BrunoMediaView` | A–Z full library by type (**Movies 1270 · TV 44** live, §0) | pushed COVER (own `BrunoCoverMenuBarRow`); lazy load on first appear |
 | `brunoBoxSetGrid` → `BrunoBoxSetGridView` | static `items:` array passed by `brunoRouteToShowAll` | portrait/landscape, optional artCarousel/showsDate/collectionLabel; NOT paged |
-| `brunoStudiosGrid` → `BrunoStudiosGridView` | static studio boxSets | cinematic 4-col landscape grid |
+| `brunoStudiosGrid` → `BrunoStudiosGridView` | static studio boxSets | cinematic 4-col landscape grid: a daily-seeded **"Household Names"** top section (≤20 curated recognizable studios present, stable membership, order rotates per day via `BrunoRNG`) above the full A–Z grid (top names NOT excluded) |
 | `.library(ItemLibrary(parent:filters:))` | live paged Jellyfin query scoped to a boxSet, carrying `ItemFilterCollection` | the only path that carries a real server filter (years / sort) |
 
 ---

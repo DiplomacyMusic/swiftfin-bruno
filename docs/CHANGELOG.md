@@ -4,6 +4,11 @@
 > `PROJECT_TRACKER.md` holds only **current / next** work; everything shipped is recorded here so the
 > tracker can stay small. For full detail use `git log` or the merged PR list.
 
+## 2026-06-29
+
+- **Studios: daily-rotated "Household Names" top grid** (PR #59). The Studios "Show all" (`BrunoStudiosGridView`) now leads with a curated top section — up to 20 of the most recognizable studios present in the library (editorial list; `revenue`/`awards` aren't on `BaseItemDto` app-side, so the list IS the ranking), stable membership with the order reshuffled per day via the existing `BrunoRNG` day-stamp seed — above the unchanged full A–Z grid (top names **not** excluded). Pure render/selection change; no fetch/VM/routing change.
+- **Studio logos: backdrop-card fallback instead of white slabs** (`MovieCollection/Apply-Studio-Logos.command`, applied to live server). Solid-background TMDB "logos" (alpha fill ~100%, e.g. Bedford Falls #348, Di Novi #813) were whitened into featureless white blocks; now rejected (`opaque_fill > 0.93`) in favour of a dimmed member-backdrop card. Same fallback gives every studio real art (live apply: 113 studios → 96 logo · 17 backdrop-card · 0 skipped).
+
 ## 2026-06-28
 
 - **Oscars: reverse-chron order + *Winner/Nominee (Year)* caption** (branch `claude/modest-goodall-5fe0fc`). The six Oscar shelves in the Curated → "Oscars" drill-in (and their "Show all" grids) now order films **newest-first by award year** and render a per-poster second line — *Winner (Year)* (italic/accent) / Nominee (Year) — for that shelf's category. Fed by a new producer pass `enrich/p9_oscars.py` (owner-run LIVE, mirrors p7) stamping `oscar:<CATEGORY>:<won|nom>:<YEAR>` per film (414 films). App: new `BrunoOscarAward`/`BrunoOscar` + `BrunoOscarContentView` (INV-1 geometry clone); the drill-in replaces the day-shuffle with a deterministic reverse-chron sort for Oscar sub-groups (`BrunoBoxSetShelvesView.performLoad`, `.tags` added to `fetchChildren`); "Show all" redirects off stock `ItemLibrary` to `brunoBoxSetGrid` (full set paged + captioned). Degrades gracefully pre-stamp.

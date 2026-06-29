@@ -16,7 +16,7 @@
 >
 > Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-_Last synced: 2026-06-28._
+_Last synced: 2026-06-29._
 
 ## Current state
 
