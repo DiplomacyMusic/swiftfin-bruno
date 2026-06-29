@@ -25,13 +25,20 @@ enum BrunoCollectionArtwork {
     /// Non-seasonal category (lowercased name) → its bundled art assets, in catalog-name form.
     private static let byCategory: [String: [String]] = [
         "new releases": ["NewReleases01", "NewReleases02", "NewReleases03"],
-        "directors": ["Directors01", "Directors02", "Directors03", "Directors04"],
+        // Locked to the Francis Ford Coppola photo (Directors04) — a single-element list makes
+        // `dailyAsset` always resolve to it, so the resting tile no longer rotates. The generic
+        // crane-camera (Directors02) and director's-chair shots (Directors01 Hitchcock, Directors03
+        // empty chair) are intentionally dropped from the tile; the imagesets stay in the catalog.
+        "directors": ["Directors04"],
         "boxed sets": ["BoxedSets01", "BoxedSets02"],
         "movie stars": ["MovieStars01"],
         "curated": ["Curated01", "Curated02"],
         "decades": ["Decades01", "Decades02", "Decades03"],
         "genres": ["Genre01", "Genre02"],
         "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
+        // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
+        // lockup, with no text overlay, so the tile matches the dimmed-image siblings.
+        "rewatchables": ["RewatchablesCard"],
     ]
 
     static func isSeasonal(_ name: String) -> Bool {
