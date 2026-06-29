@@ -260,6 +260,18 @@ safe_rm_dd() {
   rm -rf -- "$dir"
 }
 
+# In a dry run the step-1 worktrees still exist, so their DerivedData isn't
+# orphaned *yet*. Predict the cascade: a WorkspacePath under a worktree we
+# would remove in step 1 will be orphaned by the time step 2 runs for real.
+under_eligible() {
+  local wp="$1" e
+  [ "${#ELIGIBLE_PATHS[@]}" -gt 0 ] || return 1
+  for e in "${ELIGIBLE_PATHS[@]}"; do
+    case "$wp" in "$e"/*) return 0 ;; esac
+  done
+  return 1
+}
+
 dd_total_kb=0
 orphans=0
 if [ ! -d "$DD" ]; then
@@ -273,21 +285,27 @@ else
     if [ ! -f "$plist" ]; then printf '  keep   %-44s — no info.plist (cannot verify)\n' "$bn"; continue; fi
     wp="$("$PLISTBUDDY" -c "Print :WorkspacePath" "$plist" 2>/dev/null || true)"
     if [ -z "$wp" ]; then printf '  keep   %-44s — no WorkspacePath key (cannot verify)\n' "$bn"; continue; fi
-    if [ -e "$wp" ]; then
+    reason=""
+    if [ ! -e "$wp" ]; then
+      reason="source missing: $wp"
+    elif under_eligible "$wp"; then
+      reason="orphaned by worktree removal in step 1: $wp"
+    fi
+    if [ -z "$reason" ]; then
       printf '  keep   %-44s — source exists\n' "$bn"
       continue
     fi
-    # orphan
+    # orphan (or will be, once step 1's removals land)
     orphans=$(( orphans + 1 ))
     kb="$(dir_kb "$dir")"
     dd_total_kb=$(( dd_total_kb + kb ))
     if [ "$APPLY" -eq 1 ]; then
       printf '  DELETE %-44s (%s)\n' "$bn" "$(kb_to_h "$kb")"
-      echo   "         orphan of: $wp"
+      echo   "         $reason"
       if safe_rm_dd "$dir"; then echo "         removed."; fi
     else
       printf '  WOULD DELETE %-44s (%s)\n' "$bn" "$(kb_to_h "$kb")"
-      echo   "         orphan of (missing): $wp"
+      echo   "         $reason"
     fi
   done
 fi
