@@ -112,6 +112,10 @@ struct BrunoShelfView: View {
                     posterRow(site: "shelf:landscape") { PosterButton<BaseItemDto>.TitleSubtitleContentView(item: $0) }
                 }
             }
+            // Per-type inter-shelf gap: the spine LazyVStack bases every gap at 20 (landscape);
+            // portrait shelves add 4 below so they read 24. Outer-VStack inset only — the pinned
+            // poster-row frame (INV-1) is untouched.
+            .padding(.bottom, viewModel.posterType == .portrait ? 4 : 0)
             .onAppear {
                 prefetcher.warm(warmItems, type: viewModel.posterType)
             }
