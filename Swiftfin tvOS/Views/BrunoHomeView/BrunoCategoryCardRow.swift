@@ -107,6 +107,15 @@ func brunoRouteToShowAll(
             return
         }
 
+        // Ebert "Show all": route to the score-ordered, star-captioned Bruno grid (Thumbs Up
+        // highest-first, Thumbs Down lowest-first — derived from the BoxSet name). Like the Oscar
+        // redirect, the stock ItemLibrary below can't render the star line or rank by the ebert-stars
+        // tag, so we own the grid (BrunoEbertView clones BrunoRewatchablesView).
+        if category.name.lowercased().hasPrefix("ebert") {
+            router.route(to: .brunoEbert(parent: category.boxSet))
+            return
+        }
+
         // Dated flat-movie group (New Releases): route to the Bruno-owned grid so posters carry the
         // full release date — the shared stock paged library can't, and editing it would leak dates
         // app-wide. Newest-first so it reads as "new releases". (No box-set children here.)
