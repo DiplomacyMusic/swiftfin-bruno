@@ -49,10 +49,36 @@ final class BrunoShelfViewModel: ObservableObject, Identifiable {
     @Published
     private(set) var items: IdentifiedArrayOf<BaseItemDto> = []
 
+    /// How many of `items` the row currently reveals. Starts at `initialRevealCount` to keep the cold
+    /// cell-realization burst small (INV-8's intent at the cell level) and grows by `revealGrowStep`
+    /// toward `maxRevealCount` as the row nears its trailing edge (see `revealMore`). View state, NOT
+    /// content — it lives on the VM (reused by id, INV-2) so the reveal survives SWR reconcile/remount,
+    /// and is never persisted (a fresh launch re-enters each row at the top).
+    @Published
+    private(set) var revealedCount: Int = BrunoShelfMetrics.initialRevealCount
+
+    /// The currently-revealed slice of `items` (the row renders THIS, not all of `items`). Pure getter —
+    /// no mutation — so reading it during `body` evaluation can't trip "Publishing changes from within
+    /// view updates". `prefix` tolerates over-count, so this is always in-bounds.
+    var revealedItems: [BaseItemDto] {
+        Array(items.elements.prefix(revealedCount))
+    }
+
     private var retainedChild: Any?
 
     init(shelf: BrunoShelf) {
         self.shelf = shelf
+    }
+
+    /// Grow the revealed window one step, capped by `maxRevealCount` and by how many items are in hand.
+    /// Called from the row's `.onReachedTrailingEdge` — which fires from `scrollViewDidScroll` (a UIKit
+    /// delegate callback on the main thread, OUTSIDE SwiftUI's update cycle), so mutating the `@Published`
+    /// count here is safe without a `Task`/dispatch hop. No-op once the window already shows everything
+    /// available or has hit the cap. Pure reveal of already-fetched items — no network fetch.
+    func revealMore() {
+        let cap = min(BrunoShelfMetrics.maxRevealCount, items.count)
+        guard revealedCount < cap else { return }
+        revealedCount = min(revealedCount + BrunoShelfMetrics.revealGrowStep, cap)
     }
 
     /// Set items directly, without a network fetch — used to hydrate from the disk cache on launch
