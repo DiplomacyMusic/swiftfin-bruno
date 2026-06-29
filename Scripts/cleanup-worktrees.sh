@@ -8,14 +8,20 @@
 #   STEP 1  Remove a worktree ONLY if its branch is fully merged into the
 #           default branch AND its working tree is clean. Never touches the
 #           main checkout, the current worktree, a locked/detached worktree,
-#           an unmerged branch, or a dirty tree. Then deletes the now-merged
-#           local branch (safe `git branch -d`, never `-D`).
-#   STEP 2  Delete an Xcode DerivedData folder ONLY if its recorded
-#           WorkspacePath no longer exists on disk (orphaned). Never deletes a
-#           build whose source .xcodeproj still exists.
+#           an unmerged branch, or a dirty tree. Then deletes the merged local
+#           branch with `git branch -d`; if that is refused only because local
+#           <default> lags the remote, it re-resolves the branch's CURRENT tip,
+#           re-proves it is contained in a default ref, and force-deletes (-D).
+#           To shield a merged+clean worktree you have open, `git worktree lock`
+#           it — locked worktrees are always skipped.
+#   STEP 2  Delete an Xcode DerivedData folder when its recorded WorkspacePath
+#           no longer exists on disk at delete time — i.e. a removed/orphaned
+#           worktree, including the ones removed in step 1 of this same run.
+#           Never deletes a build whose source .xcodeproj still exists.
 #
 # Step 1 runs before step 2 so a freshly-removed worktree's DerivedData is then
-# caught as an orphan in the same pass.
+# caught as an orphan in the same pass. (In --dry-run, step 2 predicts that
+# cascade; with --apply it follows from the real removals.)
 #
 # DEFAULT IS A DRY RUN: it prints exactly what it would remove (worktrees,
 # branches, DerivedData dirs) with reclaimed sizes, and deletes nothing.
@@ -33,7 +39,7 @@
 # failure mode) — remove those by hand.
 
 set -euo pipefail
-export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:${PATH:-}"
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:${PATH:-}"
 
 PLISTBUDDY="/usr/libexec/PlistBuddy"
 DD="$HOME/Library/Developer/Xcode/DerivedData"
@@ -48,7 +54,8 @@ for arg in "$@"; do
     --dry-run)  APPLY=0 ;;
     --no-fetch) FETCH=0 ;;
     -h|--help)
-      sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      # print the header comment block: from line 2 until the first non-# line
+      awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "${BASH_SOURCE[0]}"
       exit 0 ;;
     *)
       echo "Unknown argument: $arg (try --help)" >&2
@@ -66,8 +73,11 @@ kb_to_h() {
 }
 
 dir_kb() {
-  # disk usage in KB; 0 if the path is gone / unreadable
-  du -sk "$1" 2>/dev/null | awk 'NR==1{print $1}' || echo 0
+  # Disk usage in KB as exactly ONE numeric line. awk's END guarantees a single
+  # line even when du writes a partial size then exits non-zero (e.g. a broken
+  # Carthage symlink) or no output at all. `|| true` keeps that pipefail
+  # non-zero from tripping `set -e` on the command substitution that calls us.
+  du -sk "$1" 2>/dev/null | awk 'NR==1{print $1+0; seen=1} END{if(!seen)print 0}' || true
 }
 
 short_path() { echo "${1#"$MAIN_WT"/}"; }
@@ -139,7 +149,9 @@ echo "============================================================"
 
 if [ "$FETCH" -eq 1 ] && git -C "$MAIN_WT" remote get-url origin >/dev/null 2>&1; then
   echo "Fetching origin (for accurate merge detection)..."
-  git -C "$MAIN_WT" fetch --quiet --prune origin 2>/dev/null || echo "  (fetch failed — using last-known refs)"
+  git -C "$MAIN_WT" fetch --quiet --prune origin 2>/dev/null || \
+    echo "  !! WARNING: git fetch FAILED — every keep/remove decision below uses" \
+         $'\n     STALE refs. Safe direction only (may keep too much, never over-deletes).' >&2
 fi
 
 # ============================================================================
@@ -150,7 +162,6 @@ echo "── STEP 1: worktrees under .claude/worktrees/ ──"
 
 ELIGIBLE_PATHS=()
 ELIGIBLE_BRANCHES=()
-ELIGIBLE_HEADS=()
 
 skip_note() { printf '  keep   %-40s — %s\n' "$1" "$2"; }
 
@@ -175,7 +186,6 @@ handle_worktree() {
   if at_default_tip "$head"; then skip_note "$sp" "no unique commits (tip == $DEF)"; return 0; fi
   ELIGIBLE_PATHS+=("$path")
   ELIGIBLE_BRANCHES+=("$short")
-  ELIGIBLE_HEADS+=("$head")
 }
 
 # parse `git worktree list --porcelain` record-by-record
@@ -206,33 +216,34 @@ else
   while [ "$i" -lt "${#ELIGIBLE_PATHS[@]}" ]; do
     p="${ELIGIBLE_PATHS[$i]}"
     b="${ELIGIBLE_BRANCHES[$i]}"
-    h="${ELIGIBLE_HEADS[$i]}"
     kb="$(dir_kb "$p")"
-    wt_total_kb=$(( wt_total_kb + kb ))
     sp="$(short_path "$p")"
     if [ "$APPLY" -eq 1 ]; then
-      printf '  REMOVE %-40s  branch %-38s (%s)\n' "$sp" "$b" "$(kb_to_h "$kb")"
+      printf '  REMOVE       %-44s branch %-38s (%s)\n' "$sp" "$b" "$(kb_to_h "$kb")"
       if git -C "$MAIN_WT" worktree remove "$p" 2>/dev/null; then
         removed_any=1
+        wt_total_kb=$(( wt_total_kb + kb ))   # only count space we actually reclaimed
+        # `git branch -d` validates against local HEAD, which can lag
+        # origin/<default>. If it refuses, re-resolve the branch's CURRENT tip
+        # (NOT the listing-time snapshot) and re-prove containment before -D, so
+        # we never force-delete unmerged work that landed since the listing.
         if git -C "$MAIN_WT" branch -d "$b" 2>/dev/null; then
           echo "         deleted branch $b"
-        elif is_merged "$h"; then
-          # `git branch -d` validates against local HEAD, which may simply be
-          # behind origin/<default>. We have already proven $b is contained in
-          # a default ref (is_merged), so a force-delete loses no work.
+        elif live_tip="$(git -C "$MAIN_WT" rev-parse --verify --quiet "refs/heads/$b")" && is_merged "$live_tip"; then
           if git -C "$MAIN_WT" branch -D "$b" 2>/dev/null; then
-            echo "         deleted branch $b (verified merged into ${DEFAULT_REFS[*]})"
+            echo "         deleted branch $b (current tip verified merged into ${DEFAULT_REFS[*]})"
           else
             echo "         !! branch delete failed for $b (kept) — verify manually"
           fi
         else
-          echo "         !! branch not merged after all for $b (kept) — verify manually"
+          echo "         !! branch '$b' not merged at its current tip (kept) — verify manually"
         fi
       else
         echo "         !! worktree remove refused for $sp (kept) — verify manually"
       fi
     else
-      printf '  WOULD REMOVE %-40s  branch %-30s (%s)\n' "$sp" "$b" "$(kb_to_h "$kb")"
+      printf '  WOULD REMOVE %-44s branch %-38s (%s)\n' "$sp" "$b" "$(kb_to_h "$kb")"
+      wt_total_kb=$(( wt_total_kb + kb ))
     fi
     i=$(( i + 1 ))
   done
@@ -260,9 +271,11 @@ safe_rm_dd() {
   rm -rf -- "$dir"
 }
 
-# In a dry run the step-1 worktrees still exist, so their DerivedData isn't
-# orphaned *yet*. Predict the cascade: a WorkspacePath under a worktree we
-# would remove in step 1 will be orphaned by the time step 2 runs for real.
+# Dry-run ONLY: the step-1 worktrees still exist, so their DerivedData isn't
+# orphaned yet — predict that a WorkspacePath under a would-be-removed worktree
+# will be orphaned. In --apply we never consult this: a real removal makes the
+# WorkspacePath vanish (caught as "source missing"), and a *refused* removal
+# leaves it present, so its DerivedData is correctly kept.
 under_eligible() {
   local wp="$1" e
   [ "${#ELIGIBLE_PATHS[@]}" -gt 0 ] || return 1
@@ -288,8 +301,8 @@ else
     reason=""
     if [ ! -e "$wp" ]; then
       reason="source missing: $wp"
-    elif under_eligible "$wp"; then
-      reason="orphaned by worktree removal in step 1: $wp"
+    elif [ "$APPLY" -eq 0 ] && under_eligible "$wp"; then
+      reason="will be orphaned by worktree removal in step 1: $wp"
     fi
     if [ -z "$reason" ]; then
       printf '  keep   %-44s — source exists\n' "$bn"
