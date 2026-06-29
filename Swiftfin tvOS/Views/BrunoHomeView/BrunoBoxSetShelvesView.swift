@@ -500,11 +500,25 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                     return
                 }
                 let fetch = childFetch
+                let oscarCategory = BrunoOscarCategory(boxSetName: sub.displayTitle)
                 group.addTask {
-                    let children = await Self.fetchChildren(client: client, userID: userID, parentID: subID, limit: fetch)
-                    // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
-                    // server index → identical ordering to the prior implementation.
-                    let shown = BrunoRNG.shuffled(children, seed: shuffleSeed &+ UInt32(truncatingIfNeeded: serverIndex))
+                    let children = await Self.fetchChildren(
+                        client: client,
+                        userID: userID,
+                        parentID: subID,
+                        limit: fetch,
+                        sortNewestFirst: oscarCategory != nil
+                    )
+                    let shown: [BaseItemDto] = if let oscarCategory {
+                        // Oscar shelves: deterministic newest-first (no day-shuffle) so the order reads
+                        // reverse-chronologically and matches the "Winner/Nominee (Year)" caption. More
+                        // deterministic than the shuffle it replaces — INV-3 safe.
+                        BrunoOscar.reverseChronological(children, category: oscarCategory)
+                    } else {
+                        // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
+                        // server index → identical ordering to the prior implementation.
+                        BrunoRNG.shuffled(children, seed: shuffleSeed &+ UInt32(truncatingIfNeeded: serverIndex))
+                    }
                     return (
                         slotIndex,
                         shown.isNotEmpty
@@ -771,16 +785,25 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         client: JellyfinClient,
         userID: String,
         parentID: String,
-        limit: Int
+        limit: Int,
+        sortNewestFirst: Bool = false
     ) async -> [BaseItemDto] {
         var parameters = Paths.GetItemsParameters()
         parameters.userID = userID
         parameters.parentID = parentID
         // .genres feeds the hero child-safety filter (brunoHeroEligible) on this drill-in's
-        // "Featured Film"; MinimumFields omits genres, which would make the filter a no-op.
-        parameters.fields = .MinimumFields + [.genres]
+        // "Featured Film"; MinimumFields omits genres, which would make the filter a no-op. .tags
+        // carries `oscar:<cat>:<won|nom>:<year>` for the Oscar shelf caption + reverse-chron order
+        // (BrunoOscarContentView / BrunoOscar) — a tiny field, ignored everywhere it isn't read.
+        parameters.fields = .MinimumFields + [.genres, .tags]
         parameters.enableUserData = true
         parameters.limit = limit
+        // Oscar shelves: fetch the newest first so the capped preview shows the most recent films
+        // (the client-side reverse-chron sort then refines order by award year for a monotonic caption).
+        if sortNewestFirst {
+            parameters.sortBy = [.premiereDate]
+            parameters.sortOrder = [.descending]
+        }
         do {
             let response = try await client.send(Paths.getItems(parameters: parameters))
             return response.value.items ?? []

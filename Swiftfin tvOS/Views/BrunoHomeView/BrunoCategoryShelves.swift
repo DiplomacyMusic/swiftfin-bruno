@@ -467,6 +467,8 @@ struct BrunoCategoryShelves: View {
                 showsDate: showsDate || category.showsDate,
                 // Surface-wide (Rewatchables): "Episode NN" caption instead of the shared label.
                 showsEpisode: showsEpisode,
+                // Per-category (the six "Oscar — *" shelves): "Winner (Year)" / "Nominee (Year)" caption.
+                oscarCategory: BrunoOscarCategory(boxSetName: category.name),
                 labelArt: Self.labelArtStyle(for: category.name)
             )
         }
