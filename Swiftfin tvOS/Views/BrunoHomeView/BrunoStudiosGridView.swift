@@ -186,7 +186,8 @@ struct BrunoStudiosGridView: View {
         "Marvel Entertainment",
     ]
 
-    private static let topStudioLimit = 20
+    // 12 = exactly 3 full rows of the 4-column grid (no orphan tile in the final row).
+    private static let topStudioLimit = 12
 
     // Lowercase + keep only alphanumerics, so "Warner Bros. Pictures" matches "warnerbrospictures"
     // and "A24"/"20th Century Fox" keep their digits (mirrors the producer's `norm`).

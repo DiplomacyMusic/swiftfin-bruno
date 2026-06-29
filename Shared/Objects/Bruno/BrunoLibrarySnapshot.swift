@@ -308,12 +308,13 @@ extension BrunoLibrarySnapshot {
             guard self.userID == userID,
                   let snapshot, let loadedAt,
                   !snapshot.isEmpty,
-                  // A snapshot persisted before `franchiseBoxSets` existed decodes the field to nil. A
-                  // fresh `load` ALWAYS sets it (possibly []), so nil means "never computed" — treat it
-                  // as a miss so `loadShared` does a real fetch and fills the Boxed Sets list, instead
-                  // of serving a Boxed-Sets-less snapshot all session (the cache would otherwise be
-                  // re-seeded from such a payload on every cold launch).
+                  // A snapshot persisted before `franchiseBoxSets` / `decadeBestOf` existed decodes that
+                  // field to nil. A fresh `load` ALWAYS sets both (possibly []), so nil means "never
+                  // computed" — treat it as a miss so `loadShared` does a real fetch and fills the Boxed
+                  // Sets list AND the decade best-of covers, instead of serving (and re-seeding) a
+                  // snapshot missing them all session (e.g. a hydrate that seeded this cache).
                   snapshot.franchiseBoxSets != nil,
+                  snapshot.decadeBestOf != nil,
                   Date().timeIntervalSince(loadedAt) < maxAge
             else { return nil }
             return snapshot

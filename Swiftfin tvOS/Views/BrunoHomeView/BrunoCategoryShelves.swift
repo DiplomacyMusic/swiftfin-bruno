@@ -457,22 +457,36 @@ struct BrunoCategoryShelves: View {
             // this header (see BrunoShelfMetrics.portraitHeaderBottomInset).
             .padding(.bottom, BrunoShelfMetrics.portraitHeaderBottomInset)
 
-            BrunoShelfRow(
-                items: shelfItems(for: category),
-                onItem: { router.route(to: .item(item: $0)) },
-                onShowAll: { brunoRouteToShowAll(category, router: router, namespace: namespace) },
-                showAllTitle: namesShowAllCards ? category.name : nil,
-                artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
-                // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
-                showsDate: showsDate || category.showsDate,
-                // Surface-wide (Rewatchables): "Episode NN" caption instead of the shared label.
-                showsEpisode: showsEpisode,
-                // Per-category (the six "Oscar — *" shelves): "Winner (Year)" / "Nominee (Year)" caption.
-                oscarCategory: BrunoOscarCategory(boxSetName: category.name),
-                // Per-category (the "Ebert *" curated shelves): "★★★½" star-rating caption.
-                showsEbertStars: category.name.lowercased().hasPrefix("ebert"),
-                labelArt: Self.labelArtStyle(for: category.name)
-            )
+            // The consolidated "Oscars" curated tile (synthetic id "curated-oscars") renders its six
+            // child Oscar BoxSets as the gold award tiles — BrunoCategoryTile/Curated01, two-line
+            // "OSCAR / <category>" via titleParts — each drilling through brunoRouteToShowAll(.grid) to
+            // the captioned, reverse-chron Oscar grid (Winner/Nominee per poster). Replaces the poster
+            // cards that dead-ended on stock BoxSet detail (.item). `oscarParent` pages the full
+            // category, so empty preview children are correct (the grid fills from the live fetch).
+            if category.boxSet.id == "curated-oscars" {
+                BrunoCategoryCardRow(
+                    categories: category.children.map {
+                        BrunoCollectionCategory(boxSet: $0, children: [], drillStyle: .grid)
+                    }
+                )
+            } else {
+                BrunoShelfRow(
+                    items: shelfItems(for: category),
+                    onItem: { router.route(to: .item(item: $0)) },
+                    onShowAll: { brunoRouteToShowAll(category, router: router, namespace: namespace) },
+                    showAllTitle: namesShowAllCards ? category.name : nil,
+                    artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
+                    // Per-category opt-in (New Releases) on top of the surface-wide flag (Decades).
+                    showsDate: showsDate || category.showsDate,
+                    // Surface-wide (Rewatchables): "Episode NN" caption instead of the shared label.
+                    showsEpisode: showsEpisode,
+                    // Per-category (the six "Oscar — *" shelves): "Winner (Year)" / "Nominee (Year)" caption.
+                    oscarCategory: BrunoOscarCategory(boxSetName: category.name),
+                    // Per-category (the "Ebert *" curated shelves): "★★★½" star-rating caption.
+                    showsEbertStars: category.name.lowercased().hasPrefix("ebert"),
+                    labelArt: Self.labelArtStyle(for: category.name)
+                )
+            }
         }
         // Debug HUD instrumentation (inert unless a debug overlay is on): mirror BrunoShelfView so the
         // Movies/genre surface reports per-shelf redraws and vertical movement too. Release-safe no-ops

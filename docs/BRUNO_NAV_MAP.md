@@ -284,7 +284,7 @@ Series"`. No shelves.
 |---|---|---|
 | `brunoMoviesGrid` / `brunoTVGrid` → `BrunoMediaView` | A–Z full library by type (**Movies 1270 · TV 44** live, §0) | pushed COVER (own `BrunoCoverMenuBarRow`); lazy load on first appear |
 | `brunoBoxSetGrid` → `BrunoBoxSetGridView` | static `items:` array passed by `brunoRouteToShowAll` | portrait/landscape, optional artCarousel/showsDate/collectionLabel; NOT paged |
-| `brunoStudiosGrid` → `BrunoStudiosGridView` | static studio boxSets | cinematic 4-col landscape grid: a daily-seeded **"Household Names"** top section (≤20 curated recognizable studios present, stable membership, order rotates per day via `BrunoRNG`) above the full A–Z grid (top names NOT excluded) |
+| `brunoStudiosGrid` → `BrunoStudiosGridView` | static studio boxSets | cinematic 4-col landscape grid: a daily-seeded **"Household Names"** top section (≤12 curated recognizable studios present — 3 rows of 4 — stable membership, order rotates per day via `BrunoRNG`) above the full A–Z grid (top names NOT excluded) |
 | `.library(ItemLibrary(parent:filters:))` | live paged Jellyfin query scoped to a boxSet, carrying `ItemFilterCollection` | the only path that carries a real server filter (years / sort) |
 
 ---
