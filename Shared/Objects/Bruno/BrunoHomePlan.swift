@@ -164,7 +164,10 @@ enum BrunoHomePlan {
             title: "Eras",
             kind: .eras,
             posterType: .portrait,
-            items: snapshot.decadeBoxSets
+            // Newest-decade-first (owner request): 2020s leads, 1950s trails. `decadeBoxSets` is in
+            // ascending server order; reverse it for the Home Eras shelf. Pure transform, so the plan
+            // stays deterministic over (seed, snapshot, now).
+            items: Array(snapshot.decadeBoxSets.reversed())
         )
         appendItemsShelf(
             &shelves,

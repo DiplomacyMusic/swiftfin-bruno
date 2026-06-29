@@ -170,6 +170,10 @@ struct BrunoCategoryTile: View {
             (Color(hex: "1A1026"), Color(hex: "6B3FB0"), Color(hex: "9E6BE0"))
         case "directors":
             (Color(hex: "08191E"), Color(hex: "2E6B7C"), Color(hex: "5BB6CC"))
+        case "movie stars":
+            // Red-carpet glamour red (owner request) — a cleaner, brighter red than the Studios
+            // crimson it can sit near, so the two read as distinct tiles.
+            (Color(hex: "2A0608"), Color(hex: "BE1822"), Color(hex: "F23A3A"))
         case "boxed sets":
             // Cobalt — distinct from the amber Decades tile it sits beside (and every other tile).
             (Color(hex: "0B1430"), Color(hex: "2A45A8"), Color(hex: "5C7CE6"))

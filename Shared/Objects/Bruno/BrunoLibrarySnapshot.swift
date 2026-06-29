@@ -36,9 +36,22 @@ struct BrunoLibrarySnapshot: Codable {
     /// builder (`BrunoCollectionCategory.fromSnapshot`) can surface Boxed Sets on Home AND Collections
     /// from one snapshot. Optional so older on-disk payloads (no key) decode to nil (see BrunoHomeCache).
     let franchiseBoxSets: [BaseItemDto]?
+    /// Per decade sub-group NAME → the single "best of the decade" film whose cover backs that decade's
+    /// Eras card (highest curated `bruno-sig:NN` significance, else highest community rating). Resolved
+    /// here so the render path stays pure — no per-cell network on the Home scroll surface. Optional so
+    /// older on-disk payloads (no key) decode to nil and fall back to the gradient card (like
+    /// `franchiseBoxSets`).
+    let decadeBestOf: [String: BaseItemDto]?
 
     static var empty: BrunoLibrarySnapshot {
-        .init(favoriteGroupBoxSets: [], childrenByGroupName: [:], genres: [], years: [], franchiseBoxSets: nil)
+        .init(
+            favoriteGroupBoxSets: [],
+            childrenByGroupName: [:],
+            genres: [],
+            years: [],
+            franchiseBoxSets: nil,
+            decadeBestOf: nil
+        )
     }
 
     // Case-insensitive group lookups (group names are owner-authored).
@@ -57,6 +70,15 @@ struct BrunoLibrarySnapshot: Codable {
 
     var decadeBoxSets: [BaseItemDto] {
         group("Decades")
+    }
+
+    /// The "best of the decade" film backing a decade's Eras card, by decade sub-group name
+    /// (case-insensitive). nil ⇒ no resolved best-of (old payload or empty decade) → gradient fallback.
+    func decadeBestOfFilm(for decadeName: String) -> BaseItemDto? {
+        guard let map = decadeBestOf else { return nil }
+        if let exact = map[decadeName] { return exact }
+        let lower = decadeName.lowercased()
+        return map.first { $0.key.lowercased() == lower }?.value
     }
 
     var studioBoxSets: [BaseItemDto] {
@@ -135,12 +157,31 @@ extension BrunoLibrarySnapshot {
             return true
         }
 
+        // Best-of film per decade (for the Eras card backgrounds). For each decade sub-BoxSet, fetch its
+        // films WITH tags (MinimumFields omits them), rating-sorted, and pick the highest curated
+        // significance (bruno-sig:NN) else the top-rated. Resolved here so the render path stays pure (no
+        // per-cell network on the Home scroll surface). Concurrent across decades.
+        let decadeChildren = childrenByName.first { $0.key.lowercased() == "decades" }?.value ?? []
+        var decadeBestOf: [String: BaseItemDto] = [:]
+        await withTaskGroup(of: (String, BaseItemDto?).self) { taskGroup in
+            for decade in decadeChildren {
+                guard let id = decade.id, let name = decade.name else { continue }
+                taskGroup.addTask {
+                    await (name, fetchDecadeBestOf(client: client, userID: userID, parentID: id))
+                }
+            }
+            for await (name, film) in taskGroup where film != nil {
+                decadeBestOf[name] = film
+            }
+        }
+
         return await BrunoLibrarySnapshot(
             favoriteGroupBoxSets: groups,
             childrenByGroupName: childrenByName,
             genres: genresTask,
             years: yearsTask,
-            franchiseBoxSets: franchiseBoxSets
+            franchiseBoxSets: franchiseBoxSets,
+            decadeBestOf: decadeBestOf
         )
     }
 
@@ -165,6 +206,36 @@ extension BrunoLibrarySnapshot {
         parameters.enableUserData = true
         parameters.limit = 200
         return await send(client: client, parameters: parameters)
+    }
+
+    /// The "best of the decade" film for a decade sub-BoxSet: highest curated significance
+    /// (`bruno-sig:NN` tag), else the highest community rating. Fetches a rating-sorted window WITH tags
+    /// (MinimumFields omits them); a private home library's decade fits within the cap, so this is the
+    /// exact best-of in practice (a larger decade degrades gracefully to the top-of-window pick).
+    private static func fetchDecadeBestOf(client: JellyfinClient, userID: String, parentID: String) async -> BaseItemDto? {
+        var parameters = Paths.GetItemsParameters()
+        parameters.userID = userID
+        parameters.parentID = parentID
+        parameters.isRecursive = true
+        parameters.includeItemTypes = [.movie]
+        parameters.fields = .MinimumFields + [.tags]
+        parameters.sortBy = [.communityRating]
+        parameters.sortOrder = [.descending]
+        parameters.limit = 100
+        let films = await send(client: client, parameters: parameters)
+        guard films.isNotEmpty else { return nil }
+        let bySignificance = films
+            .compactMap { film in brunoSignificance(film).map { (film, $0) } }
+            .max { $0.1 < $1.1 }?
+            .0
+        return bySignificance ?? films.first
+    }
+
+    /// Significance score from a `bruno-sig:<NN>` tag (the enrichment pipeline's "best of" signal),
+    /// nil when absent. Inlined here because the drill-in's copy is tvOS-only (BrunoBoxSetShelvesView).
+    private static func brunoSignificance(_ item: BaseItemDto) -> Int? {
+        guard let tag = item.tags?.first(where: { $0.hasPrefix("bruno-sig:") }) else { return nil }
+        return Int(tag.dropFirst("bruno-sig:".count))
     }
 
     private static func fetchAllBoxSets(client: JellyfinClient, userID: String) async -> [BaseItemDto] {

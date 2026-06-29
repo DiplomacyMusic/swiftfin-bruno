@@ -223,10 +223,22 @@ struct BrunoShelfView: View {
         ) { card in
             switch card {
             case let .item(item):
-                BrunoArtCarouselCard(item: item, type: viewModel.posterType) {
-                    handleTap(item)
-                } label: {
-                    PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                if viewModel.shelf.kind == .eras {
+                    // Eras decade card: best-of cover behind a code-drawn "DECADE / <name>" lockup (the
+                    // best-of film comes from the snapshot, resolved once at load — render stays pure).
+                    BrunoEraCard(
+                        decade: item,
+                        bestOf: snapshot.decadeBestOfFilm(for: item.displayTitle),
+                        action: { handleTap(item) }
+                    ) {
+                        PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                    }
+                } else {
+                    BrunoArtCarouselCard(item: item, type: viewModel.posterType) {
+                        handleTap(item)
+                    } label: {
+                        PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item)
+                    }
                 }
             case .showAll:
                 BrunoShowAllCard(type: viewModel.posterType, action: showAll)

@@ -44,6 +44,105 @@ struct BrunoArtCarouselCard<Label: View>: View {
     }
 }
 
+// MARK: - BrunoEraCard
+
+//
+// The Home "Eras" decade card. Mirrors BrunoArtCarouselCard's button structure (identical focus
+// scale / shadow / zoom-push + INV-1 row geometry), but its AT-REST background is the decade's
+// "best of" film cover — dimmed under an amber wash with a code-drawn "DECADE / <name>" lockup —
+// instead of the decade BoxSet's baked-text poster (owner request). WHILE FOCUSED it cross-fades
+// the decade's own films via FocusCyclingArt (parentID = the decade BoxSet), exactly like the
+// sibling carousel cards. A nil `bestOf` (old snapshot / empty decade) falls back to the amber
+// gradient alone, so the lockup always reads.
+struct BrunoEraCard<Label: View>: View {
+
+    let decade: BaseItemDto
+    /// The decade's best-of film (cover shown at rest); nil ⇒ amber gradient only.
+    let bestOf: BaseItemDto?
+    let action: () -> Void
+    @ViewBuilder
+    let label: () -> Label
+
+    // Amber, matching the Decades tile (BrunoCategoryTile.palette / BrunoCategoryShelves.labelArtStyle).
+    private static var amberTop: Color {
+        Color(hex: "201408")
+    }
+
+    private static var amberBottom: Color {
+        Color(hex: "9C6A1E")
+    }
+
+    private static var amberAccent: Color {
+        Color(hex: "E0902E")
+    }
+
+    var body: some View {
+        Button(action: action) {
+            FocusCyclingArt(
+                item: decade,
+                type: .portrait,
+                restBackground: AnyView(restBackground)
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(.contextMenuPreview, Rectangle())
+            .posterStyle(.portrait)
+            .posterShadow()
+            .hoverEffect(.highlight)
+
+            label()
+        }
+        .buttonStyle(.borderless)
+        .buttonBorderShape(.roundedRectangle)
+        .accessibilityLabel(decade.displayTitle)
+    }
+
+    private var restBackground: some View {
+        ZStack {
+            // Amber base — the fallback when no best-of cover exists, and a backstop behind it.
+            LinearGradient(colors: [Self.amberTop, Self.amberBottom], startPoint: .top, endPoint: .bottom)
+
+            // Best-of cover, dimmed under the amber wash (same dim idiom as BrunoCollectionArtImage) so
+            // the title reads while the cover still shows through.
+            if let bestOf {
+                PosterImage(item: bestOf, type: .portrait)
+                    .overlay(
+                        LinearGradient(colors: [Self.amberTop, Self.amberBottom], startPoint: .top, endPoint: .bottom)
+                            .opacity(0.7)
+                    )
+            }
+
+            // Legibility wash where the lockup sits (matches BrunoCategoryTile).
+            LinearGradient(colors: [.clear, .black.opacity(0.35)], startPoint: .center, endPoint: .bottom)
+
+            lockup
+        }
+    }
+
+    private var lockup: some View {
+        VStack(spacing: 14) {
+            // swiftlint:disable:next hard_coded_display_string
+            Text("DECADE")
+                .font(.brunoBody(20, weight: .semibold))
+                .tracking(4)
+                .foregroundStyle(Self.amberAccent)
+                .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
+
+            Text(decade.displayTitle.uppercased())
+                .font(.brunoDisplay(38, weight: .bold))
+                .foregroundStyle(Color.bruno.fg)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.4)
+                .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
+
+            Capsule()
+                .fill(Self.amberAccent)
+                .frame(width: 64, height: 5)
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
 // MARK: - FocusCyclingArt
 
 //
@@ -62,6 +161,10 @@ private struct FocusCyclingArt: View {
 
     let item: BaseItemDto
     let type: PosterDisplayType
+    /// Replaces the default at-rest `PosterImage(item:)` (e.g. the Eras card's best-of cover + amber
+    /// wash + code-drawn lockup). nil ⇒ the item's own poster, unchanged. The focus film-cycle always
+    /// loads from `item`, so the rest art and the cycled art can differ.
+    var restBackground: AnyView?
 
     @Environment(\.isFocused)
     private var isFocused
@@ -91,8 +194,14 @@ private struct FocusCyclingArt: View {
             // Backing for the brief moment before the first frame resolves.
             Color.bruno.surface
 
-            PosterImage(item: item, type: type)
-                .opacity(active ? 0 : 1)
+            Group {
+                if let restBackground {
+                    restBackground
+                } else {
+                    PosterImage(item: item, type: type)
+                }
+            }
+            .opacity(active ? 0 : 1)
 
             if active, let frame = children.frames[safe: index] {
                 ImageView(frame)
