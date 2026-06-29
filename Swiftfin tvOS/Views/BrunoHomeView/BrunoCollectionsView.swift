@@ -42,7 +42,11 @@ struct BrunoCollectionsView: View {
                     // Collections TAB ROOT → inject the scrolling menu bar as the first row.
                     isTabRoot: true,
                     // Back the unfocused Decades cards with each decade's best-of film cover.
-                    decadeBestOf: viewModel.decadeBestOf
+                    decadeBestOf: viewModel.decadeBestOf,
+                    // The ≥24-shelf procedural tail below the static groups, + the snapshot for its
+                    // Show-all routing.
+                    tailShelves: viewModel.tailShelves,
+                    snapshot: viewModel.snapshot
                 )
             }
         }
@@ -80,6 +84,18 @@ final class BrunoCollectionsViewModel: ViewModel {
     /// pre-feature on-disk payloads ⇒ gradient fallback.
     @Published
     private(set) var decadeBestOf: [String: BaseItemDto]?
+    /// The procedural tail (≥24 Home-style shelves) appended below the static group shelves. Realized
+    /// AFTER the static surface is interactive, then published in one shot (thin rows filtered out).
+    @Published
+    private(set) var tailShelves: [BrunoShelfViewModel] = []
+    /// The loaded snapshot, exposed so the view can thread it into the tail's Show-all routing.
+    @Published
+    private(set) var snapshot: BrunoLibrarySnapshot = .empty
+
+    /// Per-launch seed for the procedural tail: stable within a process (re-entering Collections keeps
+    /// the same lineup), reshuffles on the next app launch — the owner's "seed-keyed, reshuffles per
+    /// launch" choice. A browse surface, inside the documented INV-3 carve-out.
+    private static let tailSeed: UInt32 = .random(in: .min ... .max)
 
     func load() async {
         guard let userSession else {
@@ -99,6 +115,21 @@ final class BrunoCollectionsViewModel: ViewModel {
         // "Browse the Collection" shelf are byte-identical (same cards, same order, same destinations).
         categories = BrunoCollectionCategory.fromSnapshot(snapshot)
         decadeBestOf = snapshot.decadeBestOf
+        self.snapshot = snapshot
+        // Static surface is interactive now; the tail loads below the fold.
         isLoading = false
+
+        // Procedural tail: realize the ≥24 seeded descriptors into paging VMs, load them concurrently,
+        // and publish the ones with enough items to read as a row. The cap-and-grow mount window in
+        // BrunoCategoryShelves (INV-8) gates how many actually render, so realizing all the VMs here is
+        // a fetch cost (off the main thread), not a render-burst cost.
+        let descriptors = BrunoHomePlan.collectionsTail(seed: Self.tailSeed, snapshot: snapshot)
+        let vms = descriptors.map { BrunoShelfViewModel(shelf: $0) }
+        await withTaskGroup(of: Void.self) { group in
+            for vm in vms {
+                group.addTask { await vm.load() }
+            }
+        }
+        tailShelves = vms.filter(\.shouldDisplay)
     }
 }
