@@ -113,7 +113,7 @@ struct BrunoBoxSetShelvesView: View {
             // Curated hub: collapse the six "Oscar — *" sub-collections into ONE "Oscars" card whose
             // Show-all opens a shelf-per-Oscar-category drill-in. The six stay in the snapshot for
             // standalone Home/Curated shelves; this only changes the Curated hub's display.
-            return isCurated ? Self.consolidateOscars(viewModel.categories) : viewModel.categories
+            return isCurated ? Self.consolidateEbert(Self.consolidateOscars(viewModel.categories)) : viewModel.categories
         }
         if let id = category.boxSet.id, let perYear = viewModel.yearShelvesByDecadeID[id] {
             return perYear
@@ -139,6 +139,24 @@ struct BrunoBoxSetShelvesView: View {
             lens: "Academy Awards"
         )
         return [oscarsCategory] + categories.filter { !isOscar($0) }
+    }
+
+    /// Collapse "Ebert Thumbs Up" + "Ebert Thumbs Down" into ONE synthetic "Ebert" card (stable id
+    /// "curated-ebert", INV-2) whose Show-all opens the merged toggle grid (Up ⇄ Down, BrunoEbertView).
+    /// Children are the two Ebert BoxSets, up-first so the grid opens on Thumbs Up. A no-op below two.
+    private static func consolidateEbert(_ categories: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+        let isEbert: (BrunoCollectionCategory) -> Bool = { $0.name.lowercased().hasPrefix("ebert") }
+        let ebert = categories.filter(isEbert)
+        guard ebert.count > 1 else { return categories }
+        let up = ebert.first { !$0.name.lowercased().contains("down") }?.boxSet
+        let down = ebert.first { $0.name.lowercased().contains("down") }?.boxSet
+        let ebertCategory = BrunoCollectionCategory(
+            boxSet: BaseItemDto(id: "curated-ebert", name: "Ebert"),
+            children: [up, down].compactMap(\.self),
+            drillStyle: .shelves,
+            lens: "Roger Ebert"
+        )
+        return [ebertCategory] + categories.filter { !isEbert($0) }
     }
 
     var body: some View {
@@ -524,16 +542,7 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                     return
                 }
                 let oscarCategory = BrunoOscarCategory(boxSetName: sub.displayTitle)
-                // Ebert shelves: order by star rating (Thumbs Up highest-first, Thumbs Down lowest-first);
-                // nil for non-Ebert. The server has no ebert-stars sort, so the preview's top cap is only
-                // correct if we fetch the FULL membership and sort client-side — hence the deep fetch below
-                // (1000 > the largest Ebert BoxSet, Thumbs Up ~559, so it lands in one page).
-                let ebertAscending: Bool? = {
-                    let name = sub.displayTitle.lowercased()
-                    guard name.hasPrefix("ebert") else { return nil }
-                    return name.contains("down")
-                }()
-                let fetch = ebertAscending == nil ? childFetch : 1000
+                let fetch = childFetch
                 group.addTask {
                     let children = await Self.fetchChildren(
                         client: client,
@@ -547,10 +556,6 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                         // reverse-chronologically and matches the "Winner/Nominee (Year)" caption. More
                         // deterministic than the shuffle it replaces — INV-3 safe.
                         BrunoOscar.reverseChronological(children, category: oscarCategory)
-                    } else if let ebertAscending {
-                        // Ebert shelves: order by star rating so the preview's top cap shows the
-                        // highest/lowest-rated films (untagged sink to the bottom). INV-3 safe (deterministic).
-                        BrunoEbert.ordered(children, ascending: ebertAscending)
                     } else {
                         // Seeded child shuffle (varied, not alphabetical): day-stable seed + the ORIGINAL
                         // server index → identical ordering to the prior implementation.
