@@ -203,6 +203,7 @@ merged, every cross-reference repointed, verified zero dangling):
 | `docs/BRUNO_PERF_PLAYBOOK.md` | active | scroll/focus freeze — diagnosis + telemetry + declined levers |
 | `docs/BRUNO_HERO.md` | active | hero layout numbers + up-nav focus model |
 | `docs/BRUNO_MOVIES_GENRE_SURFACE.md` | active | Movies/genre surface fragility map |
+| `docs/BRUNO_GENRE_PILLS_HOWTO.md` | active (recipe) | how to add genre pills to a curated drill-down grid |
 | `docs/DEPLOYMENT_HANDOFF.md` | active | real-device run + signing |
 | `docs/BRUNO_CERTIFICATION_PLAN.md` | active (plan) | rationale for the pre-change cert gate |
 | `prototype/design_handoff_bruno/README.md` | reference | design system (tokens / type / spacing) |
