@@ -55,6 +55,14 @@ struct BrunoOscarContentView: View {
                 .italic(award?.won == true)
                 .foregroundColor(award?.won == true ? Color.bruno.accent : .secondary)
                 .lineLimit(1, reservesSpace: true)
+
+            // TODO(oscars third line): add a THIRD line with the nominated person's name for this
+            // category (actor / director / writer / cinematographer / composer). The name is in
+            // data/oscars.json (entry.name) but NOT stamped yet — p9_oscars.py must extend the tag to
+            // carry it (e.g. oscar:<CAT>:<won|nom>:<YEAR>:<name>; handle 2-acting-noms + BEST_PICTURE
+            // having no single person), and BrunoOscar must parse it. INV-1 CAVEAT: this label is a
+            // 2-line budget baked into BrunoShelfMetrics.shelfRowHeight — a third line means growing
+            // that (shared) height, not just adding a Text. See FEATURE_BACKLOG.md §E1.
         }
     }
 }

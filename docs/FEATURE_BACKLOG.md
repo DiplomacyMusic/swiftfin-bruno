@@ -229,6 +229,30 @@ C2/B2 confirm-or-drop → C1 fix → B3 → D2/D1 only with owner sign-off.
 
 ---
 
+### E1 — Oscar caption third line: the actual nominee name  ·  **owner-requested follow-up to the Oscars PR**
+- **Want:** under the existing `*Winner* (Year)` / `Nominee (Year)` line on each Oscar poster, add a
+  **third line with the nominated person's name** for that category — the actor (ACTING), director
+  (DIRECTING), writer(s) (SCREENPLAY), cinematographer (CINEMATOGRAPHY), composer (SCORE).
+- **Data:** the name already exists in `MovieCollection/enrich/data/oscars.json` (each entry has `name`),
+  but it is **not stamped today**. `enrich/p9_oscars.py` must extend the tag to carry it, e.g.
+  `oscar:<CAT>:<won|nom>:<YEAR>:<name>` (or a sibling tag) — and decide how to handle the
+  multi-name cases: a film can have **two ACTING nominations** (lead + supporting / two actors), and
+  **BEST_PICTURE has no single person** (producers, or omit). `BrunoOscar.award(...)`'s parser then
+  returns the name(s) and `BrunoOscarContentView` renders the third line.
+- **Invariant guardrail: HIGH — INV-1.** The caption is a **2-line label budgeted into the pinned
+  `BrunoShelfMetrics.shelfRowHeight`** (title line + award line). A THIRD line **exceeds that budget**,
+  so this is NOT "just add a `Text`": `shelfRowHeight` (and the grid cell height) must grow, and that
+  height is **shared across every shelf** — a taller Oscar-only row would reintroduce the per-row
+  height renegotiation INV-1 exists to kill. Options to weigh: (a) bump the shared label budget to 3
+  lines everywhere (simplest, costs vertical density on all shelves); (b) a dedicated taller Oscar
+  metric + verify no INV-1 conflict event fires (`.brunoPerfHeightWatch`). Decide before coding.
+- **Where:** `BrunoOscarContentView.swift` (render the third line), `BrunoOscarAward`/`BrunoOscar`
+  (parse the name), `enrich/p9_oscars.py` (stamp the name), `BrunoShelfMetrics` (row height). See the
+  `// TODO(oscars third line)` anchor in `BrunoOscarContentView.swift`.
+- **Effort / confidence:** M / medium. **Cert?** Yes (touches INV-1 + a render surface).
+
+---
+
 ## 4. De-risking — top 3 things most likely to go wrong
 
 1. **Acting on stale framing (B1, C2, D1).** Three items describe problems the codebase already dissolved
