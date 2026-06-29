@@ -37,6 +37,11 @@ struct BrunoShelfRow: View {
     /// on line 2 via BrunoRewatchablesContentView. Default false ⇒ the shared label. Takes precedence
     /// over showsDate; the artCarousel / labelArt branches are untouched. INV-1: geometry-faithful clone.
     var showsEpisode: Bool = false
+    /// Oscar category shelves only: render each poster's "Winner (Year)" / "Nominee (Year)" line for
+    /// THIS category (from the `oscar:<cat>:<won|nom>:<year>` tag) via BrunoOscarContentView. nil ⇒ the
+    /// shared label. A per-shelf constant (the shelf's category), not per-scroll state. Takes precedence
+    /// over showsEpisode/showsDate; artCarousel / labelArt untouched. INV-1: geometry-faithful clone.
+    var oscarCategory: BrunoOscarCategory?
     /// Genres / Decades: render each item as a `BrunoLabelArtCard` — the category-tile treatment
     /// (title over the art, film art cycling on focus) — instead of a poster with a title below.
     /// nil ⇒ the standard PosterButton cell. Mutually exclusive with `artCarousel`.
@@ -89,7 +94,9 @@ struct BrunoShelfRow: View {
                     PosterButton(item: item, type: .portrait) {
                         onItem(item)
                     } label: {
-                        if showsEpisode {
+                        if let oscarCategory {
+                            BrunoOscarContentView(item: item, category: oscarCategory)
+                        } else if showsEpisode {
                             BrunoRewatchablesContentView(item: item)
                         } else if showsDate {
                             BrunoTitleDateContentView(item: item)

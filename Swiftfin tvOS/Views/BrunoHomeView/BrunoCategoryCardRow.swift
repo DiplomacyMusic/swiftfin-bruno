@@ -89,6 +89,24 @@ func brunoRouteToShowAll(
         // The favorited "Rewatchables" BoxSet: open the flat, episode-captioned portrait grid.
         router.route(to: .brunoRewatchables(parent: category.boxSet))
     case .grid:
+        // Oscar category "Show all": route to the captioned, reverse-chron Bruno grid. The stock
+        // ItemLibrary (the `.boxSet` branch below) can't render the per-poster "Winner/Nominee (Year)"
+        // line, so — like the New Releases redirect — we own the grid. `oscarParent` pages the FULL
+        // category; the sorted preview children give an instant first paint.
+        if let oscarCategory = BrunoOscarCategory(boxSetName: category.name) {
+            router.route(
+                to: .brunoBoxSetGrid(
+                    title: BrunoCuratedCard.display(category.name),
+                    items: BrunoOscar.reverseChronological(category.children, category: oscarCategory),
+                    posterType: .portrait,
+                    oscarCategory: oscarCategory,
+                    oscarParent: category.boxSet
+                ),
+                in: namespace
+            )
+            return
+        }
+
         // Dated flat-movie group (New Releases): route to the Bruno-owned grid so posters carry the
         // full release date — the shared stock paged library can't, and editing it would leak dates
         // app-wide. Newest-first so it reads as "new releases". (No box-set children here.)

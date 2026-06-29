@@ -208,10 +208,21 @@ explicitly as `.items`.
 | Shelf | Lens/eyebrow | Derived from | Max | Show-all destination | shelf/grid |
 |---|---|---|---|---|---|
 | {Curated sub-collection} | Hand-Picked | Each curated group boxSet child (Oscar, Ebert, …); server order; weighted preview (salt `0xC0DE`) | 14 preview | `.grid` → `ItemLibrary(curated boxSet)` — no year filter | shelf |
+| {Oscar — Category} (the 6, inside the Oscars drill-in) | OSCAR / Academy Awards | Oscar boxSet child; **reverse-chron by award year** (newest first, not shuffled) | 14 preview | `.grid` → **`brunoBoxSetGrid`** (full set paged, reverse-chron, captioned) — NOT stock `ItemLibrary` | shelf |
 
 **Oscars consolidation (#40):** the per-category Oscar BoxSets are folded into a single synthetic
 **"Oscars"** tile here; tapping it opens `brunoCategoryShelves(parent: «synthetic Oscars», subGroups: its
 children)` — a shelf per Oscar category — instead of one tile per category (`BrunoCategoryCardRow.swift:72`).
+
+**Oscars order + caption:** each of the six Oscar shelves (and their "Show all" grids) orders films
+**newest-first by award year** and renders a per-poster second line — *Winner (Year)* / Nominee (Year)
+— for THAT shelf's category (`BrunoOscarContentView`). Source is a per-item tag
+`oscar:<CATEGORY>:<won|nom>:<YEAR>` written by the producer (`MovieCollection/enrich/p9_oscars.py`,
+owner-run LIVE, mirrors p7); the app reads it like `rewatchables-ep:` / `bruno-sig:`. The drill-in
+replaces the day-shuffle with a deterministic reverse-chron sort for Oscar sub-groups only
+(`BrunoBoxSetShelvesView.performLoad`), and the "Show all" redirects off the stock `ItemLibrary` to
+`brunoBoxSetGrid` (which pages the full category + renders the caption). Degrades gracefully pre-stamp:
+no tag ⇒ blank (height-reserving) caption line, order falls back to premiereDate.
 
 ### 3c. Rewatchables drill-in (`BrunoRewatchablesView`)
 

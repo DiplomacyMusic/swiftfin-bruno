@@ -68,4 +68,9 @@ batch the films with full context, fan out tagging agents, merge results into th
 - Watch history is currently sparse (12 plays, 0 favs) → manifest taste (Rewatchables 214, Named fav 17)
   is the cold-start personalization fuel until real history accumulates.
 - "Winner/Nominated (year)" per-film second line under Oscar posters is NOT a Jellyfin collection
-  capability — deferred as a possible Bruno app annotation feature, separate from the collections.
+  capability — it ships as a Bruno app annotation fed by a per-item tag. **BUILT:** `p9_oscars.py`
+  stamps `oscar:<CATEGORY>:<won|nom>:<YEAR>` (414 films; awards-edition year from `data/oscars.json`);
+  the app renders *Winner (Year)* / Nominee (Year) and orders the Oscar shelves + grids reverse-chron.
+
+- [x] **9 oscar tags (LIVE, owner-run)** — `p9_oscars.py`: per-(film,category) `oscar:` item tags for
+  the app's Oscars caption + reverse-chron order. Additive/idempotent (mirrors p7); DRY-RUN default.

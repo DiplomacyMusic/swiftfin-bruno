@@ -41,6 +41,13 @@ struct BrunoBoxSetGridView: View {
     /// Rewatchables grid: each poster's "Episode NN" caption (BrunoRewatchablesContentView) parsed
     /// from the rewatchables-ep:NN tag. Portrait, non-collectionLabel; items must be fetched WITH .tags.
     var showsEpisode: Bool = false
+    /// Oscar "Show all": render each poster's "Winner (Year)" / "Nominee (Year)" line for this
+    /// category (BrunoOscarContentView). Paired with `oscarParent` so the grid pages the FULL category
+    /// (the drill-in only hands us a small preview) and sorts it reverse-chronologically.
+    var oscarCategory: BrunoOscarCategory?
+    /// The real Oscar BoxSet to page the complete, reverse-chron film set from. Set only for Oscar
+    /// "Show all"; nil ⇒ the grid renders the static `items` as before.
+    var oscarParent: BaseItemDto?
 
     @Router
     private var router
@@ -49,17 +56,30 @@ struct BrunoBoxSetGridView: View {
     @StateObject
     private var yearRanges = BrunoBoxSetYearRangesViewModel()
 
+    /// Oscar "Show all" only: the complete, reverse-chron category fetched on appear. nil until loaded,
+    /// when it replaces the preview `items` (one grid rebuild — see `gridIdentity`).
+    @StateObject
+    private var oscarFull = BrunoOscarGridViewModel()
+
+    /// The full reverse-chron Oscar set once paged, else the passed-in (preview / static) items.
+    private var gridItems: [BaseItemDto] {
+        oscarFull.items ?? items
+    }
+
     var body: some View {
         grid
             .navigationTitle(title)
             .onFirstAppear {
                 if collectionLabel { yearRanges.load(items: items) }
+                if let oscarParent, let oscarCategory {
+                    oscarFull.load(parent: oscarParent, category: oscarCategory)
+                }
             }
     }
 
     private var grid: some View {
         CollectionVGrid(
-            uniqueElements: items,
+            uniqueElements: gridItems,
             layout: layout
         ) { item in
             if artCarousel {
@@ -76,12 +96,17 @@ struct BrunoBoxSetGridView: View {
                 }
             }
         }
-        // CollectionVGrid is UIKit-backed and won't re-render cells when the year ranges arrive
-        // async; rebuild the grid ONCE when the fetch completes (the @StateObject VM persists, so
-        // this doesn't refetch). `done` flips false→true a single time (and stays false when no
-        // year fetch runs, e.g. Studios/Directors).
-        .id(yearRanges.done)
+        // CollectionVGrid is UIKit-backed and won't re-render cells when async data arrives; rebuild
+        // the grid ONCE when a fetch completes (the @StateObject VMs persist, so this doesn't refetch).
+        // `yearRanges.done` flips false→true a single time (Boxed Sets); the Oscar paging flips
+        // `oscarFull.items` nil→non-nil a single time. Each is at most one rebuild.
+        .id(gridIdentity)
         .scrollIndicators(.hidden)
+    }
+
+    /// Single token driving the at-most-two one-shot grid rebuilds (year-range fetch, Oscar paging).
+    private var gridIdentity: String {
+        "\(yearRanges.done)-\(oscarFull.items != nil)"
     }
 
     // Mirrors the stock tvOS landscape/portrait grid layout (LibraryElement.layout): 4 columns
@@ -100,6 +125,9 @@ struct BrunoBoxSetGridView: View {
     private func cardLabel(for item: BaseItemDto) -> some View {
         if posterType == .landscape, collectionLabel {
             BrunoBoxSetCardLabel(item: item, yearRange: yearRanges.ranges[item.id ?? ""])
+        } else if let oscarCategory {
+            // Oscar "Show all": "Winner (Year)" / "Nominee (Year)" on line 2 for this category.
+            BrunoOscarContentView(item: item, category: oscarCategory)
         } else if showsDate {
             // New Releases "Show all": full release date on line 2.
             BrunoTitleDateContentView(item: item)
@@ -238,7 +266,9 @@ extension NavigationRoute {
         posterType: PosterDisplayType,
         collectionLabel: Bool = false,
         artCarousel: Bool = false,
-        showsDate: Bool = false
+        showsDate: Bool = false,
+        oscarCategory: BrunoOscarCategory? = nil,
+        oscarParent: BaseItemDto? = nil
     ) -> NavigationRoute {
         NavigationRoute(
             id: "bruno-boxset-grid-\(title.lowercased())",
@@ -250,8 +280,47 @@ extension NavigationRoute {
                 posterType: posterType,
                 collectionLabel: collectionLabel,
                 artCarousel: artCarousel,
-                showsDate: showsDate
+                showsDate: showsDate,
+                oscarCategory: oscarCategory,
+                oscarParent: oscarParent
             )
+        }
+    }
+}
+
+// MARK: - BrunoOscarGridViewModel
+
+//
+// Pages the COMPLETE film set of one Oscar category BoxSet (the drill-in shelf only loads a small
+// preview), sorted reverse-chronologically by award year for the "Show all" grid. Fetches `.tags` so
+// BrunoOscarContentView can read each film's `oscar:` tag. One-shot, memoized — runs once per push.
+@MainActor
+final class BrunoOscarGridViewModel: ViewModel {
+
+    @Published
+    private(set) var items: [BaseItemDto]?
+
+    private var loaded = false
+
+    func load(parent: BaseItemDto, category: BrunoOscarCategory) {
+        guard !loaded, let userSession, let parentID = parent.id else { return }
+        loaded = true
+        let client = userSession.client
+        let userID = userSession.user.id
+        Task {
+            let all = await (try? BrunoItemPaging.fetchAll(client: client) { startIndex, limit in
+                var parameters = Paths.GetItemsParameters()
+                parameters.userID = userID
+                parameters.parentID = parentID
+                parameters.includeItemTypes = [.movie]
+                // .tags carries oscar:<cat>:<won|nom>:<year> for the caption + reverse-chron sort.
+                parameters.fields = .MinimumFields + [.tags]
+                parameters.enableUserData = true
+                parameters.startIndex = startIndex
+                parameters.limit = limit
+                return parameters
+            }) ?? []
+            items = BrunoOscar.reverseChronological(all, category: category)
         }
     }
 }
