@@ -180,11 +180,13 @@ final class BrunoHomeViewModel: ViewModel, Stateful {
             seed: seed,
             maxAge: 60 * 60 * 24
         ),
-            // A payload written before `franchiseBoxSets` existed decodes the field to nil. Treat it as
-            // a hydrate MISS (mirroring the Cache.value guard) so the first post-update launch streams a
-            // fresh load WITH the Boxed Sets tile, instead of painting the collections shelf without it
-            // for the beat until revalidate lands. One-launch cost; later launches hydrate normally.
+            // A payload written before `franchiseBoxSets` / `decadeBestOf` existed decodes that field to
+            // nil. Treat it as a hydrate MISS (mirroring the Cache.value guard) so the first post-update
+            // launch streams a fresh load WITH the Boxed Sets tile AND the decade Eras best-of cover
+            // backgrounds, instead of painting them missing for the beat until revalidate lands. A fresh
+            // `load` always sets both (possibly empty), so nil means "never computed". One-launch cost.
             payload.snapshot.franchiseBoxSets != nil,
+            payload.snapshot.decadeBestOf != nil,
             !Task.isCancelled, generation == refreshGeneration else { return false }
 
         snapshot = payload.snapshot
