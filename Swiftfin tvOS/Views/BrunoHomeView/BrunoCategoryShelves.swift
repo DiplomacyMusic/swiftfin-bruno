@@ -393,7 +393,14 @@ struct BrunoCategoryShelves: View {
                             .id(ScrollAnchor.selector)
                     }
 
-                    ForEach(categories.prefix(visibleShelfCount)) { category in
+                    // "Roger Ebert" is excluded from this per-category PREVIEW shelf loop: its only
+                    // children are the 2 Ebert Thumbs Up/Down BoxSets, so the generic shelf would show
+                    // 2 BOX-SET POSTERS (not movies) — confusing, and redundant with the card itself,
+                    // whose tap already opens the real captioned, star-sorted movie toggle (the §1
+                    // "roger ebert" repoint in brunoRouteToShowAll). The movie-shelf version already
+                    // exists on Home (the curated explore generator's captioned Ebert shelf). The card
+                    // ROW above is unaffected — it still shows the "Roger" tile.
+                    ForEach(categories.filter { $0.name.lowercased() != "roger ebert" }.prefix(visibleShelfCount)) { category in
                         shelf(for: category)
                     }
 
