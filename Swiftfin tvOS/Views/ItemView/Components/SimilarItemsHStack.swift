@@ -40,9 +40,9 @@ extension ItemView {
         }
 
         var body: some View {
-            // Filtered against the snapshot: hubs / unresolved BoxSets fall out (and all BoxSets fall
-            // out until the snapshot is warm), so a hubs-only similar list renders nothing rather than
-            // an empty "Recommended" header.
+            // Filtered against the snapshot: only recognized nav hubs fall out; every other tile is kept
+            // (unrecognized BoxSets fail open to the stock item route — see BrunoRecommendedShelf), so the
+            // shelf is never emptier than the raw similar-items list.
             let display = brunoRecommendedDisplayItems(items, snapshot: snapshot)
 
             Group {

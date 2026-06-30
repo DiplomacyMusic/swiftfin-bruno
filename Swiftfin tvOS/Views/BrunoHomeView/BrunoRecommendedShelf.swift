@@ -22,10 +22,12 @@ import SwiftUI
 // This classifier maps each similar-items tile to a `BrunoRecommendedTarget`: drop the hubs, keep
 // movie/series tiles untouched, and reroute every surviving content collection to the SAME branded
 // Bruno destination its browse twin reaches (mirroring `brunoRouteToShowAll` /
-// `brunoHomeRouteToShowAll`). Identity is resolved off the warm `BrunoLibrarySnapshot`, so an
-// unrecognized BoxSet — or anything seen before the snapshot is warm — is dropped rather than routed
-// to a wrong/empty grid. The shelf stays a single homogeneous `PosterHStack`: only which tiles show
-// and where a tap lands changes (no card-type/aspect swap — INV-1/-10).
+// `brunoHomeRouteToShowAll`). Identity is resolved off the warm `BrunoLibrarySnapshot`. Only a
+// positively-recognized nav hub is dropped; an unrecognized BoxSet — including anything seen before the
+// snapshot is warm — FAILS OPEN to the stock `.item` route, so the shelf is never emptier than the raw
+// similar-items list (dropping unrecognized tiles is what made the whole shelf vanish on Director/Actor/
+// Studio detail pages, where every similar-item is a BoxSet and the snapshot is often cold). The shelf
+// stays a single homogeneous `PosterHStack`: only which tiles show and where a tap lands changes (INV-1/-10).
 enum BrunoRecommendedTarget {
 
     /// Movie / series tile — keep the stock detail route (unchanged behavior).
@@ -43,7 +45,7 @@ enum BrunoRecommendedTarget {
     /// Any other content collection (director / studio / seasonal / franchise / curated) → a clean
     /// paged films grid scoped to the BoxSet, which also avoids recursing the stock collection view.
     case filmsGrid(BaseItemDto)
-    /// A nav hub, or an unresolved BoxSet (incl. cold-start before the snapshot is warm) → not shown.
+    /// A positively-recognized nav hub → not shown (unrecognized BoxSets fail open to `.item`, not here).
     case drop
 }
 
@@ -106,8 +108,13 @@ func brunoRecommendedTarget(_ item: BaseItemDto, snapshot: BrunoLibrarySnapshot)
         return .filmsGrid(item)
     }
 
-    // Unrecognized BoxSet (or snapshot not yet warm) — don't surface it.
-    return .drop
+    // Unrecognized BoxSet, or the snapshot isn't warm yet — FAIL OPEN: keep the tile and route it to the
+    // stock item detail (the exact pre-#66 behavior), never `.drop` it. Dropping here is what emptied the
+    // ENTIRE Recommended shelf on Director/Actor/Studio detail pages (CollectionItemContentView), whose
+    // similar-items are all BoxSets and whose snapshot is frequently cold; movie pages were immune because
+    // their similar-items are movies (kept above). Keeping the tile also keeps the shelf non-empty, so the
+    // snapshot-loading `.task` runs and the recognized hubs/collections then resolve to branded routing.
+    return .item(item)
 }
 
 // swiftlint:enable hard_coded_display_string
