@@ -102,15 +102,18 @@ favorited group; `fetchChildren` (`:206-216`) reads members (⚠ `ParentId` with
 `fromSnapshot` (`BrunoCategoryShelves.swift:143-182`) turns it into a card by
 name. So a "Cities" favorited group with Chicago as first child surfaces
 automatically **once** Cities gets a single `rank`/`drillStyle`/`lens` entry —
-after that, new cities are pure data. *Existing hook:* the Movies genre buckets
-already reference `"chicago movies"` (`BrunoGenresView.swift:44,51,57,…`), so a
-Chicago seed partially exists on the genre side. **Data gate (owner):** the
-Cities group BoxSet must be created and favorited on the server with Chicago as a
-child before the card can appear.
+after that, new cities are pure data. *Content already exists* (§9.3): the
+`Chicago Movies` BoxSet (`c443b3c4…`, 23 films) is live but unfavorited and
+ungrouped — the same one the Movies genre buckets reference as `"chicago movies"`
+(`BrunoGenresView.swift:44,51,57,…`). **The only missing piece is the favorited
+"Cities" parent group** with Chicago Movies as its first child (mirrors
+Decades/Directors). Ready to create on owner confirmation (§9a.3).
 
-### Everything else under Curated
-**Data gate:** flag for owner disposal *after* the full Curated member list is
-confirmed (see Data Needs). No code until the list is in hand.
+### Everything else under Curated — RESOLVED to two members
+The full Curated list is now in hand (§9): the only members not in the owner's
+plan are **Critically Acclaimed** (`e09ff623…`) and **Oscar Buzz**
+(`fb9e649d…`). Owner disposal decision pending (§9a.1) — fold Oscar Buzz into the
+promoted Oscar card, or retire both.
 
 ---
 
@@ -147,10 +150,11 @@ mountain), never rotating — the one hard visual lock.
 **Implementation.** The Studios grid backdrop today is
 `Image("BrunoStudiosBackdrop")` (`BrunoStudiosGridView.swift:52`) — a full-bleed
 still loaded via `Image(_:)` because the app's `ImageView` is URL-only.
-⚠ **Asset-name discrepancy:** the owner says **Studio04** (Paramount mountain);
-the live code references **`BrunoStudiosBackdrop`** (bruno-expert found no
-`Studio04` symbol in this file). **Owner to confirm:** is `Studio04` a new asset
-to swap in, or a rename of the existing `BrunoStudiosBackdrop`? The card *tile*
+**Asset — RESOLVED (§9.5):** **Studio04** is an existing asset
+(`/Volumes/Media Server NAS/Collections/Studio04.jpeg`, owner-confirmed). The
+live code currently points the grid at a *different* existing asset,
+`BrunoStudiosBackdrop`. §3 work = import `Studio04` into the tvOS asset catalog
+and point both the tile and the grid at it. The card *tile*
 backdrop lives in `BrunoCategoryTile` / `BrunoCollectionArtwork` (code-drawn
 gradient today, not a still) — pinning the same mountain image on both the tile
 and the grid means the tile must switch from gradient to the same `Image` asset.
@@ -179,10 +183,11 @@ duplicate and pull up the next distinct-year candidate. *Determinism (INV-3):*
 the tie-break/spread must be seeded from `(seed, snapshot)` — **not `Date()`** —
 so the same launch yields the same spread; use the existing `rowOrderSeed`
 (`BrunoBoxSetShelvesView.swift:431-433`). Keep `reverseChronological`'s stable
-`id` final tie-break so the sort stays total (INV-3-safe). **Data gate:** the
-Oscar per-item tags `oscar:<CAT>:<won|nom>:<year>` (`BrunoOscarAward.swift:63-70`)
-must be applied server-side (`Apply-Enrich-Tags.command apply`,
-`PROJECT_TRACKER.md:38`) for the year data to exist.
+`id` final tie-break so the sort stays total (INV-3-safe). **Data gate — CLEARED
+(§9.4):** the Oscar per-item tags `oscar:<CAT>:<won|nom>:<year>`
+(`BrunoOscarAward.swift:63-70`) are **already live on the server** (410 movies
+tagged). §4 is data-unblocked; `PROJECT_TRACKER.md:38` ("needs apply") is stale
+drift to re-sync.
 
 ---
 
@@ -212,9 +217,14 @@ his director grid. No server data changed — presentation only.
 = (films where Hughes is director) ∪ (a hard-coded override list of library IDs).
 The override is app-side, keyed on the specific item IDs. Seam: the Directors
 drill-in member resolution (the per-director query that feeds the grid). **Data
-gate (owner):** library IDs for the Hughes-produced-but-not-directed films — the
-override list cannot be built without them. *INV-2:* the merged list must keep
-stable ids and de-dup if a film appears in both sets.
+gate — RESOLVED + metadata-verified (§9.2):** the override IDs are in hand. ⚠
+Correction: **Ferris Bueller's Day Off is directed by Hughes** (already in the
+collection) — no override needed for it. Recommended override set (canonical six,
+all confirmed `John Hughes (Writer/Producer)` in library metadata): Home Alone
+`d8ae5f93…`, Home Alone 2 `2dc62db2…`, Pretty in Pink `13cea2f3…`, Some Kind of
+Wonderful `5be2b6f0…`, National Lampoon's Vacation `89ba42db…`, Christmas
+Vacation `a488f440…`. *INV-2:* the merged list must keep stable ids and de-dup if
+a film appears in both sets.
 
 ### Hero — Directors grid (and Movie Stars grid)
 Top-level Directors grid + top-level Movie Stars grid each need a cinematic hero
@@ -359,18 +369,103 @@ decided.
 
 ---
 
-## 9. Data Needs — owner must supply (these gate dependent work)
+## 9. Data Needs — RESOLVED against the live server (2026-06-30)
 
-1. **Curated member list** — full list of all server BoxSets in the Curated
-   group by name. Gates §1 disposal decisions.
-2. **John Hughes film IDs** — library IDs for produced-but-not-directed films.
-   Gates §5 override.
-3. **Cities server group** — favorited "Cities" group BoxSet with Chicago child,
-   created on the server. Gates §1 Cities card.
-4. **Oscar tags applied** — `Apply-Enrich-Tags.command apply` so
-   `oscar:<CAT>:<…>:<year>` tags exist. Gates §4 year-dedup.
-5. **Studio04 vs BrunoStudiosBackdrop** — confirm whether Studio04 is a new asset
-   or a rename. Gates §3.
+All five were cleared by querying the live Jellyfin server
+(`http://192.168.50.19:8899`, creds in `MovieCollection/enrich/_config.py`) and
+the NAS. **Four are fully resolved; three carry a narrow owner decision** (marked
+⚠ — see §9a). Nothing below is an assumption — every ID/count came from the
+server or library metadata.
+
+**1. Curated member list — RESOLVED (13 members).** The "Curated" group
+(`id=e10ffc104536930edc95f7321f4a3b74`) contains:
+
+| Member (BoxSet) | id | IA disposition |
+|---|---|---|
+| Ebert Thumbs Up | `f1cc8bd59a4fd6fe32b5078815bfe91a` | → **Roger** (promote) |
+| Ebert Thumbs Down | `ac158140fd2a90700a0288db828699e5` | → **Roger** (promote) |
+| Oscar — Best Picture | `7a2ec4edd2960dcfbc7149b87581fcdd` | → **Oscar** (promote, consolidated) |
+| Oscar — Directing | `98eb385f8acf6fad96fe417ea9b28e89` | → **Oscar** |
+| Oscar — Acting | `be41c882dd2ba3dac0558b134f0ce43a` | → **Oscar** |
+| Oscar — Cinematography | `2b3c9dc0d056be0652a87dea4807dc13` | → **Oscar** |
+| Oscar — Score | `2b379a6dcd68cc78f96ab1af4f36f192` | → **Oscar** |
+| Oscar — Screenplay | `e8e1d1d22294a46a6d77f6234b8dd795` | → **Oscar** |
+| Asian Cinema | `f96882e8e7abb871c5365782fac56f2a` | → **Asian Cinema** (promote) |
+| Film School Classics | `61b1fa77b4301a40d970f1e40cb9a34c` | → **Film School** (promote) |
+| Cultural Touchstones | `670dc4025fb9dc6e671e38bad4a92861` | → **demote** (§1) |
+| Critically Acclaimed | `e09ff623404dc3392e0c950b85af0c55` | ⚠ **not in plan — disposal** |
+| Oscar Buzz | `fb9e649d842803f8bab9446a8fd6e7d9` | ⚠ **not in plan — disposal** |
+
+So "everything else under Curated" = exactly **Critically Acclaimed** + **Oscar
+Buzz**. (Note: server name is **"Film School Classics"**, not "Film School"; the
+owner's "Roger" = the two Ebert Thumbs Up/Down BoxSets.)
+
+**2. John Hughes film IDs — RESOLVED + metadata-verified.** The "John Hughes"
+director BoxSet (`id=7583e70920907af155e4065044f61c1d`) currently holds **6
+directed films**: Sixteen Candles, The Breakfast Club, Weird Science, Ferris
+Bueller's Day Off, Planes Trains and Automobiles, Uncle Buck. ⚠ **Ferris
+Bueller's Day Off is already in — Hughes *directed* it** (library metadata:
+`John Hughes (Director)`); the owner's premise that Hughes "didn't direct" it is
+mistaken, so it needs no override. The produced/written-not-directed films, each
+confirmed in library metadata as `John Hughes (Writer/Producer)` with the real
+director, all present in the library:
+
+| Film (year) | library id | real director | Hughes credit |
+|---|---|---|---|
+| Home Alone (1990) | `d8ae5f935be639f3b6670648397d088d` | Chris Columbus | Writer + Producer |
+| Home Alone 2 (1992) | `2dc62db2083706afccb0e02493309cde` | Chris Columbus | Writer + Producer |
+| Pretty in Pink (1986) | `13cea2f35f525423b506543240421785` | Howard Deutch | Writer + Producer |
+| Some Kind of Wonderful (1987) | `5be2b6f08e78559f6c66e2d5ea5444d9` | Howard Deutch | Writer + Producer |
+| National Lampoon's Vacation (1983) | `89ba42db2ad4c74827311587660c88a7` | Harold Ramis | Writer |
+| National Lampoon's Christmas Vacation (1989) | `a488f44051d82c1a98d883b2f7fe0f39` | Jeremiah Chechik | Writer + Producer |
+| *European Vacation (1985)* | `f1512e6582d0e123a25a6eda86ef29e3` | Amy Heckerling | Writer *(deep cut)* |
+| *Maid in Manhattan (2002)* | `06808ccb4f4b4ffb8fd135d344fb2cfa` | Wayne Wang | Writer (story) *(deep cut)* |
+
+Recommended override set = the **first six** (canonical "John Hughes movies").
+European Vacation + Maid in Manhattan are real Hughes writing credits but feel
+off-brand for the grid — ⚠ owner picks whether to include them. (The 2015
+*Vacation* reboot is **not** Hughes — excluded.) These IDs feed the §5
+display-layer union.
+
+**3. Cities server group — content exists, wrapper missing.** No favorited
+"Cities" group exists (the 9 favorited groups are New Releases, Directors,
+Decades, Genres, Studios, Curated, Seasonal, Movie Stars, Rewatchables). **But a
+`Chicago Movies` BoxSet already exists** (`id=c443b3c45f21b44f1c7f53d641cadb81`,
+**23 films**) — unfavorited, one of the 459 total BoxSets, and the same one the
+Movies genre buckets already reference as `"chicago movies"`
+(`BrunoGenresView.swift:44…`). So the *content* is ready; the only missing piece
+is a **favorited "Cities" parent group with Chicago Movies as a child** — the
+exact structural shape of Decades (8 children) / Directors (138). ⚠ This is a
+live-server mutation (create + favorite a group BoxSet via
+`MovieCollection/Build-Jellyfin-Collections.command`), so it needs the owner's
+go-ahead — I can execute it on confirmation (see §9a).
+
+**4. Oscar tags applied — RESOLVED, already live.** The live server already has
+**410 movies** tagged `oscar:<CAT>:<won|nom>:<YEAR>` (plus 679 with `ebert-*`,
+213 with `rewatchables*`), e.g. *Collateral* → `oscar:ACTING:nom:2004`. §4
+year-dedup is **data-unblocked now.** ⚠ Drift: `PROJECT_TRACKER.md:38` still says
+the Oscar tags "need owner `Apply-Enrich-Tags.command apply`" — that's stale;
+they're applied. Owner should re-sync the tracker line.
+
+**5. Studio04 — RESOLVED, existing asset.** `Studio04.jpeg` exists in the NAS
+(`/Volumes/Media Server NAS/Collections/Studio04.jpeg`) and the owner confirmed
+it's existing. The code today uses a *different* existing asset,
+`Image("BrunoStudiosBackdrop")` (`BrunoStudiosGridView.swift:52`). §3 work =
+import `Studio04` into the tvOS asset catalog and point **both** the Studios card
+tile and the grid backdrop at it (replacing `BrunoStudiosBackdrop` for this
+surface). No data gate remains — purely an asset-catalog + code change.
+
+### 9a. Remaining owner decisions (narrow — not data lookups)
+
+1. **Curated leftovers** — dispose / fold / promote **Critically Acclaimed** and
+   **Oscar Buzz**? (Oscar Buzz could fold into the promoted Oscar card; Critically
+   Acclaimed overlaps Ebert + Cultural Touchstones.)
+2. **Hughes deep cuts** — include *European Vacation* + *Maid in Manhattan* in the
+   override, or just the canonical six?
+3. **Cities group creation** — confirm and I'll create + favorite a "Cities" group
+   with **Chicago Movies** as its first child (additive, mirrors Decades/Directors);
+   or you create it. Also confirm Chicago Movies (23 films) is the intended seed
+   vs a hand-curated Chicago list.
 
 ---
 
@@ -386,11 +481,13 @@ trap noted in prior shelf-depth work. Not blocking IA work; log if it recurs.
 
 ## Sequencing recommendation (lowest-risk → highest)
 
-1. **Pure-data / unblocked-once-owner-supplies:** §1 promotions (rank slots),
-   §3 backdrop pin, §5 household-names list, §7 static drill-down heroes — these
-   reuse existing patterns with low determinism risk.
-2. **Owner-data-gated:** §1 Cities, §5 John Hughes override, §4 Oscar dedup —
-   blocked on Data Needs 1–4.
+1. **Unblocked now (data resolved §9):** §1 promotions (rank slots) + retire
+   Curated, §3 Studio04 backdrop pin, §5 household-names list + John Hughes
+   override (IDs in hand), §4 Oscar year-dedup (tags live), §7 static drill-down
+   heroes — all reuse existing patterns with low determinism risk and have **no
+   remaining data gate.**
+2. **One-confirmation-away:** §1 Cities card — needs the favorited "Cities" group
+   created (one command, §9a.3); content (Chicago Movies, 23 films) already exists.
 3. **Highest-risk (perf + focus):** §6 reactive Decades hero (reintroduces the
    backdrop-reload cost the code deliberately avoided) and the §6 double-tap-down
    pill nav (focus-engine state machine, INV-7/10, on-device verification
