@@ -59,22 +59,52 @@ Today these are Curated children, consolidated into "Ebert"/"Oscars" tiles only
 *inside* the Curated drill-in (`consolidateOscars`/`consolidateEbert`,
 `BrunoBoxSetShelvesView.swift:136-167`).
 
-**Implementation.**
-- *Roger (Ebert):* drill-down unchanged — it already has its one-tile toggle
-  (`PROJECT_TRACKER.md:39`). Promotion = give it a top-level `rank` slot + a
-  `drillStyle`/`lens`. Its grid route already exists.
-- *Oscar:* consolidated Academy Awards card — the six-category drill-in already
-  exists (`BrunoOscarCategory`, `BrunoOscarAward.swift:19-44`; six gold tiles
-  `BrunoCategoryShelves.swift:516-521`). Promotion = top-level `rank` slot; reuse
-  the existing `consolidateOscars` one-tile collapse for the card face.
-- *Asian Cinema:* drill-down = genre shelves + Wong Kar Wai + Bong Joon Ho
-  shelves, **no filter pills.** This is a `.shelves` drill (like Curated) but with
-  a hand-authored shelf set. Seam: a new `drillStyle` branch or a dedicated
-  shelves view modeled on `BrunoBoxSetShelvesView.performLoad`
-  (`:506-679`) but with the director shelves added as `bruno-sig`-style synthetic
-  shelves. No pill state → simpler than Decades.
-- *Film School:* contents **untouched** — pure promotion, give it a `rank` slot
-  and keep its existing drill route.
+⚠ **Prerequisite — promotion REQUIRES favoriting server-side, not just a `rank`
+slot (red-team finding 1).** `fromSnapshot` builds cards **only** from
+`snapshot.favoriteGroupBoxSets` (`BrunoCategoryShelves.swift:144`). These five are
+**children of Curated, not favorited groups** (verified absent from the favorited
+list), so a `rank`/`drillStyle`/`lens` entry does **nothing** until each is
+favorited — exactly what made Cities appear. **Mechanism — owner decision
+2026-06-30: make them real favorited groups (data-only, like Cities).**
+- Singles → favorite directly: **Asian Cinema** (`f96882e8…`), **Film School
+  Classics** (`61b1fa77…`), **Critically Acclaimed** (`e09ff623…`).
+- Consolidated → create favorited **parent groups** whose children are the
+  existing BoxSets: **"Oscars"** parent over the six `Oscar *` BoxSets, **"Roger"**
+  (or "Ebert") parent over the two `Ebert Thumbs Up/Down` BoxSets — same shape as
+  the Cities group (parent + child BoxSets, `.shelves` drill). This replaces the
+  app-side `consolidateOscars`/`consolidateEbert` synthetic collapse with real
+  server groups (cleaner; one promotion mechanism, not two).
+- **Coordinate with retiring Curated** so there's no transitional double-surfacing
+  (a promoted child showing as both a Curated shelf and a top-level card). Do the
+  favoriting + the Curated un-favorite + the app seams as **one migration**, not
+  piecemeal — favoriting alone (before the seams) renders them with default `.grid`
+  + `.max` rank + no lens (degraded). Server migration is scriptable now; gate it
+  on the app seams being ready.
+
+**Implementation (per card).**
+- *Roger (Ebert):* once the "Roger" parent group exists, its `.shelves` drill shows
+  the Up/Down shelves; the one-tile toggle grid (`PROJECT_TRACKER.md:39`) stays.
+  `rank` + `drillStyle .shelves` + `lens`.
+- *Oscar:* the "Oscars" parent group's `.shelves` drill fans out the six category
+  shelves (the existing gold-tile treatment, `BrunoOscarCategory`,
+  `BrunoOscarAward.swift:19-44`). `rank` + `.shelves` + `lens`. The app-side
+  `consolidateOscars` collapse is no longer needed once the parent group is real.
+- *Asian Cinema:* **flat 38-movie BoxSet (verified) — NOT sub-BoxSets, so the
+  generic `.shelves` drill can't iterate it (red-team finding 2).** Owner decision
+  2026-06-30: **no new BoxSets** — compose the drill from data that already exists:
+  - *Wong Kar-Wai* shelf ← the existing `Wong Kar-Wai` director BoxSet
+    (`824f5063…`, 4 films, under Directors).
+  - *Bong Joon Ho* shelf ← the existing `Bong Joon Ho` director BoxSet
+    (`01fd8535…`, 5 films).
+  - *Genre shelves* — Action · Romance · Thriller · Drama · Comedy · (Sci-Fi if
+    non-empty) — each a **runtime genre filter over the Asian Cinema film set**
+    (films carry TMDB `Genres`, verified). ⚠ The set is ~38 films, so some genre
+    shelves will be sparse (drop a shelf under a min-count, e.g. <5). This is a
+    **bespoke composed view** (2 director-collection refs + N genre-filtered
+    shelves), its own `drillStyle`/view — *not* the generic `.shelves`. No pills.
+- *Film School:* flat 52-movie BoxSet (verified) — favorite it; its drill is a flat
+  `.grid` of the 52 (its existing route), `rank` + `lens`. (Earlier "contents
+  untouched" holds; just needs favoriting to surface.)
 - *Critically Acclaimed* (`e09ff623…`): **promote, content as-is** (owner
   decision 2026-06-30). Today it's a single flat BoxSet of films, so the
   promoted card's `drillStyle` is `.grid` (or `.items`) over its members — a `rank`
@@ -179,6 +209,16 @@ row-assignment map (which card → which row + position). Keep ids stable (INV-2
 keep the tile cells structurally stable (INV-10 — no conditional focusable
 insertion). Row height is fixed (INV-1) — both rows must use the same metric.
 
+⚠ **Don't break `rank()`'s other two consumers (red-team finding 5).**
+`rank()`/`fromSnapshot` is **shared** by the Collections hub, the Home feed's
+**terminal footer**, AND the Home **"Browse the Collection" spine** shelf
+(`BrunoCategoryShelves.swift:138-142`), and it also **drops empty groups**. The
+two-row, hand-ordered layout is a **Collections-hub-only** presentation concern —
+implement it as a row-assignment map *applied at the Collections card row*, layered
+**on top of** `fromSnapshot` (which still returns the ranked, empty-dropped list
+the other two surfaces depend on). Do **not** replace `rank()` itself, or the Home
+footer/spine ordering changes too.
+
 *Open question:* with Curated retired and four cards promoted, the strip grows
 from ~10 to ~13 entries — confirm the two-row split absorbs all of them (Row 1 =
 5, Row 2 = 5, leaves Asian Cinema/Film School/Cities = 3 to place). 5+5+3 = 13
@@ -214,20 +254,24 @@ inside that exception — no new perf risk, just no rotation logic.
 A single Oscar year dominates lead slots across all six category shelves. Spread
 the top visible slots so no year dominates multiple shelves' leads.
 
-**Implementation.** Each of the six shelves is sorted independently by
-`BrunoOscar.reverseChronological(_:category:)` (`BrunoOscarAward.swift:75-85`,
-award-year desc → premiere desc → id), applied per-shelf in
-`BrunoBoxSetShelvesView.performLoad` (`:598-602`). There is **no cross-shelf
-coordination today** — this is net-new logic. The natural seam is the drill-in
-assembly where all six are visible at once (`performLoad` Oscar branch `:598-602`,
-or the `consolidateOscars` assembly `:136-149`). Approach: after each shelf is
-reverse-chron sorted, run a **seeded de-dup pass over the lead slots** — walk the
-six shelves' slot 0/1, and where the same year (or same film) repeats, demote the
-duplicate and pull up the next distinct-year candidate. *Determinism (INV-3):*
-the tie-break/spread must be seeded from `(seed, snapshot)` — **not `Date()`** —
-so the same launch yields the same spread; use the existing `rowOrderSeed`
-(`BrunoBoxSetShelvesView.swift:431-433`). Keep `reverseChronological`'s stable
-`id` final tie-break so the sort stays total (INV-3-safe). **Data gate — CLEARED
+**Implementation — owner decision 2026-06-30: the cheap per-shelf offset
+heuristic, not a full cross-shelf rebalance** ("not a huge issue, just want some
+variation"). ⚠ **Red-team finding 3:** the six shelves are loaded + sorted
+**independently inside a per-subgroup loop** in `performLoad`
+(`BrunoBoxSetShelvesView.swift:595-605`) — there is **no point where all six sorted
+arrays coexist**, so a true cross-shelf lead-slot pass would need a new assembly
+step (the earlier `:598-602` / `consolidateOscars` seams are the wrong layer:
+one-shelf-at-a-time and category-descriptors-not-films respectively). The cheap
+heuristic **avoids that** entirely: give each of the six shelves a **different
+seeded rotation offset** so they don't all lead with the same recent year — e.g.
+after `reverseChronological`, rotate shelf *i* by `seededOffset(category, seed)`
+within its top band (or interleave by award-year bucket), applied right where each
+shelf is built (`:600-602`), no cross-shelf coordination needed. Approximate (two
+shelves *can* still occasionally collide) but cheap and local. *Determinism
+(INV-3):* the offset is seeded from `(category, rowOrderSeed)`
+(`BrunoBoxSetShelvesView.swift:431-433`) — **not `Date()`** — so the spread is
+stable per launch; keep `reverseChronological`'s stable `id` tie-break so the base
+sort stays total. **Data gate — CLEARED
 (§9.4):** the Oscar per-item tags `oscar:<CAT>:<won|nom>:<year>`
 (`BrunoOscarAward.swift:63-70`) are **already live on the server** (410 movies
 tagged). §4 is data-unblocked; `PROJECT_TRACKER.md:38` ("needs apply") is stale
@@ -285,14 +329,14 @@ appears in both sets.
 Top-level Directors grid + top-level Movie Stars grid each need a cinematic hero
 banner (craft-of-filmmaking imagery).
 
-**Implementation.** Both grids route to `BrunoBoxSetGridView`, which has **no
-hero today** (no `GeometryReader`/backdrop/header — bruno-expert confirmed). Net-
-new. Two patterns to copy: the generic `BrunoHeroView` band
-(`BrunoHeroView.swift:30`, used by Decades) or the bespoke brand-art band
-(Studios `:105-115` / Rewatchables `BrunoRewatchablesView.swift:96,138`). For a
-static atmospheric grid-hero, the Studios/Rewatchables brand-art band is the
-closer fit (a fixed `Image` over the grid). See §7 (Drill-Down Heroes) — this is
-the same work item.
+**Implementation — owner decision 2026-06-30: STATIC brand art** (not a live
+movie pick). Both grids route to `BrunoBoxSetGridView`, which has no hero today
+(net-new). Copy the **bespoke brand-art band** (Studios `:105-115` / Rewatchables
+`BrunoRewatchablesView.swift:96,138`) — a fixed `Image` over the grid — **not** the
+`BrunoHeroView` movie-backdrop band. Because it's a fixed image, this **avoids both
+the INV-6 scroll-blur exception creep (red-team finding 6) and the hero
+anti-repetition work entirely** — there's no movie pick to rotate or de-dup. Same
+treatment for Box Sets (§7). See §7 for the shared work item.
 
 ---
 
@@ -337,14 +381,22 @@ from the candidate pool *before* the seeded pick. Implementation: persist a smal
 **recents ring buffer** of recent hero item-ids (per surface) in the app's
 lightweight store (`UserDefaults`/`StoredValue`); on each pick, subtract the
 recents from the candidate pool, seed-pick from the remainder, then push the
-chosen id (cap 5, FIFO). **Determinism is preserved** (INV-3): the pick stays a
-pure function of `(seed, decade, recentsSet)` — the recents set is *input state*,
-not wall-clock; same inputs ⇒ same pick. Edge case: if a decade's strong-candidate
-pool is ≤5, fall back to **least-recently-shown** rather than emptying the pool
-(never show nothing). **This is the general rule for every seeded hero, not just
-Decades** — apply the same recents-exclusion to the Directors / Movie Stars / Box
-Sets grid heroes (§7) and the Home multi-item hero, each with its own per-surface
-recents buffer, so no surface re-shows a face within the window.
+chosen id (cap 5, FIFO). Edge case: if a decade's strong-candidate pool is ≤5, fall
+back to **least-recently-shown** rather than emptying the pool (never show nothing).
+
+⚠ **Determinism — the recents buffer must NOT leak into `BrunoHomePlan.build`'s
+purity (red-team finding 4).** The decade hero lives in `BrunoBoxSetShelvesView`,
+*outside* `build(seed:snapshot:now:)`, so its pick = pure fn of `(seed, decade,
+recentsSet)` is fine — `selfCheckPassed()` never sees it. **But** if the **Home**
+movie hero is seeded *inside* `build` (which `selfCheckPassed()` asserts pure over
+`seed`+`snapshot`+`now`), a mutating persisted recents buffer read in `build` would
+make two calls differ and **fire the DEBUG assert**. So for any movie hero inside
+`build`, the recents set must be threaded as an **explicit `build` parameter** (like
+`now`) and **pinned in the self-check fixture** — never read ambiently. **Scope
+(owner decision 2026-06-30):** the Directors/Movie Stars/Box Sets grid heroes are
+**static brand art** (§5/§7) → no anti-repetition there. This rule applies only to
+the **Decades** hero (outside `build`, simple) and any **Home** movie hero (inside
+`build` → thread recents explicitly).
 
 ### Double-tap-down navigation (two-state pill nav)
 State 1: Down from content → pills focus, hero fully visible above, pills at
@@ -415,12 +467,14 @@ net-new; Decades already has one (made reactive per §6).
 copy either `BrunoHeroView` (`BrunoHeroView.swift:30`, the Decades pattern) or
 the bespoke brand-art band (Studios `:105-115` / Rewatchables
 `BrunoRewatchablesView.swift:96,138`). For static atmospheric imagery the brand-
-art band (fixed `Image` over a flat grid) is the closer match and inherits the
-Studios INV-6 exception (`PROJECT_TRACKER.md:87-89`) consciously. *INV-1:* fixed
-grid row height below the hero; *INV-8:* top-down reveal preserved. **Any of these
-heroes that picks a *movie* (vs. fixed brand art) must apply the §6
-anti-repetition rule** — a per-surface recents buffer excluding heroes shown in
-the last ≥5 launches, so the grid heroes don't go stale either.
+art band (fixed `Image` over a flat grid). **Owner decision 2026-06-30: these grid
+heroes (Directors, Movie Stars, Box Sets) are STATIC brand art** — a fixed
+atmospheric image per grid, **no live movie pick.** This deliberately keeps them
+*out* of the INV-6 scroll-blur exception (a fixed image isn't scroll-coupled, so it
+doesn't extend the Studios one-off — red-team finding 6 resolved) and means **no
+anti-repetition** is needed here. *INV-1:* fixed grid row height below the hero;
+*INV-8:* top-down reveal preserved. Only **Decades** keeps a reactive movie hero
+(§6), and only it (+ any Home movie hero) carries the §6 anti-repetition rule.
 
 ---
 
@@ -550,17 +604,52 @@ trap noted in prior shelf-depth work. Not blocking IA work; log if it recurs.
 
 ## Sequencing recommendation (lowest-risk → highest)
 
-1. **Unblocked now (data resolved §9):** §1 promotions (rank slots) + retire
-   Curated, §3 Studio04 backdrop pin, §5 household-names list + John Hughes
-   override (IDs in hand), §4 Oscar year-dedup (tags live), §7 static drill-down
-   heroes — all reuse existing patterns with low determinism risk and have **no
-   remaining data gate.**
-2. **One-confirmation-away:** §1 Cities card — needs the favorited "Cities" group
-   created (one command, §9a.3); content (Chicago Movies, 23 films) already exists.
-3. **Highest-risk (perf + focus):** §6 reactive Decades hero (reintroduces the
-   backdrop-reload cost the code deliberately avoided) and the §6 double-tap-down
-   pill nav (focus-engine state machine, INV-7/10, on-device verification
-   required). Build these last, behind the shared-idiom refactor, and verify on a
-   real device.
-4. **Decision-gated:** §2 two-row layout (design call) and §8 Curated-Explore
+1. **Done:** Cities group + app seam (`.shelves`), em-dash rename + app tolerance.
+2. **Low-risk, ready:** §3 Studio04 backdrop pin, §5 household-names list + John
+   Hughes override (8 IDs in hand), §5/§7 **static brand-art** grid heroes (no
+   INV-6/anti-rep), §4 Oscar **cheap offset heuristic** — all reuse existing
+   patterns, no data gate.
+3. **Coordinated server+app migration (§1):** favorite the promotes + create
+   "Oscars"/"Roger" parent groups + un-favorite Curated + land the rank/drillStyle/
+   lens seams, as **one step** (avoid transitional double-surfacing). Asian Cinema's
+   bespoke composed view (director collections + genre shelves) rides here.
+4. **Highest-risk (perf + focus):** §6 reactive Decades hero (reintroduces the
+   backdrop-reload cost the code deliberately avoided, + the anti-repetition buffer)
+   and the §6 double-tap-down pill nav (focus-engine state machine, INV-7/10,
+   on-device verification required). Build last, behind the shared-idiom refactor.
+5. **Decision-gated:** §2 two-row layout (design call) and §8 Curated-Explore
    retarget (blocked on §1 shape).
+
+---
+
+## Red-team log (2026-06-30) — findings + resolutions
+
+Adversarial pass over the plan, verified against live code/server. All six woven
+into the sections above; logged here for traceability.
+
+1. **Promotion needs favoriting, not just a `rank` slot** (HIGH). `fromSnapshot`
+   builds only from favorited groups; the promotes are Curated *children*. → §1:
+   make them real favorited groups (singles favorited; "Oscars"/"Roger" parent
+   groups created), coordinated with Curated retirement + app seams.
+2. **Asian Cinema is a flat 38-movie BoxSet, not sub-BoxSets** (HIGH) — generic
+   `.shelves` can't iterate it. → §1: owner decision — compose from existing data
+   (Wong Kar-Wai `824f5063…` + Bong Joon Ho `01fd8535…` director collections +
+   runtime genre-filtered shelves), no new BoxSets; bespoke view.
+3. **Oscar dedup seam doesn't exist where cited** (MED) — six shelves sorted
+   independently in a loop, never co-located. → §4: owner picked the cheap
+   per-shelf seeded-offset heuristic (local, no cross-shelf pass).
+4. **Anti-repetition recents buffer vs `BrunoHomePlan.build` purity** (MED) — a
+   mutating buffer read in `build` breaks `selfCheckPassed()`. → §6: thread recents
+   as an explicit `build` param for any Home movie hero; Decades hero is outside
+   `build` (fine). Grid heroes are static (no buffer at all).
+5. **Two-row layout must not replace `rank()`** (MED) — `rank()`/`fromSnapshot`
+   also feeds the Home footer + spine and drops empties. → §2: row-assignment map
+   layered on top of `fromSnapshot`, not a `rank()` rewrite.
+6. **INV-6 exception creep on grid heroes** (LOW-MED). → §5/§7: owner chose static
+   brand art for Directors/Movie Stars/Box Sets heroes → no new scroll-blur
+   surfaces, exception stays the Studios one-off.
+
+**Net effect of the owner decisions:** the riskiest items got *cheaper*, not
+harder — static grid heroes (no INV-6/anti-rep), cheap Oscar heuristic, data-only
+promotion via favorited groups, and Asian Cinema reusing existing collections +
+genre tags instead of new server data.
