@@ -48,7 +48,11 @@ enum BrunoCollectionArtwork {
         // imagesets stay in the catalog.
         "decades": ["Decades02"],
         "genres": ["Genre01", "Genre02"],
-        "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
+        // Locked to Studio04 (the Paramount mountain) — single-element list pins it so the resting
+        // tile no longer rotates, matching the same Studio04 still now pinned on the Studios grid
+        // backdrop (the one hard visual lock, plan §3). Mirrors the Coppola/Ebert locks above; the
+        // Studio01/02/03/05 imagesets stay in the catalog, just dropped from this tile.
+        "studios": ["Studio04"],
         // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
         // lockup, with no text overlay, so the tile matches the dimmed-image siblings.
         "rewatchables": ["RewatchablesCard"],
