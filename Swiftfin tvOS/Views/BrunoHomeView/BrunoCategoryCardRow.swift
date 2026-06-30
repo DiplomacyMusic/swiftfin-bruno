@@ -84,13 +84,15 @@ func brunoRouteToShowAll(
         router.route(to: .brunoCategoryShelves(parent: category.boxSet, subGroups: category.children), in: namespace)
     case .items:
         // Boxed Sets: landscape cards so the franchise names aren't scrunched, with the
-        // collection-name / "Collection" / film-count + year-range lockup.
+        // collection-name / "Collection" / film-count + year-range lockup. §7: cinematic hero band
+        // (stand-in = the Boxed Sets card art).
         router.route(
             to: .brunoBoxSetGrid(
                 title: category.name,
                 items: category.children,
                 posterType: .landscape,
-                collectionLabel: true
+                collectionLabel: true,
+                heroAsset: BrunoCollectionArtwork.heroAsset(for: category.name)
             ),
             in: namespace
         )
@@ -179,12 +181,19 @@ func brunoRouteToShowAll(
                     in: namespace
                 )
             } else {
+                // Directors / Movie Stars (and any other box-set-child group): §7 cinematic hero band
+                // with the category's card art as the stand-in. Directors additionally get the §5
+                // "Household Names" marquee shortlist above the A–Z grid.
+                let isDirectors = category.name.lowercased() == "directors"
                 router.route(
                     to: .brunoBoxSetGrid(
                         title: category.name,
                         items: boxSetChildren,
                         posterType: .portrait,
-                        artCarousel: true
+                        artCarousel: true,
+                        heroAsset: BrunoCollectionArtwork.heroAsset(for: category.name),
+                        householdNames: isDirectors ? BrunoBoxSetGridView.recognizableDirectors : nil,
+                        allSectionTitle: "All \(category.name)"
                     ),
                     in: namespace
                 )

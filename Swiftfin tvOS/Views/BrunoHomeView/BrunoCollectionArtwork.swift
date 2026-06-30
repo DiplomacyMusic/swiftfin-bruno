@@ -62,6 +62,14 @@ enum BrunoCollectionArtwork {
         name.lowercased() == "seasonal"
     }
 
+    /// The representative card-art asset for a category — used as the §7 grid-hero stand-in (owner:
+    /// "use card title/BGs for hero stand in", easy to swap for bespoke hero art later). Non-rotating
+    /// (the first mapped asset); nil ⇒ no art mapping, so no hero. Directors/Movie Stars/Boxed Sets are
+    /// each pinned to a single-element list, so this is the same still shown behind their card.
+    static func heroAsset(for name: String) -> String? {
+        byCategory[name.lowercased()]?.first
+    }
+
     /// Sep 21 – Dec 31 (Halloween through the end of Christmas): the Seasonal tile is promoted to
     /// 2nd place, right after New Releases. The rest of the year it keeps its default last slot.
     /// Same start anchor as the Halloween art window.
