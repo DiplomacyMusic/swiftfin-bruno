@@ -39,6 +39,10 @@ enum BrunoCuratedCard {
     /// six real categories get the eyebrow split — "Oscar Buzz"/"Oscar Bait" and every non-Oscar name
     /// ⇒ (nil, name): a single centred title, unchanged.
     static func titleParts(_ name: String) -> (eyebrow: String?, title: String) {
+        // The promoted "Roger Ebert" group card displays just "Roger" (owner request); the underlying
+        // group name stays "Roger Ebert" everywhere else (drillStyle / lens / the Ebert toggle gate /
+        // promotedCuratedBoxSets all key on it).
+        if name.lowercased() == "roger ebert" { return (nil, "Roger") }
         guard BrunoOscarCategory(boxSetName: name) != nil else { return (nil, name) }
         // Drop the legacy em-dash (no-op on the clean form), then strip the "Oscar " prefix; preserves
         // the category's original casing ("Best Picture", not "best picture").

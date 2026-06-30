@@ -38,12 +38,12 @@ struct BrunoCategoryCardRow: View {
     @Namespace
     private var namespace
 
-    /// Row 1 membership (lowercased group names) for the two-row Collections layout — the "what to
-    /// watch" lane. Everything else falls to Row 2 ("how to browse"). Order within each row follows the
-    /// incoming rank order. Membership is the owner's design call (the deferred §2 placement) — edit here.
+    /// Row 1 membership (lowercased group names) for the two-row Collections layout (owner placement,
+    /// 2026-06-30): New Releases + the browse hubs. Everything else falls to Row 2 (the curated content:
+    /// Oscars, Roger, Rewatchables, Seasonal, Asian Cinema, Film School Classics, Critically Acclaimed).
+    /// Order within each row follows the incoming rank order. Membership is the owner's call — edit here.
     private static let row1Names: Set<String> = [
-        "new releases", "oscars", "roger ebert", "critically acclaimed",
-        "rewatchables", "film school classics", "asian cinema", "seasonal",
+        "new releases", "directors", "movie stars", "decades", "studios", "boxed sets", "cities",
     ]
 
     var body: some View {
