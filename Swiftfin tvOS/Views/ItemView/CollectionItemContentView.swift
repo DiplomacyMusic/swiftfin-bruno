@@ -64,6 +64,19 @@ extension ItemView {
             count: 7
         )
 
+        // Bruno: chronological by release date (was server/SortName order, which mixed Empire
+        // Strikes Back/Jedi ahead of the original Star Wars and other franchise-collection jumbles —
+        // owner request: "episode order"). Release-date order is a data-driven proxy that needs no
+        // per-title special-casing and generalizes to every BoxSet (Avengers, etc.); the one known gap
+        // is a saga with release order ≠ story order (Star Wars prequels released after the originals
+        // they precede in-story) — true story order would need an explicit per-title number this app
+        // doesn't have. Items without a date sink to the end rather than the (undated) front.
+        private func chronological(_ items: some Sequence<BaseItemDto>) -> [BaseItemDto] {
+            items.sorted {
+                ($0.premiereDate ?? .distantFuture) < ($1.premiereDate ?? .distantFuture)
+            }
+        }
+
         private func posterGrid(element: Element) -> some View {
             VStack(alignment: .leading, spacing: 20) {
                 Text(element.key.pluralDisplayTitle)
@@ -73,16 +86,22 @@ extension ItemView {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, EdgeInsets.edgePadding)
 
+                let sorted = chronological(element.value.elements)
                 LazyVGrid(columns: Self.posterColumns, spacing: EdgeInsets.edgePadding) {
-                    ForEach(element.value.elements, id: \.id) { item in
+                    ForEach(sorted, id: \.id) { item in
                         PosterButton(
                             item: item,
                             type: .portrait,
                             action: { router.route(to: .item(item: item)) },
-                            label: { PosterButton<BaseItemDto>.TitleSubtitleContentView(item: item) }
+                            // Bruno: two-line wrapping title (was the stock 1-line "…" truncation —
+                            // owner request) — same component the Collections drill-in grids use.
+                            label: { BrunoPosterTitleContentView(item: item) }
                         )
                         .onAppear {
-                            if element.value.elements.last?.id == item.id {
+                            // Trigger on the SORTED array's last item (visual end), not the unsorted
+                            // fetch order's last item, since chronological() can reorder which item
+                            // lands at the end.
+                            if sorted.last?.id == item.id {
                                 element.value.getNextPage()
                             }
                         }
