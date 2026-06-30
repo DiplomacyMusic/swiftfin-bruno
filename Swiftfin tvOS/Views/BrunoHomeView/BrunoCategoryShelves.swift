@@ -98,12 +98,12 @@ extension BrunoCollectionCategory {
             ? [
                 "new releases": 0, "seasonal": 1, "genres": 2, "directors": 3,
                 "movie stars": 4, "boxed sets": 5, "decades": 6, "curated": 7,
-                "rewatchables": 8, "studios": 9,
+                "rewatchables": 8, "studios": 9, "cities": 10,
             ]
             : [
                 "new releases": 0, "genres": 1, "directors": 2, "movie stars": 3,
                 "boxed sets": 4, "decades": 5, "curated": 6, "rewatchables": 7,
-                "studios": 8, "seasonal": 9,
+                "studios": 8, "seasonal": 9, "cities": 10,
             ]
         return order[name.lowercased()] ?? .max
     }
@@ -114,6 +114,7 @@ extension BrunoCollectionCategory {
         case "genres": .genres // core-category panel + mixed sub-genre shelves (§4 + core panel)
         case "decades": .shelves // shelf per decade (§4)
         case "curated": .shelves // shelf per curated sub-collection (Asian Cinema, Oscar Buzz, …)
+        case "cities": .shelves // shelf per city child (Chicago, NY, …) — generic shelves drill, no pills
         case "rewatchables": .rewatchables // broad-genre shelves + episode captions (BrunoRewatchablesView)
         default: .grid // flat full grid (§3)
         }
@@ -128,6 +129,7 @@ extension BrunoCollectionCategory {
         case "studios": "From the Vault"
         case "curated": "Hand-Picked"
         case "decades": "Through the Years"
+        case "cities": "On Location"
         case "new releases": "Home Premiere"
         case "seasonal": "In Season"
         case "rewatchables": "Always Worth Rewatching"

@@ -33,18 +33,22 @@ enum BrunoCuratedCard {
         return nil
     }
 
-    /// Splits a curated card name into a small eyebrow + a big title. "Oscar — Cinematography" ⇒
-    /// ("OSCAR", "Cinematography") so the card reads OSCAR small over the category big (owner request).
-    /// Anything without the "Oscar — " form ⇒ (nil, name): a single centred title, unchanged.
+    /// Splits a curated card name into a small eyebrow + a big title. "Oscar Cinematography" (or the
+    /// legacy "Oscar — Cinematography") ⇒ ("OSCAR", "Cinematography") so the card reads OSCAR small over
+    /// the category big (owner request). Gated on the canonical Oscar-category recognizer, so only the
+    /// six real categories get the eyebrow split — "Oscar Buzz"/"Oscar Bait" and every non-Oscar name
+    /// ⇒ (nil, name): a single centred title, unchanged.
     static func titleParts(_ name: String) -> (eyebrow: String?, title: String) {
-        if name.lowercased().hasPrefix("oscar"), let r = name.range(of: " — ") {
-            return (String(name[..<r.lowerBound]).uppercased(), String(name[r.upperBound...]))
-        }
-        return (nil, name)
+        guard BrunoOscarCategory(boxSetName: name) != nil else { return (nil, name) }
+        // Drop the legacy em-dash (no-op on the clean form), then strip the "Oscar " prefix; preserves
+        // the category's original casing ("Best Picture", not "best picture").
+        let title = name.replacingOccurrences(of: " — ", with: " ").dropFirst("Oscar ".count)
+        return ("OSCAR", String(title))
     }
 
     /// Single-line display name with the em-dash removed (shelf headers / poster titles). "Oscar —
-    /// Cinematography" ⇒ "Oscar Cinematography". A no-op for every name without the separator.
+    /// Cinematography" ⇒ "Oscar Cinematography". A no-op once the BoxSets are renamed dash-free (and for
+    /// every other name without the separator) — kept as a safety net for any legacy/straggler name.
     static func display(_ name: String) -> String {
         name.replacingOccurrences(of: " — ", with: " ")
     }

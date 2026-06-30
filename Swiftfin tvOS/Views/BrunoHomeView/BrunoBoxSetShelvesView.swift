@@ -134,8 +134,10 @@ struct BrunoBoxSetShelvesView: View {
     /// category. Stable id "curated-oscars" (INV-2). Its children are the six Oscar BoxSets themselves,
     /// so the drill-in (subGroups override) fans out one shelf each. A no-op when fewer than two exist.
     private static func consolidateOscars(_ categories: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+        // The canonical recognizer (tolerates "Oscar Directing" + the legacy "Oscar — Directing", and
+        // correctly excludes non-categories like Oscar Buzz) — shared with the caption + tile split.
         let isOscar: (BrunoCollectionCategory) -> Bool = {
-            $0.name.lowercased().hasPrefix("oscar") && $0.name.contains(" — ")
+            BrunoOscarCategory(boxSetName: $0.name) != nil
         }
         let oscars = categories.filter(isOscar)
         guard oscars.count > 1 else { return categories }
