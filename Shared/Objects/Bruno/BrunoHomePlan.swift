@@ -585,4 +585,128 @@ enum BrunoHomePlan {
         }
         return out
     }
+
+    // MARK: - Collections procedural tail
+
+    /// The Collections-tab procedural tail: a deliberate, seed-keyed mix of ≥24 Home-style shelves
+    /// appended BELOW the static group shelves, reusing the spine generators. Pure over (seed, snapshot)
+    /// — the Collections VM seeds it with a per-LAUNCH nonce (a browse surface, inside the INV-3
+    /// carve-out) so the lineup reshuffles each app launch while staying stable within a session. Each
+    /// ×N family walks DISTINCT seeded picks (`seededPicks` = the front of one permutation) so no two
+    /// repeat, and each pick gets its own `subSeed` so their shuffles don't collide. Deduped by id +
+    /// content only — NOT the spine's adjacency rule — because the tail intentionally groups same-kind
+    /// families (the owner asked for ≥5 Director-in-Focus and ≥5 Actor-in-Focus rows).
+    static func collectionsTail(seed: UInt32, snapshot: BrunoLibrarySnapshot) -> [BrunoShelf] {
+        var out: [BrunoShelf] = []
+
+        // A Year in Film ×3 — distinct years.
+        for (i, year) in seededPicks(snapshot.years, seed: seed, salt: 107, count: 3).enumerated() {
+            out.append(yearShelf(for: year, seed: BrunoRNG.subSeed(seed, 107, UInt32(i), 19)))
+        }
+
+        // Best of the Decade ×3 — distinct decade BoxSets (their member films).
+        for (i, boxSet) in seededPicks(snapshot.decadeBoxSets, seed: seed, salt: 109, count: 3).enumerated() {
+            guard let id = boxSet.id, let name = boxSet.name else { continue }
+            out.append(.init(
+                id: "ct-decade-\(id)",
+                lens: "Best of the Decade",
+                title: "Best of the \(name)",
+                kind: .decade,
+                dedupeKey: "parent:\(id)",
+                source: .query(parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 109, UInt32(i), 23), salt: 109))
+            ))
+        }
+
+        // The Rewatchables, by decade ×3.
+        out.append(contentsOf: rewatchablesDecadeShelves(snapshot: snapshot, seed: seed, count: 3))
+
+        // Curated categories / Oscars / Ebert ×6 — distinct curated children, each carrying its caption
+        // (Ebert stars / Oscar standing) so the shelf and its "Show all" match the browse twins.
+        for (i, boxSet) in seededPicks(snapshot.curatedBoxSets, seed: seed, salt: 113, count: 6).enumerated() {
+            guard let id = boxSet.id, let name = boxSet.name else { continue }
+            let caption = BrunoShelfCaption(curatedName: name)
+            var query = parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 113, UInt32(i), 29), salt: 113)
+            query.caption = caption
+            out.append(.init(
+                id: "ct-curated-\(id)",
+                lens: "Hand-Picked",
+                title: name.replacingOccurrences(of: " — ", with: " "),
+                posterType: caption == .none ? .landscape : .portrait,
+                kind: .curated,
+                dedupeKey: "parent:\(id)",
+                source: .query(query)
+            ))
+        }
+
+        // Director in Focus ×6 — distinct directors.
+        for (i, boxSet) in seededPicks(snapshot.directorBoxSets, seed: seed, salt: 131, count: 6).enumerated() {
+            guard let id = boxSet.id, let name = boxSet.name else { continue }
+            out.append(.init(
+                id: "ct-director-\(id)",
+                lens: "Director in Focus",
+                title: "Spotlight on \(name)",
+                kind: .spotlight,
+                dedupeKey: "parent:\(id)",
+                source: .query(parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 131, UInt32(i), 17), salt: 131))
+            ))
+        }
+
+        // Actor in Focus ×6 — distinct actors (pre-built "Movie Stars" BoxSets, mirroring directors).
+        for (i, boxSet) in seededPicks(snapshot.actorBoxSets, seed: seed, salt: 137, count: 6).enumerated() {
+            guard let id = boxSet.id, let name = boxSet.name else { continue }
+            out.append(.init(
+                id: "ct-actor-\(id)",
+                lens: "Actor in Focus",
+                title: "Starring \(name)",
+                kind: .actor,
+                dedupeKey: "parent:\(id)",
+                source: .query(parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 137, UInt32(i), 17), salt: 137))
+            ))
+        }
+
+        return dedupedTail(out)
+    }
+
+    /// "Rewatchable {Decade}s": the Rewatchables BoxSet ∩ a decade's years (server-filterable parentID ∩
+    /// Years, so the plan stays pure over descriptors — no client bucketing). Up to `count` distinct
+    /// decades present in the library, newest first. Empty when the library has no Rewatchables BoxSet.
+    private static func rewatchablesDecadeShelves(snapshot: BrunoLibrarySnapshot, seed: UInt32, count: Int) -> [BrunoShelf] {
+        guard let boxSet = snapshot.rewatchablesBoxSet, let id = boxSet.id else { return [] }
+        let decades = Array(Set(snapshot.years.map { ($0 / 10) * 10 })).sorted(by: >)
+        var out: [BrunoShelf] = []
+        for (i, decadeStart) in seededPicks(decades, seed: seed, salt: 127, count: count).enumerated() {
+            let years = yearsInRange(snapshot.years, min: decadeStart, max: decadeStart + 9)
+            guard years.count >= 2 else { continue }
+            var query = BrunoQuery()
+            query.parentID = id
+            query.years = years
+            query.shuffleSeed = BrunoRNG.subSeed(seed, 127, UInt32(i), 31)
+            out.append(.init(
+                id: "ct-rewatch-decade-\(decadeStart)",
+                lens: "The Rewatchables",
+                title: "Rewatchable \(decadeStart)s",
+                kind: .rewatchables,
+                dedupeKey: "rewatchables-decade:\(decadeStart)",
+                source: .query(query)
+            ))
+        }
+        return out
+    }
+
+    /// Dedup the tail by id + content only (NO adjacency rule — the tail intentionally groups same-kind
+    /// families). Drops thin `.items` shelves like `dedupedAndCapped`; no count cap (the families are the
+    /// cap). Query shelves that realize too thin are dropped later by the VM's `shouldDisplay`.
+    private static func dedupedTail(_ shelves: [BrunoShelf]) -> [BrunoShelf] {
+        var out: [BrunoShelf] = []
+        var seenIDs = Set<String>()
+        var seenContent = Set<String>()
+        for shelf in shelves {
+            if seenIDs.contains(shelf.id) || seenContent.contains(shelf.dedupeKey) { continue }
+            if case let .items(items) = shelf.source, items.count < minItems { continue }
+            out.append(shelf)
+            seenIDs.insert(shelf.id)
+            seenContent.insert(shelf.dedupeKey)
+        }
+        return out
+    }
 }
