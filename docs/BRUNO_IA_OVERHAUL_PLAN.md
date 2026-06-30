@@ -1,18 +1,28 @@
 # Bruno IA Overhaul — Plan + Code/Architecture Guidance
 
-**Status:** planning, 2026-06-30. Owner intent captured; this doc layers the
-code seams, existing patterns to copy, determinism/INV risks, and the data
-gates onto each intent item. Citations verified by `bruno-expert` against
-branch `claude/vigilant-albattani-40f55e` (commit `6ec18cab`) and
-`swift-xcode-expert` (tvOS focus engine, WWDC23 session 10162).
+**Status:** mostly SHIPPED, 2026-06-30. Most of §1–5, §7, §8 landed on `main`
+(app PRs #73 + #74 merged; #75 open) plus two server-side migrations. The
+remaining work — §6 (reactive Decades hero + double-tap pill nav), Asian Cinema
+composed shelves, the Cultural Touchstones lane, Cities seed-eligibility, art
+assets, and on-device verification — is **not built** (see *Deferred / open*
+below). This doc is now a RECORD: each section keeps the original plan + adds a
+**DONE** / **DEFERRED** marker with commit/PR, and **corrects the
+Implementation framings the build proved wrong** (the plan guessed several seams
+incorrectly — those corrections are inline and flagged ⛔ **FRAMING CORRECTED**).
+
+**Header branch citation superseded.** The original citations were verified
+against branch `claude/vigilant-albattani-40f55e` (commit `6ec18cab`). That is
+**superseded by this push** (branch `claude/cranky-grothendieck-84b30d`,
+commits `e2235ed3` · `ba45d41f` · `ce925ac1` · `6f152722` · `24ef9c46` ·
+`a6cd169b`; PRs #73/#74 merged, #75 open) — trust the inline DONE/CORRECTED
+markers and `docs/CHANGELOG.md` (2026-06-30) over the original framings where
+they disagree. Focus-engine guidance still from `swift-xcode-expert` (tvOS focus
+engine, WWDC23 session 10162).
 
 **How to read this:** each section restates the owner intent (unchanged), then
-adds an **Implementation** block: *Seam* (file:line), *Pattern to copy*,
-*Determinism/INV*, and *Data gate / open question* where one exists. Nothing
-here is built yet — it tells the implementing session where each change lands so
-local edits don't ripple silently through the one connected pipeline
-(`BrunoHomePlan` → `BrunoHomeViewModel` → `BrunoShelfView` / `BrunoCategoryShelves`,
-"show all" via `brunoRouteToShowAll`).
+the original **Implementation** block, then a DONE/DEFERRED/CORRECTED marker.
+The pipeline is unchanged: `BrunoHomePlan` → `BrunoHomeViewModel` →
+`BrunoShelfView` / `BrunoCategoryShelves`, "show all" via `brunoRouteToShowAll`.
 
 ---
 
@@ -38,6 +48,59 @@ hardcoded IDs. A favorited group BoxSet becomes a card automatically; only its
 ---
 
 ## 1. Card Architecture — retire Curated, promote four, demote one, add Cities
+
+> **✅ DONE (migration landed) — SERVER `654b7d0` + APP `6f152722` (PR#74) + hotfix `24ef9c46` (PR#75).**
+> The coordinated server+app migration shipped.
+> - **SERVER (`MovieCollection/enrich/migrate_curated_retire.py`, `654b7d0`, LIVE):**
+>   Curated un-favorited; **"Oscars"** (`547afd1e…`) + **"Roger Ebert"** (`5ccea933…`)
+>   parent groups created + favorited over the existing Oscar×6 / Ebert×2 children;
+>   **Asian Cinema** / **Film School Classics** / **Critically Acclaimed** favorited
+>   directly. Net: **14 favorited groups**.
+> - **APP (`6f152722`):** `rank` / `drillStyle` / `lens` entries for the 5 new groups
+>   (`BrunoCategoryShelves.swift` — see `:103-145`); new accessor
+>   `BrunoLibrarySnapshot.promotedCuratedBoxSets` (`:106-109`); the 4 `curatedBoxSets`
+>   consumers repointed; `BrunoRecommendedShelf` hub-drop reorder; Ebert toggle
+>   id→name repoint.
+> - **§8 generator** RETARGETED to `promotedCuratedBoxSets` (rode in `6f152722`,
+>   `BrunoHomePlan.swift:342,625`) — see §8 (NOT an "open design call" anymore).
+> - **Hotfix `24ef9c46` (PR#75):** §1 regressed Roger Ebert / Oscars card art;
+>   restored (roger ebert→Curated02, oscars→Curated01) in `BrunoCollectionArtwork.swift`.
+>
+> ⛔ **FRAMING CORRECTED (the plan's audit guessed several seams wrong):**
+> 1. **Gold-tile "Oscars" show-all (audit §"Show all" #1, `:533`):** the audit said
+>    repoint `id == "curated-oscars"` → `name == "oscars"` to keep the six gold tiles.
+>    **WRONG.** That gold-tile gate lives in `BrunoCategoryShelves.shelf(for:)` which
+>    iterates the SHELVES (`categories`), but `consolidateOscars` only ever fed
+>    `cardRowCategories` (the card ROW) — so the gate is **effectively unreachable from
+>    the real drill**. With the real favorited **"Oscars"** group, the `.shelves` drill
+>    naturally fans out to the SIX captioned reverse-chron shelves (carrying the §4
+>    lead-spread), **not** a gold-tile card row. The gold-tile "preservation" as framed
+>    does not apply. ⚠ **OPEN on-device design call:** keep the natural 6-shelf drill
+>    (current behavior) vs. rebuild the gold tiles. The `:533` `curated-oscars` gate was
+>    left in place (now dead — see #3 below).
+> 2. **Ebert toggle (audit #2, `:103`):** the `curated-ebert` id → `name == "roger
+>    ebert"` repoint in `brunoRouteToShowAll` **worked cleanly** — the group's 2 children
+>    resolve up/down (`BrunoCategoryCardRow.swift:103-106`). Correct as audited.
+> 3. **Recommended hub-drop (nav audit) needed an EXTRA nuance the plan missed:** Asian
+>    Cinema / Film School / Critically Acclaimed are now favorited groups that are
+>    **FILM-bearing**, so they hit the `favoriteGroupBoxSets` hub-drop and would be
+>    dropped. Fixed by moving the curated-resolution block **ABOVE** the hub-drop
+>    (mirrors Rewatchables — `BrunoRecommendedShelf.swift:70-86`). The Oscars / Roger
+>    Ebert PARENT hubs still drop (they're not in `promotedCuratedBoxSets`, only their
+>    children are).
+> 4. **Anti-scatter ("DELETE consolidateOscars/consolidateEbert/cardRowCategories") —
+>    NOT done.** They were **left in place** (now unreachable — no Curated drill exists
+>    to reach them). Additionally the migration **ORPHANED** `curatedRandomShelves` (the
+>    PR#71 random Rewatchables/Oscar/Ebert×genre feature, `BrunoBoxSetShelvesView.swift`)
+>    and the `parent == "curated"` block (`BrunoHomePlan.swift:337`) — the plan did not
+>    anticipate this. **OPEN owner call:** delete vs. re-home the dead
+>    `consolidate*` / `curatedRandomShelves` / `parent=="curated"` code.
+>
+> **DEFERRED within §1:** Asian Cinema composed shelves (R1 below — NOT built; it's a
+> flat `.grid` of 38 films today); demote Cultural Touchstones (the Decades "All"-lane
+> prepend — NOT built; Touchstones retired with Curated but the best-of-lane feature
+> wasn't added); Cities seed-eligibility (§8 cities source — NOT built); art assets for
+> the 3 flat promotes (gradient until added).
 
 ### Remove: Curated
 The Curated tile is the group named "Curated", surfaced because it's a favorited
@@ -210,6 +273,15 @@ now accounted for.
 
 ## 2. Two-Row Card Layout
 
+> **✅ DONE (mechanism) — `a6cd169b` (PR#75, open).** `BrunoCategoryCardRow` gains a
+> `twoRow` flag (default false) gated on `isTabRoot` (Collections hub only, so the
+> shared `rank()`/`fromSnapshot` other consumers — Home footer/spine — are untouched,
+> exactly per finding 5). Two `CollectionHStack` rows split by a `row1Names` set, each
+> wrapped in `.focusSection()` (`BrunoCategoryCardRow.swift:30-79`;
+> `BrunoCategoryShelves.swift:389` passes `twoRow: isTabRoot`).
+> ⚠ **OPEN owner tweak:** the final row membership (`row1Names`) is a design call —
+> adjust the set to taste.
+
 Single strip → two equal-height rows, same card size, normal up/down focus.
 Row 1 (what to watch): New Releases · Oscar · Roger · Rewatchables · Seasonal.
 Row 2 (how to browse): Decades · Directors · Movie Stars · Studios · BoxSet.
@@ -245,6 +317,21 @@ fits two rows of up to 7. Final placement is the owner's design call.
 
 ## 3. Studios Backdrop — Studio04 / pinned mountain
 
+> **✅ DONE — `ba45d41f` (PR#73, merged).** `BrunoStudiosGridView.swift:52` repoints
+> the grid backdrop `BrunoStudiosBackdrop` → `Studio04`; the studios TILE art
+> (`BrunoCollectionArtwork.swift`) pinned to `["Studio04"]` (same lock pattern as the
+> Coppola/Ebert tiles).
+>
+> ⛔ **FRAMING CORRECTED.** The Implementation block below (and §9.5) said (a) the
+> Studios **tile** is "a code-drawn gradient" that must "switch from gradient to the
+> same Image asset," and (b) §3 needs to "import Studio04 into the tvOS asset catalog."
+> **BOTH STALE.** (a) The tile already used **bundled art** (cycled Studio01–05), not a
+> gradient — so it was a 1-line PIN, not a gradient→image switch. (b) `Studio04.imageset`
+> **already existed** in `Assets.xcassets/BrunoCollections` (byte-identical to the NAS
+> file) — **no import was needed.** Actual work = a 1-line tile pin + 1-line grid
+> repoint. `BrunoStudiosBackdrop.imageset` is now unreferenced but left in the catalog
+> (the "dropped imagesets stay" convention).
+
 Studios card tile + full grid both use one static backdrop (the Paramount
 mountain), never rotating — the one hard visual lock.
 
@@ -267,6 +354,16 @@ inside that exception — no new perf risk, just no rotation logic.
 ---
 
 ## 4. Oscar Shelves — Year De-duplication across the six shelves
+
+> **✅ DONE — `e2235ed3` (PR#73, merged).** `BrunoOscar.spreadLeads(_:category:seed:)`
+> (`Shared/Objects/Bruno/BrunoOscarAward.swift`): after `reverseChronological`, rotates
+> only the top lead band (≈6) of each of the six Oscar category shelves by a per-category
+> seeded offset, so one recent award year no longer dominates the lead slot of all six.
+> Offset is a pure fn of `(category, rowOrderSeed)` — no `Date()`; seed captured once per
+> load like `shuffleSeed` (INV-3 safe). Wired in `BrunoBoxSetShelvesView.swift` (seed
+> capture ~:559, oscarCategory branch ~:600). The owner's cheap per-shelf heuristic, as
+> planned — no cross-shelf rebalance. (Carries through into the natural 6-shelf "Oscars"
+> drill per §1 correction #1.)
 
 A single Oscar year dominates lead slots across all six category shelves. Spread
 the top visible slots so no year dominates multiple shelves' leads.
@@ -301,6 +398,11 @@ drift to re-sync.
 ### Household Names (pin Chazelle, Cameron Crowe, Eggers)
 Mirror the Studios pinned-shortlist feature.
 
+> **✅ DONE — `ce925ac1` (PR#73, merged).** Directors get a pinned marquee shortlist
+> (`BrunoBoxSetGridView.recognizableDirectors`, incl. Chazelle / Cameron Crowe / Eggers)
+> above the A–Z grid — same daily-rotated, stable-membership pattern as Studios
+> `topStudios` (INV-2/10 respected).
+
 **Implementation.** The canonical model is `BrunoStudiosGridView`:
 `recognizableStudios` (`:154-187`, ~32 names in editorial order) ∩ what's present
 (`normalizeStudio`, `:194-196`), capped at `topStudioLimit = 12` (`:190`, 3 rows
@@ -327,6 +429,20 @@ the portrait row height matches the grid below it.
 Include Hughes-produced-but-not-directed films (Ferris Bueller, Home Alone) in
 his director grid. No server data changed — presentation only.
 
+> **✅ DONE — SERVER-SIDE, `MovieCollection/enrich/create_hughes_override.py`
+> (MovieCollection repo `50e4177`, owner-authorized, additive/idempotent/reversible,
+> LIVE-applied). NOT an app commit.** The 8 written/produced-not-directed films were
+> nested under the existing "John Hughes" director BoxSet (`7583e7…`), now **14
+> children** (6 directed + 8).
+>
+> ⛔ **FRAMING CORRECTED.** The Implementation below framed this as a **display-layer
+> override** ("no server data changed / presentation only") implemented in "the
+> per-director query that feeds the grid." **That seam DOES NOT EXIST.** Director tiles
+> route to the **stock upstream `ItemView`**; a director's films are resolved
+> **server-side as the BoxSet's children** — there is no app-side per-director query to
+> union into. Correct framing: solved **DATA-side** by nesting the films under the
+> BoxSet (owner authorized the collection builder). **No app code.**
+
 **Implementation.** This is a display-layer union: his director-grid member list
 = (films where Hughes is director) ∪ (a hard-coded override list of library IDs).
 The override is app-side, keyed on the specific item IDs. Seam: the Directors
@@ -346,6 +462,10 @@ appears in both sets.
 Top-level Directors grid + top-level Movie Stars grid each need a cinematic hero
 banner (craft-of-filmmaking imagery).
 
+> **✅ DONE — `ce925ac1` (PR#73, merged). See §7 for the shared work item + the
+> ⛔ framing correction** (the "add the band once to `BrunoBoxSetGridView`" framing was
+> under-scoped — it required a `CollectionVGrid`→`ScrollView`+`LazyVGrid` conversion).
+
 **Implementation — owner decision 2026-06-30: STATIC brand art** (not a live
 movie pick). Both grids route to `BrunoBoxSetGridView`, which has no hero today
 (net-new). Copy the **bespoke brand-art band** (Studios `:105-115` / Rewatchables
@@ -358,6 +478,11 @@ treatment for Box Sets (§7). See §7 for the shared work item.
 ---
 
 ## 6. Decades — reactive hero + double-tap-down nav
+
+> **⬜ NOT STARTED — the highest-risk tier (perf + focus engine), deferred whole.**
+> Neither the reactive per-decade hero nor the double-tap-down two-state pill nav is
+> built. The Implementation guidance below stands as the build brief for a future
+> session. On-device verification is mandatory for this section.
 
 ### Hero lockstep with selected decade (seeded, rotating)
 The hero is the visual identity of the selected decade; updates as the user moves
@@ -479,6 +604,32 @@ sim.
 All major drill-downs get a hero banner. Directors / Movie Stars / Box Sets are
 net-new; Decades already has one (made reactive per §6).
 
+> **✅ DONE — `ce925ac1` (PR#73, merged).** New shared
+> `BrunoBrandHeroBand.swift` (extracted from `BrunoStudiosGridView`'s body: full-bleed
+> backdrop + tall title header + descending blur) — ONE band, not a copy per grid.
+> `BrunoBoxSetGridView` gains a `heroAsset: String?` path wired for Directors / Movie
+> Stars / Box Sets at the Collections card row + Home auteurs show-all
+> (`BrunoHomeShowAll`). Hero stand-in art = each category's card art via new
+> `BrunoCollectionArtwork.heroAsset(for:)` (`:72`) (owner: "use card title/BGs as
+> stand-in", swap for bespoke later).
+>
+> ⛔ **FRAMING CORRECTED — "add the band once to `BrunoBoxSetGridView`" was
+> UNDER-FRAMED.** `BrunoBoxSetGridView` is a **recycling UIKit `CollectionVGrid`** with
+> **no scroll/stack wrapper** — unlike the Studios `LazyVGrid`-in-`ScrollView` template
+> the band came from. Dropping the band on it was **not** a trivial add: it required a
+> `CollectionVGrid` → `ScrollView` + `LazyVGrid` **conversion** (owner approved losing
+> recycling on these bounded Collections grids). Implemented as a `heroAsset` path that
+> **only** converts when a hero is requested (`BrunoBoxSetGridView.swift:79-104`); the
+> New Releases / Oscar grids keep the recycling `CollectionVGrid` untouched, sharing
+> `cell(for:)` so both draw identical tiles.
+>
+> ⚠ **DEFERRED follow-up:** fold Studios + Rewatchables onto the shared band (they still
+> carry their own copies); on-device focus-feel pass (sim focus timing differs).
+
+⚠ **DECADES hero stays REACTIVE (§6) — NOT started.** Directors / Movie Stars / Box
+Sets got the static brand band above; the reactive per-decade Decades hero (highest-risk
+tier) is not built.
+
 **Implementation. Owner decision 2026-06-30: STATIC brand art** — a fixed
 atmospheric image per grid, no live movie pick. This keeps them *out* of the INV-6
 scroll-blur exception (a fixed image isn't scroll-coupled — red-team finding 6
@@ -500,6 +651,17 @@ fourth, fifth band** — that's the scatter to avoid. One component, five call s
 ---
 
 ## 8. Curated Explore Generator (Home Feed) — retarget or retire
+
+> **✅ DONE — RETARGETED (rode in `6f152722`, PR#74).** No longer an "open design
+> call" — the retarget recommendation was taken. Both the explore generator
+> (`BrunoHomePlan.explore` `"curated"`/`"world"`, `:342`) and the Collections
+> procedural tail ×6 family (`:625`) now draw from
+> `snapshot.promotedCuratedBoxSets` (the union of the promoted groups' children)
+> instead of the emptied `snapshot.curatedBoxSets`. The Ebert/Oscar caption branch
+> survives the regrouping (name-resolved). INV-3 seeded-purity intact.
+>
+> ⚠ **DEFERRED:** the **Cities** seed-eligibility source (a `"cities"` generator
+> source) is NOT built — see §1 *New: Cities* / §8 follow-up.
 
 The Home feed generator draws from the Curated server group; once Curated is
 retired its data source changes.
