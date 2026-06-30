@@ -25,13 +25,18 @@ enum BrunoOscarCategory: String, CaseIterable, Equatable, Hashable {
     case score = "SCORE"
     case screenplay = "SCREENPLAY"
 
-    /// Map a curated BoxSet display name ("Oscar — Best Picture") to its category; nil for any
-    /// non-Oscar name. Same predicate as BrunoBoxSetShelvesView.consolidateOscars (hasPrefix "oscar"
-    /// + the " — " separator), so it recognizes exactly the six shelves that get the caption.
+    /// Map a curated BoxSet display name ("Oscar Best Picture", or the legacy "Oscar — Best Picture")
+    /// to its category; nil for any non-Oscar name. The canonical Oscar-category predicate — reused by
+    /// BrunoBoxSetShelvesView.consolidateOscars and BrunoCuratedCard.titleParts so all three recognize
+    /// exactly the six shelves that get the caption. Tolerant of BOTH the em-dash and the space-only
+    /// form, so the server rename dropping the dash never breaks recognition; non-category "Oscar …"
+    /// names (Oscar Buzz / Oscar Bait) trim to a word the switch doesn't match ⇒ nil, still excluded.
     init?(boxSetName name: String) {
         let lower = name.lowercased()
-        guard lower.hasPrefix("oscar"), let separator = lower.range(of: " — ") else { return nil }
-        switch lower[separator.upperBound...].trimmingCharacters(in: .whitespaces) {
+        guard lower.hasPrefix("oscar") else { return nil }
+        let category = lower.dropFirst("oscar".count)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " —-"))
+        switch category {
         case "best picture": self = .bestPicture
         case "directing": self = .directing
         case "acting": self = .acting
