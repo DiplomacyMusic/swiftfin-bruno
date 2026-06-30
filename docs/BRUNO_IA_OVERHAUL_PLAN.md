@@ -95,16 +95,23 @@ ids** (INV-2) — never an index. Follow the existing `curated-oscars` /
 `curated-ebert` id convention.
 
 ### Demote: Cultural Touchstones
-Never top-level. Surfaces as (a) a shelf inside the Decades drill-down and (b) a
-seeded section above the alphabetical content in the All Movies grid — *same
-structural pattern as Studios*.
+Never top-level. **Correction (owner 2026-06-30):** it does NOT surface as a
+generic Decades shelf or an All-Movies-grid section. Each *specific* decade's
+drill leads with a **"Best of the {Decade}"** shelf in the top lane (the
+`bruno-sig` shelf built in `yearCategories`, `BrunoBoxSetShelvesView.swift`
+~:934-950). Cultural Touchstones occupies **that exact top-shelf lane when the
+"All" pill is selected** — the decade-overview state has no single decade, hence
+no per-decade best-of, so it leads with Cultural Touchstones instead. One lane,
+consistent whether All or a specific decade is focused.
 
-**Implementation.** Pattern (b) is exactly the Studios "Household Names" section
-(`BrunoStudiosGridView.swift:67-75`, the pinned section above the A–Z grid). The
-All Movies grid would get an analogous seeded section sourced from the Cultural
-Touchstones group members. Pattern (a) is a synthetic shelf appended in the
-Decades drill (`shownCategories`, `BrunoBoxSetShelvesView.swift:111-123`). Remove
-its `rank` slot so it never renders as a card.
+**Implementation.** In the Decades drill, the **"All" branch** of `shownCategories`
+(`BrunoBoxSetShelvesView.swift:111-123`) prepends a Cultural Touchstones shelf —
+sourced from the `Cultural Touchstones` group members (`670dc402…`) — as its
+first/top shelf, structurally mirroring the per-decade "Best of the {Decade}" top
+shelf so the lane reads the same in both states. Otherwise unsurfaced: **no `rank`
+slot** (never a card), no separate Decades shelf, no All-Movies-grid section.
+*INV-2:* stable id (e.g. `decade-all-touchstones`), never an index. *INV-1:* the
+prepended shelf keeps the pinned row height.
 
 ### New: Cities (data-seeded) — server group CREATED (2026-06-30)
 One **Cities** top-level card; each city is a **child BoxSet rendered as a SHELF**
@@ -239,12 +246,21 @@ Mirror the Studios pinned-shortlist feature.
 of 4), order rotated (not membership) by day-seed
 `BrunoRNG.shuffled(…, seed: daySeed)` (`:216`; `daySeed` `:200-203`), rendered as
 the "Household Names" section above the A–Z grid (`:67-75`). Directors gets the
-same structure in its grid view (currently `BrunoBoxSetGridView`, which has no
+same *structure* in its grid view (currently `BrunoBoxSetGridView`, which has no
 such section — net-new). Add a `recognizableDirectors` shortlist including the
 owner hard-adds **Chazelle, Cameron Crowe, Eggers** (server BoxSets confirmed
-present). *Determinism (INV-3):* reuse the `daySeed` rotation so order varies
-day-to-day but membership is stable; *INV-2:* stable ids; *INV-10:* the pinned
-cells must be structurally stable.
+present).
+
+⚠ **Layout differs from Studios — do NOT reuse `topStudioLimit = 12` (owner
+2026-06-30).** Studios tiles are **landscape**, giving 4 per row → 3 rows of 4
+(12). The Directors tiles are **portrait**, so more fit per row; the Household
+Names section is **two rows** (not three), at roughly **6–9 tiles per row** (exact
+count set by the portrait tile width / column count — match whatever the Directors
+A–Z grid uses per row). So the cap is its own constant (`topDirectorLimit` = 2 ×
+the portrait columns, ~12–18), not the Studios 12. *Determinism (INV-3):* reuse
+the `daySeed` rotation so order varies day-to-day but membership is stable;
+*INV-2:* stable ids; *INV-10:* the pinned cells must be structurally stable; *INV-1:*
+the portrait row height matches the grid below it.
 
 ### John Hughes (display-layer override)
 Include Hughes-produced-but-not-directed films (Ferris Bueller, Home Alone) in
@@ -311,6 +327,22 @@ not the **focused** decade (`focusedDecade`, `:58`), and reuse the ~500 ms commi
 debounce (`commitFocus`, `:309-341`) so scrubbing pills doesn't thrash the
 backdrop. Trigger warming + prefetch (`decadesNearFocus`, `:346-353`) + hero load
 on the same commit. Verify no >100 ms stall on decade commit (INV-8 settle).
+
+⚠ **Anti-repetition — block recent heroes for ≥5 launches (owner 2026-06-30).**
+The seeded pick has been visibly repetitive — the same face keeps returning. The
+hero picker must **exclude any movie shown as a hero in the last 5 days/launches**
+from the candidate pool *before* the seeded pick. Implementation: persist a small
+**recents ring buffer** of recent hero item-ids (per surface) in the app's
+lightweight store (`UserDefaults`/`StoredValue`); on each pick, subtract the
+recents from the candidate pool, seed-pick from the remainder, then push the
+chosen id (cap 5, FIFO). **Determinism is preserved** (INV-3): the pick stays a
+pure function of `(seed, decade, recentsSet)` — the recents set is *input state*,
+not wall-clock; same inputs ⇒ same pick. Edge case: if a decade's strong-candidate
+pool is ≤5, fall back to **least-recently-shown** rather than emptying the pool
+(never show nothing). **This is the general rule for every seeded hero, not just
+Decades** — apply the same recents-exclusion to the Directors / Movie Stars / Box
+Sets grid heroes (§7) and the Home multi-item hero, each with its own per-surface
+recents buffer, so no surface re-shows a face within the window.
 
 ### Double-tap-down navigation (two-state pill nav)
 State 1: Down from content → pills focus, hero fully visible above, pills at
@@ -383,7 +415,10 @@ the bespoke brand-art band (Studios `:105-115` / Rewatchables
 `BrunoRewatchablesView.swift:96,138`). For static atmospheric imagery the brand-
 art band (fixed `Image` over a flat grid) is the closer match and inherits the
 Studios INV-6 exception (`PROJECT_TRACKER.md:87-89`) consciously. *INV-1:* fixed
-grid row height below the hero; *INV-8:* top-down reveal preserved.
+grid row height below the hero; *INV-8:* top-down reveal preserved. **Any of these
+heroes that picks a *movie* (vs. fixed brand art) must apply the §6
+anti-repetition rule** — a per-surface recents buffer excluding heroes shown in
+the last ≥5 launches, so the grid heroes don't go stale either.
 
 ---
 
