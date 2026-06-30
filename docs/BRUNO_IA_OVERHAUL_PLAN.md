@@ -785,3 +785,55 @@ via `fromSnapshot`. So the promoted cards (Oscar/Roger/Asian Cinema/Film
 School/Critically Acclaimed) + Cities will appear on **Home**, not just
 Collections; retiring Curated removes it from all three. Consistent and intended
 under the name-driven model, but it *is* a Home-surface change — bless it explicitly.
+
+### "Show all" end-card audit (Home + Collections shelves)
+
+Traced both routers end-to-end for every shelf's trailing "Show all" card.
+
+**Home shelves — `brunoHomeRouteToShowAll` (`BrunoHomeShowAll.swift`):**
+`.resume`/`.nextUp`/`.recentlyAdded` (stock libraries), `.year`/`.decade`/`.eras`
+(Decades pill, off `decadeBoxSets`/favorited Decades group), `.auteurs`
+(`directorBoxSets`), and the `default` query-backed grids (genre/studio/director/
+acclaimed/critics/series/romance/seasonal) — **all independent of Curated; safe.**
+The **only** Curated-coupled Home show-alls are the two caption branches
+(`:88-113`): `.ebertStars` and `.oscar`, which resolve via `snapshot.curatedBoxSets`.
+If Curated is retired / Oscar-Ebert regrouped, those `if let` resolves fail and the
+show-all **falls through to the plain paged grid** (`:119`) — graceful (still shows
+the films) but **loses the Ebert toggle / captioned reverse-chron Oscar grid**.
+
+**Collections shelves — `brunoRouteToShowAll` (`BrunoCategoryCardRow.swift`):**
+`.grid` (Directors/Studios/Movie Stars/Film School/Critically Acclaimed →
+`brunoBoxSetGrid`), `.items` (Boxed Sets), `.rewatchables`, `.genres`, and `.shelves`
+(Decades/Cities → `brunoCategoryShelves`) — **all safe / unaffected.** The promoted
+**singles** (Asian Cinema custom, Film School `.grid`, Critically Acclaimed `.grid`)
+and **Cities** `.shelves` get clean standard routes — nothing existing to break.
+
+**⚠ The load-bearing show-all finding — Oscar/Ebert special destinations are keyed
+on SYNTHETIC ids.** Both destinations the owner wants *unchanged* are gated on the
+ids that `consolidateOscars`/`consolidateEbert` mint:
+- **Oscar gold tiles** — `BrunoCategoryShelves.swift:518` `if category.boxSet.id ==
+  "curated-oscars"` renders the six gold category tiles. A real "Oscars" group has a
+  different id → check fails → drill renders as plain shelves, **no gold tiles.**
+- **Ebert toggle** — `BrunoCategoryCardRow.swift:75` `if category.boxSet.id ==
+  "curated-ebert"` routes to `brunoEbert` (Up⇄Down toggle). A real "Roger Ebert"
+  group → check fails → routes to generic `.shelves` → **2 shelves, not the toggle**
+  (violates "Roger drill-down unchanged").
+
+**Recommendation (keeps the owner's one-data-model priority AND preserves every
+destination):** go Path A (real groups) uniformly, and in the §1 migration **repoint
+the id-keyed sites from synthetic-id to NAME** — small, local, and it lets the
+consolidation code be deleted:
+1. `BrunoCategoryShelves.swift:518` — `id == "curated-oscars"` → `name == "oscars"`
+   (gold tiles for the real Oscars group).
+2. `BrunoCategoryCardRow.swift:75` — `id == "curated-ebert"` → `name == "roger ebert"`
+   (Ebert toggle for the real group); also the single-Ebert branch (`:122`).
+3. `BrunoHomeShowAll.swift:90,100` + `BrunoRecommendedShelf.swift:83` — resolve
+   Ebert/Oscar **by name, un-gated from `curatedBoxSets`** (from the prior audit).
+
+With those four repoints, **every Home + Collections + item-detail show-all reaches
+the identical destination it does today** — gold tiles, Ebert toggle, captioned
+Oscar grid all intact — while the data model collapses to one favorited-group shape
+and `consolidateOscars`/`consolidateEbert`/`cardRowCategories` are deleted. (Path B —
+keep the app-side synthesis, promote the synthetic cards — touches zero rendering
+code but keeps two promotion mechanisms; available if you'd rather not touch the
+id checks, but it's the *more*-scattered option.)
