@@ -196,6 +196,19 @@ struct BrunoCategoryTile: View {
         case "rewatchables":
             // Plum — distinct from every other tile (podcast/rewatch warmth).
             (Color(hex: "1E0C1A"), Color(hex: "7A2A5A"), Color(hex: "C04A8E"))
+        // §1 promoted groups — each its own hue so no two cards share a color (owner request).
+        case "oscars":
+            (Color(hex: "2A2206"), Color(hex: "B8901E"), Color(hex: "E8C24A")) // Academy gold
+        case "roger ebert":
+            (Color(hex: "0C1622"), Color(hex: "2E5C8C"), Color(hex: "5C92D8")) // critic's steel blue
+        case "critically acclaimed":
+            (Color(hex: "062012"), Color(hex: "1E7C50"), Color(hex: "3ECC82")) // emerald
+        case "film school classics":
+            (Color(hex: "1E1408"), Color(hex: "6E4A1E"), Color(hex: "B0823A")) // bronze / sepia
+        case "asian cinema":
+            (Color(hex: "140A26"), Color(hex: "4A2E9C"), Color(hex: "7E5CD8")) // indigo
+        case "cities":
+            (Color(hex: "240A1A"), Color(hex: "9C3A6E"), Color(hex: "E06AA0")) // rose
         default:
             (Color.bruno.diplomacyDark, Color.bruno.accentAlt, Color.bruno.accent)
         }

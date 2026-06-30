@@ -56,6 +56,8 @@ enum BrunoCollectionArtwork {
         // backdrop (the one hard visual lock, plan §3). Mirrors the Coppola/Ebert locks above; the
         // Studio01/02/03/05 imagesets stay in the catalog, just dropped from this tile.
         "studios": ["Studio04"],
+        // Cities — bundled cityscape still (images.jpeg → Cities01), pinned behind the title.
+        "cities": ["Cities01"],
         // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
         // lockup, with no text overlay, so the tile matches the dimmed-image siblings.
         "rewatchables": ["RewatchablesCard"],
