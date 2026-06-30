@@ -69,10 +69,11 @@ func brunoRouteToShowAll(
     case .genres:
         router.route(to: .brunoGenres(parent: category.boxSet, core: nil))
     case .shelves:
-        // The synthetic "Ebert" tile opens the MERGED toggle grid (Up ⇄ Down) instead of a
+        // The "Roger Ebert" group tile opens the MERGED toggle grid (Up ⇄ Down) instead of a
         // shelf-per-child drill-in. Resolve up/down from its children by name (the "down" one is
-        // Thumbs Down); fall back to the stub if a child is missing.
-        if category.boxSet.id == "curated-ebert" {
+        // Thumbs Down); fall back to the stub if a child is missing. (§1: repointed from the retired
+        // synthetic "curated-ebert" id to the real favorited group's name.)
+        if category.name.lowercased() == "roger ebert" {
             let down = category.children.first { $0.displayTitle.lowercased().contains("down") }
             let up = category.children.first { !$0.displayTitle.lowercased().contains("down") } ?? category.boxSet
             router.route(to: .brunoEbert(up: up, down: down))

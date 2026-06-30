@@ -339,7 +339,7 @@ enum BrunoHomePlan {
             // for every other curated name. (BrunoCuratedCard.display is the tvOS-side twin of this.)
             // An Ebert/Oscar pick also carries its star / Winner caption (and renders portrait).
             return boxSetShelf(
-                snapshot.curatedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed,
+                snapshot.promotedCuratedBoxSets, idPrefix: "x-curated", lens: "Curated", kind: .curated, seed: seed,
                 caption: { BrunoShelfCaption(curatedName: $0) }
             ) { name in
                 name.replacingOccurrences(of: " — ", with: " ")
@@ -622,7 +622,7 @@ enum BrunoHomePlan {
 
         // Curated categories / Oscars / Ebert ×6 — distinct curated children, each carrying its caption
         // (Ebert stars / Oscar standing) so the shelf and its "Show all" match the browse twins.
-        for (i, boxSet) in seededPicks(snapshot.curatedBoxSets, seed: seed, salt: 113, count: 6).enumerated() {
+        for (i, boxSet) in seededPicks(snapshot.promotedCuratedBoxSets, seed: seed, salt: 113, count: 6).enumerated() {
             guard let id = boxSet.id, let name = boxSet.name else { continue }
             let caption = BrunoShelfCaption(curatedName: name)
             var query = parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 113, UInt32(i), 29), salt: 113)

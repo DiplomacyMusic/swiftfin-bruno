@@ -96,7 +96,7 @@ func brunoHomeRouteToShowAll(
         // (and the Ebert toggle / Oscar reverse-chron) carries through instead of a plain paged grid.
         switch query.caption {
         case .ebertStars:
-            let ebert = snapshot.curatedBoxSets.filter { ($0.name ?? "").lowercased().hasPrefix("ebert") }
+            let ebert = snapshot.promotedCuratedBoxSets.filter { ($0.name ?? "").lowercased().hasPrefix("ebert") }
             if let up = ebert.first(where: { !($0.name ?? "").lowercased().contains("down") }),
                let down = ebert.first(where: { ($0.name ?? "").lowercased().contains("down") })
             {
@@ -106,7 +106,7 @@ func brunoHomeRouteToShowAll(
             }
         case let .oscar(category):
             if let parentID = query.parentID,
-               let boxSet = snapshot.curatedBoxSets.first(where: { $0.id == parentID })
+               let boxSet = snapshot.promotedCuratedBoxSets.first(where: { $0.id == parentID })
             {
                 router.route(
                     to: .brunoBoxSetGrid(
