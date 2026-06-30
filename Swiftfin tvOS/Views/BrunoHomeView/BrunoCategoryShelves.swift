@@ -308,6 +308,29 @@ struct BrunoCategoryShelves: View {
     /// dominant lever on vertical-scroll cost. "Show all" covers the rest.
     private let shelfCap = 14
 
+    /// The curated/marquee preview shelves whose RELATIVE ORDER shuffles per session (owner request) —
+    /// see the shelf-loop comment above. Excludes "roger ebert"/"cities" (already dropped from the loop).
+    private static let curatedShelfNames: Set<String> = [
+        "oscars", "critically acclaimed", "rewatchables", "film school classics", "asian cinema", "seasonal",
+    ]
+    /// Per-process random seed: stable for the app's lifetime (re-entering Collections keeps the same
+    /// shuffled order), reshuffles on the next launch. Never `Date()` — INV-3 carve-out for browse order.
+    private static let curatedShuffleSeed: UInt32 = .random(in: .min ... .max)
+
+    /// Reorders ONLY the curated-named items among `items`, keeping every other item in its existing
+    /// slot. The curated items are shuffled and dropped back into the SAME index positions they already
+    /// occupied, so the browse hubs (Directors, Studios, …) never move.
+    private static func shuffledCuratedOrder(_ items: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
+        let curatedSlots = items.indices.filter { curatedShelfNames.contains(items[$0].name.lowercased()) }
+        guard curatedSlots.count > 1 else { return items }
+        let shuffled = BrunoRNG.shuffled(curatedSlots.map { items[$0] }, seed: curatedShuffleSeed)
+        var result = items
+        for (slot, item) in zip(curatedSlots, shuffled) {
+            result[slot] = item
+        }
+        return result
+    }
+
     /// Cap-and-grow window: how many shelves are mounted right now. Starts small so entering a
     /// surface (or selecting a decade) doesn't mount every CollectionHStack at once — the synchronous
     /// per-cell UIHostingController mount burst that froze the main thread. Grows append-only as the
@@ -393,14 +416,26 @@ struct BrunoCategoryShelves: View {
                             .id(ScrollAnchor.selector)
                     }
 
-                    // "Roger Ebert" is excluded from this per-category PREVIEW shelf loop: its only
-                    // children are the 2 Ebert Thumbs Up/Down BoxSets, so the generic shelf would show
-                    // 2 BOX-SET POSTERS (not movies) — confusing, and redundant with the card itself,
-                    // whose tap already opens the real captioned, star-sorted movie toggle (the §1
-                    // "roger ebert" repoint in brunoRouteToShowAll). The movie-shelf version already
-                    // exists on Home (the curated explore generator's captioned Ebert shelf). The card
-                    // ROW above is unaffected — it still shows the "Roger" tile.
-                    ForEach(categories.filter { $0.name.lowercased() != "roger ebert" }.prefix(visibleShelfCount)) { category in
+                    // Per-category PREVIEW shelves. Two names are excluded entirely (their card-row tile
+                    // still works; only the inline preview is dropped):
+                    //  - "Roger Ebert": its only children are the 2 Ebert BoxSets, so the generic shelf
+                    //    would show 2 BOX-SET POSTERS (not movies) — the card's tap already opens the
+                    //    real movie toggle, and `collectionsTail` (below) now guarantees real Up/Down
+                    //    movie shelves in the procedural tail instead.
+                    //  - "Cities": same shape (1 child, "Chicago Movies") — same call (owner request).
+                    // The remaining curated/marquee shelves (Oscars, Critically Acclaimed, Rewatchables,
+                    // Film School Classics, Asian Cinema, Seasonal) get their RELATIVE ORDER shuffled
+                    // per session (owner request) — every other shelf (the browse hubs: Directors, Movie
+                    // Stars, Decades, Studios, Boxed Sets) keeps its position. `curatedShuffleSeed` is a
+                    // per-PROCESS random seed (not `Date()`), matching the existing per-launch-reshuffle
+                    // idiom used elsewhere (e.g. BrunoCollectionsViewModel.tailSeed) — a browse surface,
+                    // inside the documented INV-3 carve-out (not BrunoHomePlan.build-touching).
+                    ForEach(
+                        Self.shuffledCuratedOrder(
+                            categories.filter { !["roger ebert", "cities"].contains($0.name.lowercased()) }
+                        )
+                        .prefix(visibleShelfCount)
+                    ) { category in
                         shelf(for: category)
                     }
 

@@ -599,6 +599,31 @@ enum BrunoHomePlan {
     static func collectionsTail(seed: UInt32, snapshot: BrunoLibrarySnapshot) -> [BrunoShelf] {
         var out: [BrunoShelf] = []
 
+        // Roger Ebert — GUARANTEED Thumbs Up + Thumbs Down movie shelves (owner request). Unlike the
+        // ×6 curated family below (a random seeded pick of `promotedCuratedBoxSets`), both Ebert
+        // verdicts must always appear in Collections — the Collections drill-in for "Roger Ebert" no
+        // longer shows an inline preview (BrunoCategoryShelves drops it; its card still opens the real
+        // toggle), so this tail is now the only place Ebert content surfaces in Collections shelves.
+        // Same dedupeKey shape as the random family ("parent:<id>") — `dedupedTail` below drops a
+        // duplicate if the random pick also lands on Ebert, since these are appended first.
+        for (i, boxSet) in snapshot.promotedCuratedBoxSets
+            .filter({ ($0.name ?? "").lowercased().hasPrefix("ebert") })
+            .enumerated()
+        {
+            guard let id = boxSet.id, let name = boxSet.name else { continue }
+            var query = parentQuery(parentID: id, seed: BrunoRNG.subSeed(seed, 103, UInt32(i), 11), salt: 103)
+            query.caption = BrunoShelfCaption(curatedName: name)
+            out.append(.init(
+                id: "ct-ebert-\(id)",
+                lens: "Roger Ebert",
+                title: name,
+                posterType: .portrait,
+                kind: .curated,
+                dedupeKey: "parent:\(id)",
+                source: .query(query)
+            ))
+        }
+
         // A Year in Film ×3 — distinct years.
         for (i, year) in seededPicks(snapshot.years, seed: seed, salt: 107, count: 3).enumerated() {
             out.append(yearShelf(for: year, seed: BrunoRNG.subSeed(seed, 107, UInt32(i), 19)))
