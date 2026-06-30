@@ -719,3 +719,69 @@ above:**
   the existing per-shelf build site) all **reuse** existing drillStyles/data — no
   new mechanisms. The owner's "real favorited groups" choice is the *less*-scattered
   path (one data model: favorited-group→children, like Cities/Decades/Directors).
+
+---
+
+## Nav-pathway safety audit (2026-06-30)
+
+Owner constraint: **no change may alter a nav pathway or end destination except
+the explicit requests** (Curated promotions, Cities, the pill-nav, reactive
+Decades hero). Audited every change against `docs/BRUNO_NAV_MAP.md`.
+
+### Shipped changes — nav-NEUTRAL (verified)
+- **Em-dash tolerance** — *actively preserves* destinations, doesn't change them.
+  The recognizer `BrunoOscarCategory(boxSetName:)` is consumed by the item-detail
+  **Recommended shelf** (§10, `BrunoRecommendedShelf.swift:90` → `.oscar` captioned
+  grid) and the Home **{Curated} show-all** (§2b, `BrunoHomeShowAll.swift:90`).
+  Making it tolerant of the dash-free name is exactly what keeps those routes
+  intact post-rename; the strict version would have *broken* them. No new false
+  matches (Oscar Buzz/Bait → nil). ✅
+- **Cities seam** — purely additive name-keyed cases (`"cities"`); changes no
+  existing group's `rank`/`drillStyle`/`lens`. Cities (a favorited group) is
+  *dropped as a nav hub* by the §10 classifier (`favoriteGroupBoxSets`, line 70) —
+  consistent with every other group. Its child `Chicago Movies` keeps its existing
+  (Genres) Recommended routing. ✅
+
+### ⚠ Curated restructure — REQUIRES updating 4 `curatedBoxSets` consumers or 3
+destinations regress (this is the load-bearing finding)
+
+`snapshot.curatedBoxSets = group("Curated")` (`BrunoLibrarySnapshot.swift:99`).
+Retiring Curated (un-favorite) **empties it**, and moving the Oscar/Ebert BoxSets
+under new "Oscars"/"Roger Ebert" groups **removes them from it**. Four consumers
+key off it — three are nav pathways/destinations:
+
+| Consumer | File | Effect if not updated |
+|---|---|---|
+| Item-detail **Recommended** Oscar/Ebert routing (§10) | `BrunoRecommendedShelf.swift:83-91` | **DESTINATION REGRESSION** — the `.oscar`/`.ebert` branch is gated on `curatedBoxSets.contains(id)` (`:83`); once moved, the gate fails → Oscar/Ebert tiles fall through to `.filmsGrid`/drop, losing the captioned Oscar grid + Ebert toggle |
+| Home **{Curated} show-all** Ebert/Oscar grid (§2b) | `BrunoHomeShowAll.swift:90,100` | DESTINATION — Ebert/Oscar Home-shelf show-alls stop resolving |
+| Home **{Curated} explore generator** (§2b/§8) | `BrunoHomePlan.swift:342` | CONTENT source empties → shelf vanishes (the §8 retarget/retire decision) |
+| Collections **procedural tail** ×6 Curated family | `BrunoHomePlan.swift:625` | CONTENT source empties |
+
+**Fix (do in the §1 migration, in lockstep):** detect Oscar/Ebert by **name**
+(`BrunoOscarCategory(boxSetName:)` / `hasPrefix("ebert")`) **un-gated from
+`curatedBoxSets`**, or repoint these accessors at the new "Oscars"/"Roger Ebert"
+groups. The recognizer is already tolerant, so hoisting the Oscar/Ebert checks out
+of the `curatedBoxSets` gate makes §10 robust to the regrouping. Resolve §8
+(retarget vs retire the Curated explore generator) **before** un-favoriting Curated.
+
+### Planned changes — nav-NEUTRAL by design
+- **Two-row layout (§2):** reorders card *positions* only; every card keeps its
+  `drillStyle` destination. Safe **iff** implemented as a Collections-only row-map
+  on top of `fromSnapshot` (finding 5) — `rank()` still feeds the Home footer/spine
+  unchanged.
+- **Oscar offset heuristic (§4):** reorders *within* a shelf; show-all destination
+  (`brunoBoxSetGrid`) unchanged.
+- **Static brand heroes (§7):** non-interactive image band; no tap target, no route.
+- **Cultural Touchstones lane (§1):** *adds* a shelf to the Decades "All" view; no
+  existing decade shelf's show-all changes.
+- **Pill-nav + reactive Decades hero (§6):** explicit requests; change focus/scroll
+  *behavior* and the hero *image*, not any show-all destination. Porting to
+  Movies/Kids leaves their shelf destinations intact.
+
+### By-design ripple to call out (not a regression, but a structure change)
+Favoriting a group surfaces it on **three** surfaces at once — Collections tab,
+Home **"Browse the Collection"** spine (§2a), Home **terminal footer** (§2c) — all
+via `fromSnapshot`. So the promoted cards (Oscar/Roger/Asian Cinema/Film
+School/Critically Acclaimed) + Cities will appear on **Home**, not just
+Collections; retiring Curated removes it from all three. Consistent and intended
+under the name-driven model, but it *is* a Home-surface change — bless it explicitly.
