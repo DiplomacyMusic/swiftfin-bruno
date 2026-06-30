@@ -34,8 +34,10 @@ worktree only when its branch is merged into the default branch **and** its tree
 checkout, the current worktree, or unmerged/dirty work — `git worktree lock` one to shield it), then
 deletes DerivedData folders whose source project no longer exists (including the worktrees it just
 removed). **Defaults to `--dry-run`** (prints what it would remove + reclaimed sizes,
-deletes nothing); pass `--apply` to delete. A launchd LaunchAgent
-(`Scripts/com.bruno.cleanup-worktrees.plist`) runs it daily — install steps are in that plist's header.
+deletes nothing); pass `--apply` to delete. To run it by hand, double-click
+`Scripts/cleanup-worktrees.command` — it shows the dry-run preview, asks to confirm, then applies. A
+launchd LaunchAgent (`Scripts/com.bruno.cleanup-worktrees.plist`) runs it daily — install steps are in
+that plist's header.
 
 ## 1. Think before coding
 State assumptions; if uncertain, ask. Multiple interpretations → present them, don't pick silently.
