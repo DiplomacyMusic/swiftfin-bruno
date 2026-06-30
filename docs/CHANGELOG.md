@@ -4,6 +4,11 @@
 > `PROJECT_TRACKER.md` holds only **current / next** work; everything shipped is recorded here so the
 > tracker can stay small. For full detail use `git log` or the merged PR list.
 
+## 2026-06-30
+
+- **IA §4 — Oscar lead-spread** (`e2235ed3`). Added `BrunoOscar.spreadLeads(_:category:seed:)` (`Shared/Objects/Bruno/BrunoOscarAward.swift`): after `reverseChronological`, it rotates only the top lead band (≈6) of each of the six Oscar category shelves by a per-category seeded offset, so one recent award year no longer dominates the lead slot of all six shelves at once. Offset is a pure fn of `(category, rowOrderSeed)` — no `Date()`; seed captured once per load like `shuffleSeed` (INV-3 safe). Wired in `BrunoBoxSetShelvesView.swift` (seed capture ~:559, oscarCategory branch ~:600). The owner's cheap per-shelf heuristic (plan §4), not a cross-shelf rebalance.
+- **IA §3 — Studios backdrop pinned to Studio04** (`ba45d41f`). The Studios surface now pins to one static backdrop (Studio04, the Paramount mountain) instead of rotating: `BrunoStudiosGridView.swift:52` repoints `BrunoStudiosBackdrop` → `Studio04`, and the studios tile art (`BrunoCollectionArtwork.swift`) is pinned to `["Studio04"]` (same lock pattern as the Coppola/Ebert tiles). No asset import — `Studio04.imageset` already existed in `Assets.xcassets/BrunoCollections`; the plan's "import Studio04 / tile is a gradient" notes were stale. `BrunoStudiosBackdrop.imageset` is now unreferenced but left in the catalog per the "dropped imagesets stay" convention.
+
 ## 2026-06-29
 
 - **Studios: daily-rotated "Household Names" top grid** (PR #59). The Studios "Show all" (`BrunoStudiosGridView`) now leads with a curated top section — up to 20 of the most recognizable studios present in the library (editorial list; `revenue`/`awards` aren't on `BaseItemDto` app-side, so the list IS the ranking), stable membership with the order reshuffled per day via the existing `BrunoRNG` day-stamp seed — above the unchanged full A–Z grid (top names **not** excluded). Pure render/selection change; no fetch/VM/routing change.
