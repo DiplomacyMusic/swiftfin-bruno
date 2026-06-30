@@ -43,16 +43,16 @@ hardcoded IDs. A favorited group BoxSet becomes a card automatically; only its
 The Curated tile is the group named "Curated", surfaced because it's a favorited
 group BoxSet (`snapshot.curatedBoxSets`, `BrunoLibrarySnapshot.swift:99-101`).
 
-**Implementation.** "Retiring" the card is two moves: (a) drop or re-rank it in
-`rank(for:on:)` (`BrunoCategoryShelves.swift:96-109`) so it no longer appears in
-the strip, and (b) redistribute its children (below). The children are *server
-data* under the Curated group; promoting them to top level means they must each
-become their own favorited group BoxSet **or** be re-pointed by name in the
-card-build switch. **Owner decision needed:** are Roger/Oscar/Asian Cinema/Film
-School being made their own favorited server groups, or do they stay children of
-Curated and get *surfaced* as top-level cards via app-side promotion? The former
-is data-only (cleanest); the latter needs new synthetic categories in
-`fromSnapshot`.
+**Implementation.** "Retiring" the card is two moves: (a) **un-favorite the Curated
+group** server-side (it drops out of `favoriteGroupBoxSets` → `fromSnapshot` stops
+building its card on all three surfaces) — drop/re-rank in `rank(for:on:)`
+(`BrunoCategoryShelves.swift:96-109`) is the belt-and-suspenders app side; and
+(b) redistribute its children (below). **Resolved (owner 2026-06-30):** the
+promoted children become **their own favorited groups** (data-only), not app-side
+synthetic promotion — see the Promote section. ⚠ Un-favoriting Curated empties
+`snapshot.curatedBoxSets`, which several routes key off — do it **only** as part of
+the coordinated §1 migration with the `curatedBoxSets` repoints (Nav-pathway safety
+audit + Show-all audit), or Home/Recommended/show-all destinations regress.
 
 ### Promote to top level: Roger, Oscar, Asian Cinema, Film School, Critically Acclaimed
 Today these are Curated children, consolidated into "Ebert"/"Oscars" tiles only
@@ -508,13 +508,17 @@ retired its data source changes.
 `"curated"` / `"world"` — `BrunoHomePlan.swift:337-346`, calling
 `boxSetShelf(snapshot.curatedBoxSets, …)` (`:341`). The Collections procedural
 tail's ×6 Curated family is the analogous path (`collectionsTail`
-`BrunoHomePlan.swift:625-639`). **Owner decision needed:** retarget this
-generator to the promoted collections (Roger/Oscar/Asian Cinema/Film School) or
-retire it. If retarget: repoint `snapshot.curatedBoxSets` to a union of the
-promoted groups' snapshot accessors. *INV-3:* whatever it draws from, the pick
-must stay seeded-pure over `(seed, snapshot, now)`. **Blocked on §1** — can't
-finalize until the Curated retirement shape (own-groups vs app-side promotion) is
-decided.
+`BrunoHomePlan.swift:625-639`). **Recommendation: retarget, don't retire** — the
+Home feed loses curated variety if dropped, and the promoted collections *are* the
+curated content that justified the generator. Repoint `boxSetShelf`'s source from
+`snapshot.curatedBoxSets` to the **union of the promoted groups' children** (Oscar
+/ Roger Ebert / Asian Cinema / Film School / Critically Acclaimed) via a new
+accessor (e.g. `promotedCuratedBoxSets`), and keep the Ebert/Oscar caption branch —
+now **name-resolved** per the Show-all audit fix, so it survives the regrouping.
+Same repoint covers the `collectionsTail` ×6 family. *INV-3:* the pick stays
+seeded-pure over `(seed, snapshot, now)`. This is the one remaining **design**
+call; the data/disposition decisions are all closed (§9a). Lands with the §1
+migration (it shares the `curatedBoxSets` repoint).
 
 ---
 
@@ -630,16 +634,20 @@ trap noted in prior shelf-depth work. Not blocking IA work; log if it recurs.
    Hughes override (8 IDs in hand), §5/§7 **static brand-art** grid heroes (no
    INV-6/anti-rep), §4 Oscar **cheap offset heuristic** — all reuse existing
    patterns, no data gate.
-3. **Coordinated server+app migration (§1):** favorite the promotes + create
-   "Oscars"/"Roger" parent groups + un-favorite Curated + land the rank/drillStyle/
-   lens seams, as **one step** (avoid transitional double-surfacing). Asian Cinema's
-   bespoke composed view (director collections + genre shelves) rides here.
+3. **Coordinated server+app migration (§1) — the big one.** Favorite the promotes
+   + create "Oscars"/"Roger Ebert" parent groups + un-favorite Curated + land the
+   rank/drillStyle/lens seams + **the ~6 `curatedBoxSets`/synthetic-id repoints**
+   (Nav + Show-all audits) + delete `consolidateOscars`/`consolidateEbert`, as
+   **one step** (avoid transitional double-surfacing + destination regressions).
+   Asian Cinema's composed shelves (reuses `.shelves` + `BrunoCoreGenre`) and the §8
+   generator retarget ride here (they share the repoint).
 4. **Highest-risk (perf + focus):** §6 reactive Decades hero (reintroduces the
    backdrop-reload cost the code deliberately avoided, + the anti-repetition buffer)
    and the §6 double-tap-down pill nav (focus-engine state machine, INV-7/10,
    on-device verification required). Build last, behind the shared-idiom refactor.
-5. **Decision-gated:** §2 two-row layout (design call) and §8 Curated-Explore
-   retarget (blocked on §1 shape).
+5. **Design call only:** §2 two-row layout (card placement — no nav impact if
+   layered on `fromSnapshot`). §8 generator → **retarget recommended** (rides the §1
+   migration).
 
 ---
 
