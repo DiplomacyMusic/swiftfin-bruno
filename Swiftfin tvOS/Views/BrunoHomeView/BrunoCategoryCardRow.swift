@@ -25,6 +25,12 @@ import SwiftUI
 struct BrunoCategoryCardRow: View {
 
     let categories: [BrunoCollectionCategory]
+    /// §2: when true (Collections hub only), the strip splits into TWO equal-height rows — Row 1
+    /// "what to watch" (curated/marquee), Row 2 "how to browse" (structural hubs) — each its own
+    /// `.focusSection()` so up/down hops between rows and left/right stays within a row. Default false
+    /// keeps the single strip for every other host (the Home footer/spine, the gold-tile sub-row, and
+    /// the Oscars/Cities drill-in card rows, which all share this view).
+    var twoRow: Bool = false
 
     @Router
     private var router
@@ -32,9 +38,30 @@ struct BrunoCategoryCardRow: View {
     @Namespace
     private var namespace
 
+    /// Row 1 membership (lowercased group names) for the two-row Collections layout — the "what to
+    /// watch" lane. Everything else falls to Row 2 ("how to browse"). Order within each row follows the
+    /// incoming rank order. Membership is the owner's design call (the deferred §2 placement) — edit here.
+    private static let row1Names: Set<String> = [
+        "new releases", "oscars", "roger ebert", "critically acclaimed",
+        "rewatchables", "film school classics", "asian cinema", "seasonal",
+    ]
+
     var body: some View {
+        if twoRow {
+            VStack(spacing: 0) {
+                row(categories.filter { Self.row1Names.contains($0.name.lowercased()) })
+                row(categories.filter { !Self.row1Names.contains($0.name.lowercased()) })
+            }
+        } else {
+            row(categories)
+        }
+    }
+
+    // One horizontal card strip — shared by the single-row and two-row layouts so the tile, focus
+    // scaling, and routing are byte-identical between them.
+    private func row(_ items: [BrunoCollectionCategory]) -> some View {
         CollectionHStack(
-            uniqueElements: categories,
+            uniqueElements: items,
             columns: 7
         ) { category in
             Button {
@@ -45,7 +72,7 @@ struct BrunoCategoryCardRow: View {
             .buttonStyle(.card)
         }
         .clipsToBounds(false)
-        .dataPrefix(categories.count)
+        .dataPrefix(items.count)
         .insets(horizontal: EdgeInsets.edgePadding, vertical: 20)
         .itemSpacing(EdgeInsets.edgePadding - 20)
         .scrollBehavior(.continuousLeadingEdge)

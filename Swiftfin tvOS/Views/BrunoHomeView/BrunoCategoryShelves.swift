@@ -382,7 +382,11 @@ struct BrunoCategoryShelves: View {
                     }
 
                     if showCategoryRow {
-                        BrunoCategoryCardRow(categories: cardRowCategories ?? categories)
+                        // §2 two-row split is a Collections-HUB-only presentation concern: isTabRoot is
+                        // true only for the Collections tab root here (Genres/Movies tab roots replace
+                        // the card row with a header), and false for the pushed drill-in card rows
+                        // (Oscars/Cities/etc.) that also flow through this line.
+                        BrunoCategoryCardRow(categories: cardRowCategories ?? categories, twoRow: isTabRoot)
                             .padding(.top, (header == nil && featured == nil) ? 20 : 0)
                             // Mutually exclusive with `header`; anchored too so any selector-row surface
                             // that adopts pillScrollKey lands here.
