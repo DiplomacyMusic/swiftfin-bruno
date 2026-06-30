@@ -37,12 +37,15 @@ enum BrunoCollectionArtwork {
         // film-reel archive aisle (02) is dropped from this tile; its imageset stays in the catalog.
         "boxed sets": ["BoxedSets01"],
         "movie stars": ["MovieStars01"],
-        // Locked to the Roger Ebert photo (Curated02) — a single-element list makes `dailyAsset`
-        // always resolve to it, so the resting tile no longer rotates. The Oscar statuette
-        // (Curated01) is intentionally dropped from this top-level tile; the imageset stays in the
-        // catalog (still used on the Oscar sub-collection card via BrunoCuratedCard). Mirrors the
-        // Coppola lock above.
-        "curated": ["Curated02"],
+        // §1 migration retired "Curated" and promoted Oscars + Roger Ebert to their own top-level
+        // cards — so the art that used to ride the "curated" key now keys off the real group names,
+        // or these cards fall back to a bare gradient (the Ebert-art regression). Roger Ebert keeps
+        // the Roger Ebert photo (Curated02); Oscars takes the Oscar statuette (Curated01) that used
+        // to be the Curated alternate. Single-element lists pin them (no rotation), like the locks
+        // above. (The flat promotes — Asian Cinema / Film School Classics / Critically Acclaimed —
+        // have no bundled art yet, so they show the brand gradient until art is added.)
+        "roger ebert": ["Curated02"],
+        "oscars": ["Curated01"],
         // Locked to the drive-in with classic cars (Decades02) — single-element list pins it. The
         // neon marquee (01) and 3D-glasses audience (03) shots are dropped from this tile; their
         // imagesets stay in the catalog.
