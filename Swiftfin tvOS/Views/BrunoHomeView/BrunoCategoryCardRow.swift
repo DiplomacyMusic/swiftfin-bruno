@@ -38,23 +38,43 @@ struct BrunoCategoryCardRow: View {
     @Namespace
     private var namespace
 
-    /// Row 1 membership (lowercased group names) for the two-row Collections layout (owner placement,
-    /// 2026-06-30): New Releases + the browse hubs. Everything else falls to Row 2 (the curated content:
-    /// Oscars, Roger, Rewatchables, Seasonal, Asian Cinema, Film School Classics, Critically Acclaimed).
-    /// Order within each row follows the incoming rank order. Membership is the owner's call — edit here.
-    private static let row1Names: Set<String> = [
+    /// Row 1 order (lowercased group names) for the two-row Collections layout — the "how to browse"
+    /// lane. Row 2 order is the curated/marquee lane. EXPLICIT order (owner placement, 2026-06-30) —
+    /// supersedes the incoming rank order for the two-row layout. Any group not listed in either row
+    /// falls to the end of Row 2. Membership/order is the owner's call — edit here.
+    private static let row1Order: [String] = [
         "new releases", "directors", "movie stars", "decades", "studios", "boxed sets", "cities",
+    ]
+    private static let row2Order: [String] = [
+        "roger ebert", "rewatchables", "oscars", "seasonal", "asian cinema",
+        "film school classics", "critically acclaimed",
     ]
 
     var body: some View {
         if twoRow {
             VStack(spacing: 0) {
-                row(categories.filter { Self.row1Names.contains($0.name.lowercased()) })
-                row(categories.filter { !Self.row1Names.contains($0.name.lowercased()) })
+                row(Self.ordered(categories, by: Self.row1Order))
+                row(Self.ordered(categories, by: Self.row2Order, appendUnlisted: true))
             }
         } else {
             row(categories)
         }
+    }
+
+    // Reorders `items` to match `order` (by lowercased name); unlisted items are dropped unless
+    // `appendUnlisted`, in which case they're appended in their incoming order (Row 2's catch-all).
+    private static func ordered(
+        _ items: [BrunoCollectionCategory],
+        by order: [String],
+        appendUnlisted: Bool = false
+    ) -> [BrunoCollectionCategory] {
+        let byName = Dictionary(items.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { a, _ in a })
+        var result = order.compactMap { byName[$0] }
+        if appendUnlisted {
+            let placed = Set(order)
+            result += items.filter { !placed.contains($0.name.lowercased()) }
+        }
+        return result
     }
 
     // One horizontal card strip — shared by the single-row and two-row layouts so the tile, focus

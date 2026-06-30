@@ -106,9 +106,10 @@ struct BrunoEbertView: View {
     private var content: some View {
         GeometryReader { proxy in
             ZStack {
-                // Full-bleed brand backdrop (the Roger Ebert photo) — the same image the Ebert curated
-                // tiles use (BrunoCategoryTile: "ebert" → Curated02).
-                Image("Curated02")
+                // Full-bleed brand backdrop: swaps immediately with the verdict toggle — the thumbs-up
+                // photo for the Up set, thumbs-down for Down (owner request). `down == nil` (a lone
+                // single-set entry, no toggle) always shows the Up photo.
+                Image(showingDown ? "RogerHeroThumbsDown" : "RogerHeroThumbsUp")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: proxy.size.width, height: proxy.size.height)

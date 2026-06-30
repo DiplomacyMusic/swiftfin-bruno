@@ -131,7 +131,12 @@ struct BrunoCategoryTile: View {
             ZStack {
                 LinearGradient(colors: [palette.top, palette.bottom], startPoint: .top, endPoint: .bottom)
                 PosterImage(item: category.boxSet, type: .portrait)
-                    .overlay(Color.black.opacity(0.55)) // dim so the title reads over the cover
+                    // Brand-tinted dim (was flat black) so each card's own color reads through its
+                    // cover, matching the bundled-art tiles (owner: "add color gradient").
+                        .overlay(
+                            LinearGradient(colors: [palette.top, palette.bottom], startPoint: .top, endPoint: .bottom)
+                                .opacity(0.7)
+                        )
                 LinearGradient(colors: [.clear, .black.opacity(0.35)], startPoint: .center, endPoint: .bottom)
             }
         }
@@ -194,11 +199,12 @@ struct BrunoCategoryTile: View {
         case "seasonal":
             (Color(hex: "06191E"), Color(hex: "1E7C8C"), Color(hex: "2EB6CC"))
         case "rewatchables":
-            // Plum — distinct from every other tile (podcast/rewatch warmth).
-            (Color(hex: "1E0C1A"), Color(hex: "7A2A5A"), Color(hex: "C04A8E"))
+            // Monochromatic green (owner request) — the brand color of the card's baked wordmark.
+            (Color(hex: "081C0E"), Color(hex: "1E6B36"), Color(hex: "3ECC6A"))
         // §1 promoted groups — each its own hue so no two cards share a color (owner request).
         case "oscars":
-            (Color(hex: "2A2206"), Color(hex: "B8901E"), Color(hex: "E8C24A")) // Academy gold
+            // Diplomacy blue (the brand pop color, Color.bruno.accentAlt) — light tint, not gold.
+            (Color(hex: "0A1416"), Color(hex: "49636A"), Color(hex: "849396"))
         case "roger ebert":
             (Color(hex: "0C1622"), Color(hex: "2E5C8C"), Color(hex: "5C92D8")) // critic's steel blue
         case "critically acclaimed":
@@ -238,7 +244,12 @@ private struct BrunoCuratedPinnedArt: View {
                         .scaledToFill()
                 }
                 .clipped()
-                .overlay(Color.black.opacity(0.5)) // lighter than the tile photos: the statue/face is the point
+                // Light brand tint (not flat black) so each card's color reads through the photo —
+                // still lighter than the bundled-art tiles since the statue/face is the point.
+                .overlay(
+                    LinearGradient(colors: [palette.top, palette.bottom], startPoint: .top, endPoint: .bottom)
+                        .opacity(0.35)
+                )
 
             // Legibility wash where the centred title sits.
             LinearGradient(colors: [.clear, .black.opacity(0.4)], startPoint: .center, endPoint: .bottom)
