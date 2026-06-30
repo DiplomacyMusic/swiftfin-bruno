@@ -54,7 +54,7 @@ Curated and get *surfaced* as top-level cards via app-side promotion? The former
 is data-only (cleanest); the latter needs new synthetic categories in
 `fromSnapshot`.
 
-### Promote to top level: Roger, Oscar, Asian Cinema, Film School
+### Promote to top level: Roger, Oscar, Asian Cinema, Film School, Critically Acclaimed
 Today these are Curated children, consolidated into "Ebert"/"Oscars" tiles only
 *inside* the Curated drill-in (`consolidateOscars`/`consolidateEbert`,
 `BrunoBoxSetShelvesView.swift:136-167`).
@@ -75,6 +75,20 @@ Today these are Curated children, consolidated into "Ebert"/"Oscars" tiles only
   shelves. No pill state → simpler than Decades.
 - *Film School:* contents **untouched** — pure promotion, give it a `rank` slot
   and keep its existing drill route.
+- *Critically Acclaimed* (`e09ff623…`): **promote, content as-is** (owner
+  decision 2026-06-30). Today it's a single flat BoxSet of films, so the
+  promoted card's `drillStyle` is `.grid` (or `.items`) over its members — a `rank`
+  slot + `lens` and it's done. **Forward-looking:** the owner intends to add
+  subgroupings (Metacritic, AFI lists, Rotten Tomatoes, user scores, …). That
+  turns it into a **group** whose children are per-source BoxSets — i.e. the same
+  server-group→`.shelves` pattern as Curated/Asian Cinema/Decades (favorited
+  parent group + child BoxSets, surfaced by name via `fromSnapshot`). So model the
+  promotion to *not* hardcode it as a single terminal grid: when the child source
+  BoxSets exist, `drillStyle(for:)` should resolve Critically Acclaimed to
+  `.shelves` (one shelf per source), exactly like the §7 Cities pattern. No code
+  needed for the subgroups until the server-side child BoxSets are created
+  (additive — `bruno-collection-builder`); the card works as a flat grid until
+  then and gains the shelves for free once the children land.
 
 *Determinism/INV:* new synthetic top-level categories must mint **stable string
 ids** (INV-2) — never an index. Follow the existing `curated-oscars` /
@@ -109,11 +123,11 @@ ungrouped — the same one the Movies genre buckets reference as `"chicago movie
 "Cities" parent group** with Chicago Movies as its first child (mirrors
 Decades/Directors). Ready to create on owner confirmation (§9a.3).
 
-### Everything else under Curated — RESOLVED to two members
-The full Curated list is now in hand (§9): the only members not in the owner's
-plan are **Critically Acclaimed** (`e09ff623…`) and **Oscar Buzz**
-(`fb9e649d…`). Owner disposal decision pending (§9a.1) — fold Oscar Buzz into the
-promoted Oscar card, or retire both.
+### Everything else under Curated — RESOLVED to one member
+The full Curated list is now in hand (§9). **Critically Acclaimed** was the only
+other unplanned member and is now **promoted** (above). That leaves exactly one
+undecided: **Oscar Buzz** (`fb9e649d…`) — fold it into the promoted Oscar card,
+or retire it (§9a.1).
 
 ---
 
@@ -393,12 +407,13 @@ server or library metadata.
 | Asian Cinema | `f96882e8e7abb871c5365782fac56f2a` | → **Asian Cinema** (promote) |
 | Film School Classics | `61b1fa77b4301a40d970f1e40cb9a34c` | → **Film School** (promote) |
 | Cultural Touchstones | `670dc4025fb9dc6e671e38bad4a92861` | → **demote** (§1) |
-| Critically Acclaimed | `e09ff623404dc3392e0c950b85af0c55` | ⚠ **not in plan — disposal** |
+| Critically Acclaimed | `e09ff623404dc3392e0c950b85af0c55` | → **promote** (content as-is; subgroupings later) |
 | Oscar Buzz | `fb9e649d842803f8bab9446a8fd6e7d9` | ⚠ **not in plan — disposal** |
 
-So "everything else under Curated" = exactly **Critically Acclaimed** + **Oscar
-Buzz**. (Note: server name is **"Film School Classics"**, not "Film School"; the
-owner's "Roger" = the two Ebert Thumbs Up/Down BoxSets.)
+So "everything else under Curated" is now just **Oscar Buzz** (Critically
+Acclaimed promoted, owner decision 2026-06-30). (Note: server name is **"Film
+School Classics"**, not "Film School"; the owner's "Roger" = the two Ebert Thumbs
+Up/Down BoxSets.)
 
 **2. John Hughes film IDs — RESOLVED + metadata-verified.** The "John Hughes"
 director BoxSet (`id=7583e70920907af155e4065044f61c1d`) currently holds **6
@@ -457,9 +472,9 @@ surface). No data gate remains — purely an asset-catalog + code change.
 
 ### 9a. Remaining owner decisions (narrow — not data lookups)
 
-1. **Curated leftovers** — dispose / fold / promote **Critically Acclaimed** and
-   **Oscar Buzz**? (Oscar Buzz could fold into the promoted Oscar card; Critically
-   Acclaimed overlaps Ebert + Cultural Touchstones.)
+1. **Oscar Buzz** — the last undecided Curated member: fold into the promoted
+   Oscar card, or retire it? (Critically Acclaimed: **resolved → promote**,
+   2026-06-30.)
 2. **Hughes deep cuts** — include *European Vacation* + *Maid in Manhattan* in the
    override, or just the canonical six?
 3. **Cities group creation** — confirm and I'll create + favorite a "Cities" group
