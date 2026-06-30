@@ -272,12 +272,14 @@ The override is app-side, keyed on the specific item IDs. Seam: the Directors
 drill-in member resolution (the per-director query that feeds the grid). **Data
 gate — RESOLVED + metadata-verified (§9.2):** the override IDs are in hand. ⚠
 Correction: **Ferris Bueller's Day Off is directed by Hughes** (already in the
-collection) — no override needed for it. Recommended override set (canonical six,
-all confirmed `John Hughes (Writer/Producer)` in library metadata): Home Alone
-`d8ae5f93…`, Home Alone 2 `2dc62db2…`, Pretty in Pink `13cea2f3…`, Some Kind of
-Wonderful `5be2b6f0…`, National Lampoon's Vacation `89ba42db…`, Christmas
-Vacation `a488f440…`. *INV-2:* the merged list must keep stable ids and de-dup if
-a film appears in both sets.
+collection) — no override needed for it. **Override set — owner decision
+2026-06-30: include the deep cuts too (all eight)**, every one confirmed
+`John Hughes (Writer/Producer)` in library metadata: Home Alone `d8ae5f93…`,
+Home Alone 2 `2dc62db2…`, Pretty in Pink `13cea2f3…`, Some Kind of Wonderful
+`5be2b6f0…`, National Lampoon's Vacation `89ba42db…`, Christmas Vacation
+`a488f440…`, **European Vacation `f1512e65…`**, **Maid in Manhattan
+`06808ccb…`**. *INV-2:* the merged list must keep stable ids and de-dup if a film
+appears in both sets.
 
 ### Hero — Directors grid (and Movie Stars grid)
 Top-level Directors grid + top-level Movie Stars grid each need a cinematic hero
@@ -494,18 +496,22 @@ director, all present in the library:
 | *European Vacation (1985)* | `f1512e6582d0e123a25a6eda86ef29e3` | Amy Heckerling | Writer *(deep cut)* |
 | *Maid in Manhattan (2002)* | `06808ccb4f4b4ffb8fd135d344fb2cfa` | Wayne Wang | Writer (story) *(deep cut)* |
 
-Recommended override set = the **first six** (canonical "John Hughes movies").
-European Vacation + Maid in Manhattan are real Hughes writing credits but feel
-off-brand for the grid — ⚠ owner picks whether to include them. (The 2015
-*Vacation* reboot is **not** Hughes — excluded.) These IDs feed the §5
-display-layer union.
+Override set — **owner decision 2026-06-30: all eight** (the canonical six **plus**
+European Vacation + Maid in Manhattan). The 2015 *Vacation* reboot is **not**
+Hughes — excluded. These IDs feed the §5 display-layer union.
 
-**3. Cities server group — CREATED + favorited (2026-06-30).** The favorited
-**"Cities"** group (`id=72b9dd0157755a314917adabcdedced8`) now exists with the
-existing `Chicago Movies` BoxSet (`c443b3c4…`, 23 films) nested as its first child
-(`enrich/create_cities_group.py`). It's now the 10th favorited group, so the app
-surfaces it automatically. Structure = shelf-per-city under one Cities card (not
-per-city cards); app seams + planned cities + seed-eligibility in §1 → New: Cities.
+**3. Cities server group — CREATED + favorited; app seam IMPLEMENTED (2026-06-30).**
+The favorited **"Cities"** group (`id=72b9dd0157755a314917adabcdedced8`) exists with
+the existing `Chicago Movies` BoxSet (`c443b3c4…`, 23 films) nested as its first
+child (`enrich/create_cities_group.py`) — now the 10th favorited group, surfaced
+automatically. **App seam landed:** `rank` (`"cities": 10`, provisional — §2
+finalizes placement), `drillStyle("cities") → .shelves`, `lens("cities") → "On
+Location"` in `BrunoCategoryShelves.swift`. Verified the generic `.shelves` route
+(`brunoRouteToShowAll`, `BrunoCategoryCardRow.swift:84`) opens
+`BrunoBoxSetShelvesView` with neither `isDecades` nor `isCurated`, so
+`shownCategories` returns one shelf per child city — **shelf-per-city, no pills, no
+Oscar/Ebert consolidation** — exactly the intended structure. Seed-eligibility for
+Home/Collections generators remains the follow-up (§1 → New: Cities, §8).
 
 **4. Oscar tags applied — RESOLVED, already live.** The live server already has
 **410 movies** tagged `oscar:<CAT>:<won|nom>:<YEAR>` (plus 679 with `ebert-*`,
@@ -522,14 +528,13 @@ import `Studio04` into the tvOS asset catalog and point **both** the Studios car
 tile and the grid backdrop at it (replacing `BrunoStudiosBackdrop` for this
 surface). No data gate remains — purely an asset-catalog + code change.
 
-### 9a. Remaining owner decisions (narrow — not data lookups)
+### 9a. Owner decisions — ALL RESOLVED (2026-06-30)
 
-1. **Hughes deep cuts** — include *European Vacation* + *Maid in Manhattan* in the
-   override, or just the canonical six? (still open)
-
-**Resolved 2026-06-30:** Critically Acclaimed → promote · Oscar Buzz → retire ·
-Cities group → created (Chicago first child, shelf-per-city). Studio04, Oscar
-tags, Curated list, Hughes IDs all cleared in §9.
+No open data/disposition decisions remain. Resolved: Critically Acclaimed →
+promote · Oscar Buzz → retire · Cities group → created + app seam landed
+(shelf-per-city) · Hughes override → all eight (incl. both deep cuts) · Studio04 →
+existing asset · Oscar tags → live · Curated list → fully dispositioned. The
+remaining work is implementation + the §2 two-row design call.
 
 ---
 
