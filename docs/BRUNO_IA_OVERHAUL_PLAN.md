@@ -106,28 +106,51 @@ Touchstones group members. Pattern (a) is a synthetic shelf appended in the
 Decades drill (`shownCategories`, `BrunoBoxSetShelvesView.swift:111-123`). Remove
 its `rank` slot so it never renders as a card.
 
-### New: Cities (data-seeded, Chicago first)
-Must accommodate adding cities without code changes.
+### New: Cities (data-seeded) — server group CREATED (2026-06-30)
+One **Cities** top-level card; each city is a **child BoxSet rendered as a SHELF**
+under it — **not** its own card (owner decision). Planned children: Chicago (live),
+then New York, San Francisco, Paris, London, Tokyo, Seoul, Hong Kong — added as
+more child BoxSets, no code change. The per-city shelves are **eligible as seeds
+for the Home + Collections explore generators** (see §8).
 
-**Implementation.** The server-group-seeded path is fully name-driven:
-`fetchGroupBoxSets` (`BrunoLibrarySnapshot.swift:195-204`) discovers any
-favorited group; `fetchChildren` (`:206-216`) reads members (⚠ `ParentId` with
-**no type filter** — documented trap, `BRUNO_CODE_MAP.md:240-243`);
-`fromSnapshot` (`BrunoCategoryShelves.swift:143-182`) turns it into a card by
-name. So a "Cities" favorited group with Chicago as first child surfaces
-automatically **once** Cities gets a single `rank`/`drillStyle`/`lens` entry —
-after that, new cities are pure data. *Content already exists* (§9.3): the
-`Chicago Movies` BoxSet (`c443b3c4…`, 23 films) is live but unfavorited and
-ungrouped — the same one the Movies genre buckets reference as `"chicago movies"`
-(`BrunoGenresView.swift:44,51,57,…`). **The only missing piece is the favorited
-"Cities" parent group** with Chicago Movies as its first child (mirrors
-Decades/Directors). Ready to create on owner confirmation (§9a.3).
+**Server — DONE.** The favorited **"Cities"** group
+(`id=72b9dd0157755a314917adabcdedced8`) is created and favorited, with the existing
+`Chicago Movies` BoxSet (`c443b3c4…`, 23 films) nested as its first child
+(`enrich/create_cities_group.py`, additive + reversible). It now shows up among the
+favorited groups (10 total), so `fetchGroupBoxSets`
+(`BrunoLibrarySnapshot.swift:195-204`) + `fromSnapshot`
+(`BrunoCategoryShelves.swift:143-182`) will surface it automatically. *Note:*
+`Chicago Movies` is now a child of **both** Genres and Cities (place-based — it
+reads as a genre and a city); harmless, flag if de-dup is wanted.
 
-### Everything else under Curated — RESOLVED to one member
-The full Curated list is now in hand (§9). **Critically Acclaimed** was the only
-other unplanned member and is now **promoted** (above). That leaves exactly one
-undecided: **Oscar Buzz** (`fb9e649d…`) — fold it into the promoted Oscar card,
-or retire it (§9a.1).
+**App — the seams (so it's a shelf-per-city drill, not cards):**
+- `rank(for:on:)` (`BrunoCategoryShelves.swift:96-109`) — add a `"cities"` slot, or
+  it falls to `.max` (last). Place per the §2 two-row design.
+- `drillStyle(for:)` (`:116`) — add `"cities"` → **`.shelves`** so the card drills
+  into one shelf per child city (the generic `.shelves` route opens
+  `BrunoBoxSetShelvesView`, shelf-per-sub-group) rather than the default `.grid`
+  (which would flatten all cities into one poster wall). This is the key line that
+  makes cities shelves, not cards.
+- `lens(for:)` — add `"cities"` → a label (e.g. "By City").
+- **Seed-eligibility (§8):** to let the per-city shelves feed Home/Collections, the
+  explore generators (`BrunoHomePlan.explore` / `collectionsTail`) gain a `"cities"`
+  source that seeded-picks a city child and renders its members — same shape as the
+  existing `"curated"` boxSetShelf path (`BrunoHomePlan.swift:337-346`). Determinism
+  (INV-3): seeded over `(seed, snapshot)`, never `Date()`.
+- **Adding a city later = pure data:** create + nest a new city BoxSet under the
+  Cities group; no code change. Persisting Cities in the producer
+  (`Build-Jellyfin-Collections.command` / p6) is a follow-up so a full rebuild
+  re-creates it — the additive builder won't delete it in the meantime.
+
+### Everything else under Curated — RESOLVED (fully)
+The full Curated list is now in hand (§9). **Critically Acclaimed** → promoted
+(above). **Oscar Buzz** (`fb9e649d…`) → **retire** (owner decision 2026-06-30):
+it is not promoted and gets no `rank` slot, so once the Curated card is retired
+and its children redistributed, Oscar Buzz is simply never referenced and drops
+out of the app IA. **No server deletion is performed** — the BoxSet and its films
+stay in the library, just unsurfaced; un-nesting/deleting it server-side is
+available on request but unnecessary (additive model). Every Curated member is
+now accounted for.
 
 ---
 
@@ -408,11 +431,11 @@ server or library metadata.
 | Film School Classics | `61b1fa77b4301a40d970f1e40cb9a34c` | → **Film School** (promote) |
 | Cultural Touchstones | `670dc4025fb9dc6e671e38bad4a92861` | → **demote** (§1) |
 | Critically Acclaimed | `e09ff623404dc3392e0c950b85af0c55` | → **promote** (content as-is; subgroupings later) |
-| Oscar Buzz | `fb9e649d842803f8bab9446a8fd6e7d9` | ⚠ **not in plan — disposal** |
+| Oscar Buzz | `fb9e649d842803f8bab9446a8fd6e7d9` | → **retire** (unsurfaced; no server delete) |
 
-So "everything else under Curated" is now just **Oscar Buzz** (Critically
-Acclaimed promoted, owner decision 2026-06-30). (Note: server name is **"Film
-School Classics"**, not "Film School"; the owner's "Roger" = the two Ebert Thumbs
+Every Curated member is now dispositioned (owner decisions 2026-06-30): Critically
+Acclaimed promoted, Oscar Buzz retired. (Note: server name is **"Film School
+Classics"**, not "Film School"; the owner's "Roger" = the two Ebert Thumbs
 Up/Down BoxSets.)
 
 **2. John Hughes film IDs — RESOLVED + metadata-verified.** The "John Hughes"
@@ -442,18 +465,12 @@ off-brand for the grid — ⚠ owner picks whether to include them. (The 2015
 *Vacation* reboot is **not** Hughes — excluded.) These IDs feed the §5
 display-layer union.
 
-**3. Cities server group — content exists, wrapper missing.** No favorited
-"Cities" group exists (the 9 favorited groups are New Releases, Directors,
-Decades, Genres, Studios, Curated, Seasonal, Movie Stars, Rewatchables). **But a
-`Chicago Movies` BoxSet already exists** (`id=c443b3c45f21b44f1c7f53d641cadb81`,
-**23 films**) — unfavorited, one of the 459 total BoxSets, and the same one the
-Movies genre buckets already reference as `"chicago movies"`
-(`BrunoGenresView.swift:44…`). So the *content* is ready; the only missing piece
-is a **favorited "Cities" parent group with Chicago Movies as a child** — the
-exact structural shape of Decades (8 children) / Directors (138). ⚠ This is a
-live-server mutation (create + favorite a group BoxSet via
-`MovieCollection/Build-Jellyfin-Collections.command`), so it needs the owner's
-go-ahead — I can execute it on confirmation (see §9a).
+**3. Cities server group — CREATED + favorited (2026-06-30).** The favorited
+**"Cities"** group (`id=72b9dd0157755a314917adabcdedced8`) now exists with the
+existing `Chicago Movies` BoxSet (`c443b3c4…`, 23 films) nested as its first child
+(`enrich/create_cities_group.py`). It's now the 10th favorited group, so the app
+surfaces it automatically. Structure = shelf-per-city under one Cities card (not
+per-city cards); app seams + planned cities + seed-eligibility in §1 → New: Cities.
 
 **4. Oscar tags applied — RESOLVED, already live.** The live server already has
 **410 movies** tagged `oscar:<CAT>:<won|nom>:<YEAR>` (plus 679 with `ebert-*`,
@@ -472,15 +489,12 @@ surface). No data gate remains — purely an asset-catalog + code change.
 
 ### 9a. Remaining owner decisions (narrow — not data lookups)
 
-1. **Oscar Buzz** — the last undecided Curated member: fold into the promoted
-   Oscar card, or retire it? (Critically Acclaimed: **resolved → promote**,
-   2026-06-30.)
-2. **Hughes deep cuts** — include *European Vacation* + *Maid in Manhattan* in the
-   override, or just the canonical six?
-3. **Cities group creation** — confirm and I'll create + favorite a "Cities" group
-   with **Chicago Movies** as its first child (additive, mirrors Decades/Directors);
-   or you create it. Also confirm Chicago Movies (23 films) is the intended seed
-   vs a hand-curated Chicago list.
+1. **Hughes deep cuts** — include *European Vacation* + *Maid in Manhattan* in the
+   override, or just the canonical six? (still open)
+
+**Resolved 2026-06-30:** Critically Acclaimed → promote · Oscar Buzz → retire ·
+Cities group → created (Chicago first child, shelf-per-city). Studio04, Oscar
+tags, Curated list, Hughes IDs all cleared in §9.
 
 ---
 
