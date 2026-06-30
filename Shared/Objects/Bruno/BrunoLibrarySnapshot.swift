@@ -100,6 +100,22 @@ struct BrunoLibrarySnapshot: Codable {
         group("Curated")
     }
 
+    /// The film-bearing BoxSets promoted out of the retired "Curated" group (§1 migration): the children
+    /// of the "Oscars" and "Roger Ebert" parent groups (the six `Oscar <Category>` + two `Ebert Thumbs
+    /// Up/Down` BoxSets) PLUS the flat promoted BoxSets (Asian Cinema / Film School Classics / Critically
+    /// Acclaimed). Replaces `curatedBoxSets` for the consumers that keyed off the old Curated children —
+    /// the Home explore generator, the Collections procedural tail, and the Ebert/Oscar caption + route
+    /// resolution. Resolved by NAME so the Oscar/Ebert name-filters downstream still work post-regroup.
+    var promotedCuratedBoxSets: [BaseItemDto] {
+        var result = group("Oscars") + group("Roger Ebert")
+        for name in ["Asian Cinema", "Film School Classics", "Critically Acclaimed"] {
+            if let boxSet = favoriteGroupBoxSets.first(where: { $0.name?.lowercased() == name.lowercased() }) {
+                result.append(boxSet)
+            }
+        }
+        return result
+    }
+
     var seasonalBoxSets: [BaseItemDto] {
         group("Seasonal")
     }

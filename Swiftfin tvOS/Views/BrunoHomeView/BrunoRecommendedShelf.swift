@@ -66,6 +66,24 @@ func brunoRecommendedTarget(_ item: BaseItemDto, snapshot: BrunoLibrarySnapshot)
         return .rewatchables(rewatchables)
     }
 
+    // Promoted curated BoxSets (§1): Ebert toggle, Oscar captioned grid, else the collection's films
+    // grid. Resolve these BEFORE the hub drop below — Asian Cinema / Film School Classics / Critically
+    // Acclaimed are now favorited groups but are FILM-bearing (like Rewatchables above), so they must
+    // route to a films grid, not be dropped as nav scaffolding. The "Oscars"/"Roger Ebert" PARENT hubs
+    // are NOT in promotedCuratedBoxSets (only their children are), so they still fall through to .drop.
+    if snapshot.promotedCuratedBoxSets.contains(where: { $0.id == id }) {
+        if (item.name ?? "").lowercased().hasPrefix("ebert") {
+            let ebert = snapshot.promotedCuratedBoxSets.filter { ($0.name ?? "").lowercased().hasPrefix("ebert") }
+            let down = ebert.first { ($0.name ?? "").lowercased().contains("down") }
+            let up = ebert.first { !($0.name ?? "").lowercased().contains("down") } ?? item
+            return .ebert(up: up, down: down, showingDown: down?.id == id)
+        }
+        if let category = BrunoOscarCategory(boxSetName: item.name ?? "") {
+            return .oscar(category: category, parent: item)
+        }
+        return .filmsGrid(item)
+    }
+
     // Every other top-level nav hub is navigation scaffolding, not a per-film recommendation.
     if snapshot.favoriteGroupBoxSets.contains(where: { $0.id == id }) {
         return .drop
@@ -77,20 +95,6 @@ func brunoRecommendedTarget(_ item: BaseItemDto, snapshot: BrunoLibrarySnapshot)
        let name = item.name
     {
         return .decade(parent: decadesGroup, decade: name)
-    }
-
-    // Curated children: Ebert toggle, Oscar captioned grid, else the curated collection's films grid.
-    if snapshot.curatedBoxSets.contains(where: { $0.id == id }) {
-        if (item.name ?? "").lowercased().hasPrefix("ebert") {
-            let ebert = snapshot.curatedBoxSets.filter { ($0.name ?? "").lowercased().hasPrefix("ebert") }
-            let down = ebert.first { ($0.name ?? "").lowercased().contains("down") }
-            let up = ebert.first { !($0.name ?? "").lowercased().contains("down") } ?? item
-            return .ebert(up: up, down: down, showingDown: down?.id == id)
-        }
-        if let category = BrunoOscarCategory(boxSetName: item.name ?? "") {
-            return .oscar(category: category, parent: item)
-        }
-        return .filmsGrid(item)
     }
 
     // Genre → newest-first films grid.

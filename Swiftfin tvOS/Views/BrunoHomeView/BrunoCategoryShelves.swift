@@ -94,16 +94,22 @@ extension BrunoCollectionCategory {
     /// promoted to 2nd place (after New Releases) for the Halloween→Christmas window
     /// (`BrunoCollectionArtwork.seasonalPromoted`); the rest shift down one. Default last slot otherwise.
     static func rank(for name: String, on date: Date = Date()) -> Int {
+        // NOTE: the §1 migration retired "curated" and promoted its members to top-level groups
+        // (oscars / roger ebert / critically acclaimed / film school classics / asian cinema). They're
+        // clustered up front with the other "what to watch" curated content; final placement is the
+        // deferred §2 two-row design call.
         let order = BrunoCollectionArtwork.seasonalPromoted(on: date)
             ? [
-                "new releases": 0, "seasonal": 1, "genres": 2, "directors": 3,
-                "movie stars": 4, "boxed sets": 5, "decades": 6, "curated": 7,
-                "rewatchables": 8, "studios": 9, "cities": 10,
+                "new releases": 0, "seasonal": 1, "oscars": 2, "roger ebert": 3,
+                "critically acclaimed": 4, "rewatchables": 5, "film school classics": 6,
+                "asian cinema": 7, "genres": 8, "directors": 9, "movie stars": 10,
+                "boxed sets": 11, "decades": 12, "studios": 13, "cities": 14,
             ]
             : [
-                "new releases": 0, "genres": 1, "directors": 2, "movie stars": 3,
-                "boxed sets": 4, "decades": 5, "curated": 6, "rewatchables": 7,
-                "studios": 8, "seasonal": 9, "cities": 10,
+                "new releases": 0, "oscars": 1, "roger ebert": 2, "critically acclaimed": 3,
+                "rewatchables": 4, "film school classics": 5, "asian cinema": 6, "genres": 7,
+                "directors": 8, "movie stars": 9, "boxed sets": 10, "decades": 11,
+                "studios": 12, "seasonal": 13, "cities": 14,
             ]
         return order[name.lowercased()] ?? .max
     }
@@ -113,10 +119,11 @@ extension BrunoCollectionCategory {
         switch groupName.lowercased() {
         case "genres": .genres // core-category panel + mixed sub-genre shelves (§4 + core panel)
         case "decades": .shelves // shelf per decade (§4)
-        case "curated": .shelves // shelf per curated sub-collection (Asian Cinema, Oscar Buzz, …)
+        case "oscars": .shelves // shelf per Oscar category (gold tiles — §1, repointed from curated-oscars)
+        case "roger ebert": .shelves // Up/Down children → Ebert toggle grid (§1, repointed from curated-ebert)
         case "cities": .shelves // shelf per city child (Chicago, NY, …) — generic shelves drill, no pills
         case "rewatchables": .rewatchables // broad-genre shelves + episode captions (BrunoRewatchablesView)
-        default: .grid // flat full grid (§3)
+        default: .grid // flat full grid (§3) — incl. Critically Acclaimed / Film School / Asian Cinema
         }
     }
 
@@ -127,7 +134,11 @@ extension BrunoCollectionCategory {
         case "directors": "Auteurs"
         case "movie stars": "Movie Stars"
         case "studios": "From the Vault"
-        case "curated": "Hand-Picked"
+        case "oscars": "Academy Awards"
+        case "roger ebert": "Roger Ebert"
+        case "critically acclaimed": "Critics' Picks"
+        case "film school classics": "Required Viewing"
+        case "asian cinema": "World Cinema"
         case "decades": "Through the Years"
         case "cities": "On Location"
         case "new releases": "Home Premiere"
