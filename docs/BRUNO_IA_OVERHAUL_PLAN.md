@@ -69,17 +69,24 @@ favorited — exactly what made Cities appear. **Mechanism — owner decision
 - Singles → favorite directly: **Asian Cinema** (`f96882e8…`), **Film School
   Classics** (`61b1fa77…`), **Critically Acclaimed** (`e09ff623…`).
 - Consolidated → create favorited **parent groups** whose children are the
-  existing BoxSets: **"Oscars"** parent over the six `Oscar *` BoxSets, **"Roger"**
-  (or "Ebert") parent over the two `Ebert Thumbs Up/Down` BoxSets — same shape as
-  the Cities group (parent + child BoxSets, `.shelves` drill). This replaces the
-  app-side `consolidateOscars`/`consolidateEbert` synthetic collapse with real
-  server groups (cleaner; one promotion mechanism, not two).
+  existing BoxSets (reuse the `enrich/create_cities_group.py` mechanic verbatim):
+  **"Oscars"** parent over the six `Oscar *` BoxSets, **"Roger Ebert"** parent over
+  the two `Ebert Thumbs Up/Down` BoxSets — same shape as Cities (parent + child
+  BoxSets, generic `.shelves` drill). ⚠ **Name it "Roger Ebert", not "Roger"** — a
+  director collection "Roger Donaldson" exists (verified); a bare "Roger" group is
+  ambiguous. (Card *label* can still read "Roger" via `lens`/display.)
+- ⚠ **Anti-scatter — DELETE the app-side consolidation once the server groups exist
+  (efficiency pass).** Real "Oscars"/"Roger Ebert" parent groups make
+  `consolidateOscars` + `consolidateEbert` + the `cardRowCategories` split
+  (`BrunoBoxSetShelvesView.swift:128-167`) **dead code** — the collapse is now
+  data-driven. Remove them with this migration; do **not** keep both the server
+  groups and the app-side synthetic collapse (that's exactly the scatter to avoid).
 - **Coordinate with retiring Curated** so there's no transitional double-surfacing
   (a promoted child showing as both a Curated shelf and a top-level card). Do the
-  favoriting + the Curated un-favorite + the app seams as **one migration**, not
-  piecemeal — favoriting alone (before the seams) renders them with default `.grid`
-  + `.max` rank + no lens (degraded). Server migration is scriptable now; gate it
-  on the app seams being ready.
+  favoriting + the Curated un-favorite + the app seams (+ the dead-code removal) as
+  **one migration**, not piecemeal — favoriting alone (before the seams) renders
+  them with default `.grid` + `.max` rank + no lens (degraded). Server migration is
+  scriptable now; gate it on the app seams being ready.
 
 **Implementation (per card).**
 - *Roger (Ebert):* once the "Roger" parent group exists, its `.shelves` drill shows
@@ -97,11 +104,21 @@ favorited — exactly what made Cities appear. **Mechanism — owner decision
   - *Bong Joon Ho* shelf ← the existing `Bong Joon Ho` director BoxSet
     (`01fd8535…`, 5 films).
   - *Genre shelves* — Action · Romance · Thriller · Drama · Comedy · (Sci-Fi if
-    non-empty) — each a **runtime genre filter over the Asian Cinema film set**
+    non-empty) — each a runtime genre filter over the Asian Cinema film set
     (films carry TMDB `Genres`, verified). ⚠ The set is ~38 films, so some genre
-    shelves will be sparse (drop a shelf under a min-count, e.g. <5). This is a
-    **bespoke composed view** (2 director-collection refs + N genre-filtered
-    shelves), its own `drillStyle`/view — *not* the generic `.shelves`. No pills.
+    shelves will be sparse (drop a shelf under a min-count, e.g. <5).
+  - **REUSE, not bespoke (efficiency pass 2026-06-30): no new view, no new
+    `drillStyle` machinery.** All three shelf kinds are just **synthetic
+    `BrunoCollectionCategory`s** (label-only stub `boxSet` + a `children` film
+    list) fed into the **existing generic `.shelves` drill** (`BrunoBoxSetShelvesView`)
+    — the exact pattern `curatedRandomShelves` (`:695-827`), `consolidateOscars`
+    (`:144`), and the per-year decade shelves (`:617`) already use. So: a small
+    **`asianCinemaShelves` builder** that returns `[WKW category, Bong category,
+    Action category, …]` and hands them to `BrunoBoxSetShelvesView` as `subGroups`.
+    The WKW/Bong categories wrap the existing director BoxSets' children; the genre
+    categories **reuse `BrunoCoreGenre.matches`** (`BrunoGenresView.swift:236`) /
+    the films' `.genres` for the filter — don't hand-roll genre logic. Net-new code
+    ≈ one builder function, **zero new view/drillStyle**. No pills.
 - *Film School:* flat 52-movie BoxSet (verified) — favorite it; its drill is a flat
   `.grid` of the 52 (its existing route), `rank` + `lens`. (Earlier "contents
   untouched" holds; just needs favoriting to surface.)
@@ -462,19 +479,23 @@ sim.
 All major drill-downs get a hero banner. Directors / Movie Stars / Box Sets are
 net-new; Decades already has one (made reactive per §6).
 
-**Implementation.** Directors / Movie Stars / Box Sets all route to
-`BrunoBoxSetGridView` (no hero today). Add a hero band at the top of that grid —
-copy either `BrunoHeroView` (`BrunoHeroView.swift:30`, the Decades pattern) or
-the bespoke brand-art band (Studios `:105-115` / Rewatchables
-`BrunoRewatchablesView.swift:96,138`). For static atmospheric imagery the brand-
-art band (fixed `Image` over a flat grid). **Owner decision 2026-06-30: these grid
-heroes (Directors, Movie Stars, Box Sets) are STATIC brand art** — a fixed
-atmospheric image per grid, **no live movie pick.** This deliberately keeps them
-*out* of the INV-6 scroll-blur exception (a fixed image isn't scroll-coupled, so it
-doesn't extend the Studios one-off — red-team finding 6 resolved) and means **no
-anti-repetition** is needed here. *INV-1:* fixed grid row height below the hero;
-*INV-8:* top-down reveal preserved. Only **Decades** keeps a reactive movie hero
-(§6), and only it (+ any Home movie hero) carries the §6 anti-repetition rule.
+**Implementation. Owner decision 2026-06-30: STATIC brand art** — a fixed
+atmospheric image per grid, no live movie pick. This keeps them *out* of the INV-6
+scroll-blur exception (a fixed image isn't scroll-coupled — red-team finding 6
+resolved) and needs **no anti-repetition**. *INV-1:* fixed grid row height below
+the hero; *INV-8:* top-down reveal preserved. Only **Decades** keeps a reactive
+movie hero (§6), carrying the §6 anti-repetition rule.
+
+⚠ **REUSE — extract ONE shared band, don't add three more copies (efficiency
+pass).** Studios (`BrunoStudiosGridView.swift:47-115`) and Rewatchables
+(`BrunoRewatchablesView.swift:92-140`) each already hand-roll their **own** brand
+band (`GeometryReader` + `Image(asset)` + title `header`) — that's **two bespoke
+copies already**. Directors / Movie Stars / Box Sets all route to the **single**
+`BrunoBoxSetGridView`, so the right move is **one** reusable
+`BrunoBrandHeroBand(asset:title:)` component added **once** to `BrunoBoxSetGridView`
+(covers all three grids in one place), parameterized by asset + title. Ideally
+refactor Studios + Rewatchables onto it too; at minimum **do not copy-paste a third,
+fourth, fifth band** — that's the scatter to avoid. One component, five call sites.
 
 ---
 
@@ -653,3 +674,38 @@ into the sections above; logged here for traceability.
 harder — static grid heroes (no INV-6/anti-rep), cheap Oscar heuristic, data-only
 promotion via favorited groups, and Asian Cinema reusing existing collections +
 genre tags instead of new server data.
+
+### Efficiency + data-verification pass (round 2, 2026-06-30)
+
+Second adversarial pass — lens: **maximize reuse / don't scatter**, and **verify
+every "create / net-new / missing" server-data claim against the live server.**
+
+**Data-existence — all "create/missing" claims verified (no more unverified
+assumptions like the WKW/Bong miss):**
+- Household names **Chazelle / Cameron Crowe / Robert Eggers** — all **exist** as
+  director collections (4 films each). Plan's "confirmed present" is now grounded.
+- **Oscars / Roger Ebert parent groups** — genuinely **absent** (only the 2 Ebert
+  child BoxSets + an unrelated director "Roger Donaldson") → creation is real.
+- **Metacritic / AFI / Rotten Tomatoes** — genuinely **absent** → Critically
+  Acclaimed subgroupings are real future work, correctly deferred.
+- 8 decade BoxSets exist (Touchstones best-of lane host). Wong Kar-Wai / Bong Joon
+  Ho / Hughes films / Studio04 / Oscar tags — all previously verified.
+
+**Reuse — three places the plan was about to add scattered new code; corrected
+above:**
+- R1. **Asian Cinema** → not a bespoke view: synthetic `BrunoCollectionCategory`s
+  fed to the **existing** `.shelves` drill (the `curatedRandomShelves`/per-year
+  pattern), genre filter via **existing** `BrunoCoreGenre.matches`. ≈1 builder fn,
+  zero new view. (§1)
+- R2. **Static brand heroes** → Studios + Rewatchables are already **two** bespoke
+  band copies; extract **one** `BrunoBrandHeroBand(asset:title:)` added once to the
+  shared `BrunoBoxSetGridView` (covers all three new grids) instead of 3 more
+  copies. (§7)
+- R3. **Anti-scatter** → real Oscars/Roger-Ebert server groups make the app-side
+  `consolidateOscars`/`consolidateEbert`/`cardRowCategories` split **dead code** —
+  delete it in the migration; never run both mechanisms. (§1)
+- Affirmed: Cities `.shelves`, Critically Acclaimed `.grid`, Film School `.grid`,
+  Decades reactive hero (existing `decadeBestOf`/`featuredItem`), Oscar offset (at
+  the existing per-shelf build site) all **reuse** existing drillStyles/data — no
+  new mechanisms. The owner's "real favorited groups" choice is the *less*-scattered
+  path (one data model: favorited-group→children, like Cities/Decades/Directors).
