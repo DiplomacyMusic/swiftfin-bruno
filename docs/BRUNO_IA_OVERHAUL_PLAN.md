@@ -684,8 +684,18 @@ every "create / net-new / missing" server-data claim against the live server.**
 assumptions like the WKW/Bong miss):**
 - Household names **Chazelle / Cameron Crowe / Robert Eggers** — all **exist** as
   director collections (4 films each). Plan's "confirmed present" is now grounded.
-- **Oscars / Roger Ebert parent groups** — genuinely **absent** (only the 2 Ebert
-  child BoxSets + an unrelated director "Roger Donaldson") → creation is real.
+- **Oscar (×6) + Ebert (×2) collections — they EXIST** as children of Curated
+  (verified in the 13-member list). **Nothing needs generating.** What's absent is
+  *only* a favorited top-level **parent-group wrapper** that would make one "Oscar"
+  / one "Roger" card drill into those existing children. (Correction 2026-06-30: an
+  earlier draft mis-said "Oscars/Roger/Ebert don't exist" — false; the underlying
+  BoxSets are present, only the wrapper is missing.) So this is not creation of
+  content, it's **wrapping existing collections** — and the app *already* wraps them
+  synthetically (`consolidateOscars`/`consolidateEbert`), so even the wrapper exists
+  in app logic today. Two reuse paths (see §1): (A) make the wrapper real server
+  data (a parent BoxSet over the existing children) — owner's pick; or (B) promote
+  the existing app-side synthetic wrapper to top level (no new server data). Either
+  way, zero new *collections*.
 - **Metacritic / AFI / Rotten Tomatoes** — genuinely **absent** → Critically
   Acclaimed subgroupings are real future work, correctly deferred.
 - 8 decade BoxSets exist (Touchstones best-of lane host). Wong Kar-Wai / Bong Joon
