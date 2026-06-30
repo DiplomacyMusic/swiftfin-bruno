@@ -557,6 +557,9 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         // sees the first rows in ~1-2s instead of staring at a spinner until all ~80 fetches finish.
         let ordered = Self.orderedSubGroups(subGroups, parent: parent, recencyBiased: recencyBiased)
         let shuffleSeed = Self.shuffleSeed
+        // Read ONCE here (like shuffleSeed) so the per-shelf Oscar lead-spread is stable for the session
+        // (INV-3) — never re-read per shelf/body pass. Same seed plumbing the genre row order uses.
+        let oscarLeadSeed = Self.rowOrderSeed
 
         // BOUNDED concurrency (≤ maxInFlight) with ORDERED incremental publish: one slot per row, plus a
         // high-water mark that advances over the contiguous filled prefix — so rows appear top-down in the
@@ -600,8 +603,14 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
                     let shown: [BaseItemDto] = if let oscarCategory {
                         // Oscar shelves: deterministic newest-first (no day-shuffle) so the order reads
                         // reverse-chronologically and matches the "Winner/Nominee (Year)" caption. More
-                        // deterministic than the shuffle it replaces — INV-3 safe.
-                        BrunoOscar.reverseChronological(children, category: oscarCategory)
+                        // deterministic than the shuffle it replaces — INV-3 safe. `spreadLeads` then
+                        // rotates only the TOP LEAD BAND by a per-category seeded offset so one recent
+                        // year doesn't lead all six shelves (plan §4); the tail stays reverse-chron.
+                        BrunoOscar.spreadLeads(
+                            BrunoOscar.reverseChronological(children, category: oscarCategory),
+                            category: oscarCategory,
+                            seed: oscarLeadSeed
+                        )
                     } else if let ebertAscending {
                         // Ebert shelves: order by star rating so the preview's top cap shows the
                         // highest/lowest-rated films (untagged sink to the bottom). INV-3 safe.

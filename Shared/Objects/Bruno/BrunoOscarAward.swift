@@ -88,4 +88,30 @@ enum BrunoOscar {
             return (lhs.id ?? "") < (rhs.id ?? "")
         }
     }
+
+    /// How many leading slots participate in the cross-shelf lead spread (≈ one poster row).
+    private static let leadBand = 6
+
+    /// Spread the LEAD slots across the six category shelves so one recent award year doesn't dominate
+    /// the first visible slot of every shelf (plan §4 — the owner's cheap per-shelf heuristic, "just want
+    /// some variation," not a full cross-shelf rebalance). Rotates ONLY the top lead band of an already
+    /// `reverseChronological` array by a per-category offset; the tail stays strict reverse-chron. The six
+    /// categories take distinct offsets (`categoryIndex + seededBase`, mod band) so they don't collide when
+    /// the band is full; a `seed`-derived base rotates the whole set per launch. Determinism (INV-3): the
+    /// offset is a pure function of `(category, seed)` — no `Date()`, no per-body recompute — so the spread
+    /// is stable within a session and varies deterministically across sessions. Approximate by design: two
+    /// SPARSE shelves (band < 6) can still occasionally share an offset; accepted.
+    static func spreadLeads(_ items: [BaseItemDto], category: BrunoOscarCategory, seed: UInt32) -> [BaseItemDto] {
+        let band = min(leadBand, items.count)
+        guard band > 1 else { return items }
+        let categoryIndex = BrunoOscarCategory.allCases.firstIndex(of: category) ?? 0
+        var rng = BrunoRNG(seed: BrunoRNG.subSeed(seed, 131, 0, 0))
+        let base = Int(rng.nextUnit() * Double(band))
+        let offset = (categoryIndex + base) % band
+        guard offset > 0 else { return items }
+        var result = items
+        let head = Array(items[0 ..< band])
+        result.replaceSubrange(0 ..< band, with: head[offset...] + head[..<offset])
+        return result
+    }
 }

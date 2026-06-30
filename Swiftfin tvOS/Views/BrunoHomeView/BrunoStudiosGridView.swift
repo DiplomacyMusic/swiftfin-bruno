@@ -48,8 +48,9 @@ struct BrunoStudiosGridView: View {
             ZStack {
                 // Full-bleed backdrop — fills the entire screen, no band, no inset (mirrors the
                 // detail page's ImageView layer). Image(_:) loads the asset-catalog still; the app's
-                // ImageView is URL-only and can't.
-                Image("BrunoStudiosBackdrop")
+                // ImageView is URL-only and can't. Pinned to Studio04 (the one hard visual lock,
+                // plan §3) — never rotating.
+                Image("Studio04")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: proxy.size.width, height: proxy.size.height)

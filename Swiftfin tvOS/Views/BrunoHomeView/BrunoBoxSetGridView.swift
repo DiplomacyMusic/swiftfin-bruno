@@ -45,6 +45,17 @@ struct BrunoBoxSetGridView: View {
     /// The real Oscar BoxSet to page the complete, reverse-chron film set from. Set only for Oscar
     /// "Show all"; nil ⇒ the grid renders the static `items` as before.
     var oscarParent: BaseItemDto?
+    /// §7 cinematic hero: an asset-catalog still drawn full-bleed behind a tall title header above the
+    /// grid (the Studios look, via BrunoBrandHeroBand). nil ⇒ the plain CollectionVGrid layout (the
+    /// default for New Releases / Oscar grids, which keep recycling). Set for Directors / Movie Stars /
+    /// Box Sets — a stand-in is each category's existing card art, easy to swap for bespoke art later.
+    var heroAsset: String?
+    /// §5 Household Names: a recognizable-name shortlist (e.g. marquee directors). When non-empty AND a
+    /// hero is shown, the names present in `items` surface in a pinned "Household Names" section above
+    /// the full A–Z grid (Studios pattern). nil/empty ⇒ no shortlist section.
+    var householdNames: [String]?
+    /// The label over the full grid when a Household Names section is shown (e.g. "All Directors").
+    var allSectionTitle: String = "All"
 
     @Router
     private var router
@@ -64,14 +75,23 @@ struct BrunoBoxSetGridView: View {
     }
 
     var body: some View {
-        grid
-            .navigationTitle(title)
-            .onFirstAppear {
-                if collectionLabel { yearRanges.load(items: items) }
-                if let oscarParent, let oscarCategory {
-                    oscarFull.load(parent: oscarParent, category: oscarCategory)
-                }
+        Group {
+            if let heroAsset {
+                // §7: cinematic hero path (loses CollectionVGrid recycling — owner-blessed for these
+                // bounded Collections drill-ins). Owns its own nav-bar suppression via BrunoBrandHeroBand.
+                cinematicLayout(heroAsset: heroAsset)
+            } else {
+                // Default path — New Releases / Oscar grids keep the recycling CollectionVGrid untouched.
+                grid
+                    .navigationTitle(title)
             }
+        }
+        .onFirstAppear {
+            if collectionLabel { yearRanges.load(items: items) }
+            if let oscarParent, let oscarCategory {
+                oscarFull.load(parent: oscarParent, category: oscarCategory)
+            }
+        }
     }
 
     private var grid: some View {
@@ -79,19 +99,7 @@ struct BrunoBoxSetGridView: View {
             uniqueElements: gridItems,
             layout: layout
         ) { item in
-            if artCarousel {
-                BrunoArtCarouselCard(item: item, type: posterType) {
-                    router.route(to: .item(item: item))
-                } label: {
-                    cardLabel(for: item)
-                }
-            } else {
-                PosterButton(item: item, type: posterType) {
-                    router.route(to: .item(item: item))
-                } label: {
-                    cardLabel(for: item)
-                }
-            }
+            cell(for: item)
         }
         // CollectionVGrid is UIKit-backed and won't re-render cells when async data arrives; rebuild
         // the grid ONCE when a fetch completes (the @StateObject VMs persist, so this doesn't refetch).
@@ -99,6 +107,132 @@ struct BrunoBoxSetGridView: View {
         // `oscarFull.items` nil→non-nil a single time. Each is at most one rebuild.
         .id(gridIdentity)
         .scrollIndicators(.hidden)
+    }
+
+    // §5/§7: the cinematic ScrollView + LazyVGrid path. Mirrors BrunoStudiosGridView line-for-line
+    // (full-bleed backdrop, tall title header, optional "Household Names" shortlist above the full
+    // A–Z grid, descending blur), reusing the shared BrunoBrandHeroBand so there's one band, not one
+    // per grid. The shortlist + grid `ForEach` key on `\.id` (INV-2) and the shortlist membership is a
+    // pure function of the already-fetched `items`, so it's present from first frame (no async flip
+    // that would restructure a focused container — INV-10).
+    private func cinematicLayout(heroAsset: String) -> some View {
+        BrunoBrandHeroBand(title: title, backdropAsset: heroAsset) {
+            let top = topNames
+            if top.isNotEmpty {
+                BrunoBrandHeroSectionTitle("Household Names")
+                lazyGrid(for: top)
+                BrunoBrandHeroSectionTitle(allSectionTitle)
+            }
+            lazyGrid(for: gridItems)
+        }
+        .id(gridIdentity)
+    }
+
+    private func lazyGrid(for list: [BaseItemDto]) -> some View {
+        LazyVGrid(columns: lazyColumns, spacing: EdgeInsets.edgePadding) {
+            ForEach(list, id: \.id) { item in
+                cell(for: item)
+            }
+        }
+        .padding(.horizontal, EdgeInsets.edgePadding)
+        .padding(.bottom, 50)
+    }
+
+    private var lazyColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: EdgeInsets.edgePadding),
+            count: posterType == .landscape ? 4 : 7
+        )
+    }
+
+    // The card cell — shared by the CollectionVGrid (default) and LazyVGrid (cinematic) layouts so the
+    // two paths render identical tiles.
+    @ViewBuilder
+    private func cell(for item: BaseItemDto) -> some View {
+        if artCarousel {
+            BrunoArtCarouselCard(item: item, type: posterType) {
+                router.route(to: .item(item: item))
+            } label: {
+                cardLabel(for: item)
+            }
+        } else {
+            PosterButton(item: item, type: posterType) {
+                router.route(to: .item(item: item))
+            } label: {
+                cardLabel(for: item)
+            }
+        }
+    }
+
+    // MARK: Household Names (curated + daily-seeded rotation) — §5
+
+    // The most recognizable directors, in rough editorial order — the Directors-grid analogue of
+    // BrunoStudiosGridView.recognizableStudios. Only names actually present as director collections in
+    // `items` surface (over-listing is safe — absent names are dropped), capped at two portrait rows
+    // and day-rotated. Includes the owner's hard-adds: Damien Chazelle, Cameron Crowe, Robert Eggers.
+    static let recognizableDirectors: [String] = [
+        "Steven Spielberg",
+        "Martin Scorsese",
+        "Alfred Hitchcock",
+        "Stanley Kubrick",
+        "Christopher Nolan",
+        "Quentin Tarantino",
+        "Francis Ford Coppola",
+        "Akira Kurosawa",
+        "Ridley Scott",
+        "David Fincher",
+        "Paul Thomas Anderson",
+        "Wes Anderson",
+        "Spike Lee",
+        "Coen Brothers",
+        "Joel Coen",
+        "Ethan Coen",
+        "James Cameron",
+        "Denis Villeneuve",
+        "David Lynch",
+        "Tim Burton",
+        "Clint Eastwood",
+        "Robert Zemeckis",
+        "Ron Howard",
+        "Peter Jackson",
+        "Guillermo del Toro",
+        "Sofia Coppola",
+        "Greta Gerwig",
+        "Damien Chazelle",
+        "Cameron Crowe",
+        "Robert Eggers",
+        "John Hughes",
+    ]
+
+    // Stable membership (the recognizable names present in `items`, capped at two full rows), order
+    // rotated by a day-stamp seed so it feels fresh daily without dropping a name. Mirrors
+    // BrunoStudiosGridView.topStudios. Empty when no `householdNames` list was supplied.
+    private var topNames: [BaseItemDto] {
+        guard let householdNames, householdNames.isNotEmpty else { return [] }
+        var byName: [String: BaseItemDto] = [:]
+        for item in items {
+            guard let name = item.name else { continue }
+            let key = Self.normalizeName(name)
+            if byName[key] == nil { byName[key] = item }
+        }
+        let limit = (posterType == .landscape ? 4 : 7) * 2 // two full rows
+        let membership = householdNames
+            .compactMap { byName[Self.normalizeName($0)] }
+            .prefix(limit)
+        return BrunoRNG.shuffled(Array(membership), seed: daySeed)
+    }
+
+    // Lowercase + alphanumerics only, so "Cameron Crowe" matches "cameroncrowe" regardless of
+    // punctuation/spacing (mirrors BrunoStudiosGridView.normalizeStudio).
+    private static func normalizeName(_ name: String) -> String {
+        name.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    // Day-stamp seed (year*10000 + month*100 + day): stable within a calendar day, rotates each new
+    // day — the same per-day rotation Studios + the Home spotlight use.
+    private var daySeed: UInt32 {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        return UInt32(truncatingIfNeeded: (c.year ?? 0) * 10000 + (c.month ?? 0) * 100 + (c.day ?? 0))
     }
 
     /// Single token driving the at-most-two one-shot grid rebuilds (year-range fetch, Oscar paging).
@@ -262,7 +396,10 @@ extension NavigationRoute {
         artCarousel: Bool = false,
         showsDate: Bool = false,
         oscarCategory: BrunoOscarCategory? = nil,
-        oscarParent: BaseItemDto? = nil
+        oscarParent: BaseItemDto? = nil,
+        heroAsset: String? = nil,
+        householdNames: [String]? = nil,
+        allSectionTitle: String = "All"
     ) -> NavigationRoute {
         NavigationRoute(
             id: "bruno-boxset-grid-\(title.lowercased())",
@@ -276,7 +413,10 @@ extension NavigationRoute {
                 artCarousel: artCarousel,
                 showsDate: showsDate,
                 oscarCategory: oscarCategory,
-                oscarParent: oscarParent
+                oscarParent: oscarParent,
+                heroAsset: heroAsset,
+                householdNames: householdNames,
+                allSectionTitle: allSectionTitle
             )
         }
     }

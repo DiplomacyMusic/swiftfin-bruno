@@ -48,7 +48,11 @@ enum BrunoCollectionArtwork {
         // imagesets stay in the catalog.
         "decades": ["Decades02"],
         "genres": ["Genre01", "Genre02"],
-        "studios": ["Studio01", "Studio02", "Studio03", "Studio04", "Studio05"],
+        // Locked to Studio04 (the Paramount mountain) — single-element list pins it so the resting
+        // tile no longer rotates, matching the same Studio04 still now pinned on the Studios grid
+        // backdrop (the one hard visual lock, plan §3). Mirrors the Coppola/Ebert locks above; the
+        // Studio01/02/03/05 imagesets stay in the catalog, just dropped from this tile.
+        "studios": ["Studio04"],
         // Self-titled brand art (the wordmark is baked in) — dimmed behind the underline-only
         // lockup, with no text overlay, so the tile matches the dimmed-image siblings.
         "rewatchables": ["RewatchablesCard"],
@@ -56,6 +60,14 @@ enum BrunoCollectionArtwork {
 
     static func isSeasonal(_ name: String) -> Bool {
         name.lowercased() == "seasonal"
+    }
+
+    /// The representative card-art asset for a category — used as the §7 grid-hero stand-in (owner:
+    /// "use card title/BGs for hero stand in", easy to swap for bespoke hero art later). Non-rotating
+    /// (the first mapped asset); nil ⇒ no art mapping, so no hero. Directors/Movie Stars/Boxed Sets are
+    /// each pinned to a single-element list, so this is the same still shown behind their card.
+    static func heroAsset(for name: String) -> String? {
+        byCategory[name.lowercased()]?.first
     }
 
     /// Sep 21 – Dec 31 (Halloween through the end of Christmas): the Seasonal tile is promoted to

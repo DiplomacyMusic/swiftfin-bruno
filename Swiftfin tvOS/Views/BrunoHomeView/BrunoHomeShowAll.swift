@@ -71,8 +71,17 @@ func brunoHomeRouteToShowAll(
         router.route(to: .brunoCategoryShelves(parent: decadesGroup), in: namespace)
 
     case .auteurs:
+        // Same destination as the Collections Directors card: §7 cinematic hero + §5 Household Names.
         router.route(
-            to: .brunoBoxSetGrid(title: "Directors", items: snapshot.directorBoxSets, posterType: .portrait, artCarousel: true),
+            to: .brunoBoxSetGrid(
+                title: "Directors",
+                items: snapshot.directorBoxSets,
+                posterType: .portrait,
+                artCarousel: true,
+                heroAsset: BrunoCollectionArtwork.heroAsset(for: "Directors"),
+                householdNames: BrunoBoxSetGridView.recognizableDirectors,
+                allSectionTitle: "All Directors"
+            ),
             in: namespace
         )
 
