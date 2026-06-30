@@ -652,6 +652,16 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
 
         if Task.isCancelled { return } // don't finalize / cache a partial result
 
+        // Curated drill-in: append the seed-keyed RANDOM shelves (Ebert/Oscar/Rewatchables × genre /
+        // Oscar year / winners) below the base curated shelves. Built once per cold load from full
+        // memberships, then cached WITH `live` (line below) so a warm re-entry serves the same lineup;
+        // a fresh launch reseeds it. A no-op for every other drill-in (Genres / Decades).
+        if parent.displayTitle.lowercased() == "curated", live.isNotEmpty {
+            let randomShelves = await curatedRandomShelves(client: client, userID: userID, base: live, seed: Self.rowOrderSeed)
+            if Task.isCancelled { return }
+            live.append(contentsOf: randomShelves)
+        }
+
         isLoading = false // clear the spinner in every non-cancelled outcome
 
         if live.isNotEmpty {
@@ -666,6 +676,158 @@ final class BrunoBoxSetShelvesViewModel: ViewModel {
         }
         // else: stale disk paint + an empty refresh (transient server blip) → keep the disk paint on screen
         // rather than blanking good content.
+    }
+
+    // MARK: - Curated random shelves (PR3)
+
+    /// Min films a random shelf needs to read as a row (a touch higher than the spine's minItems so a
+    /// thin genre/year bucket doesn't surface a near-empty row).
+    private static let randomMinItems = 4
+
+    /// Build up to 24 seed-keyed RANDOM shelves for the Curated drill-in: Ebert∩genre, Oscar
+    /// winners-only by category, Oscar ∩ genre ÷ Oscar year, and Rewatchables∩genre. The Oscar
+    /// "by year"/"winners" buckets can't be server-filtered (the award year lives in the `oscar:` tag),
+    /// so they're CLIENT-BUCKETED here into static shelves — the same limitation as best-of-decade.
+    /// Seeded per launch (the caller passes `rowOrderSeed`) so the lineup reshuffles each launch but is
+    /// stable within a session. Pure given the fetched memberships + seed (INV-3, browse carve-out).
+    private func curatedRandomShelves(
+        client: JellyfinClient,
+        userID: String,
+        base: [BrunoCollectionCategory],
+        seed: UInt32
+    ) async -> [BrunoCollectionCategory] {
+        // Oscar category BoxSets present under Curated (each base shelf whose name is "Oscar — <Cat>").
+        let oscarBases: [(category: BrunoOscarCategory, boxSet: BaseItemDto)] = base.compactMap {
+            guard let category = BrunoOscarCategory(boxSetName: $0.name) else { return nil }
+            return (category, $0.boxSet)
+        }
+        // Ebert base shelves carry their FULL membership already (fetched at 1000 in performLoad) — reuse it.
+        let ebertBases = base.filter { $0.name.lowercased().hasPrefix("ebert") }
+
+        // Genre list + the Rewatchables BoxSet, from the shared snapshot (warm: Home/Collections loaded it
+        // this session). Genres drive the ∩genre filters; Rewatchables is optional (skipped if absent).
+        let snapshot = await BrunoLibrarySnapshot.loadShared(client: client, userID: userID)
+        let genres = snapshot.genres
+
+        // Each Oscar category's FULL membership (the base shelf children are a 13-item preview, too sparse
+        // to bucket by year), WITH .genres + .tags. Concurrent; keyed by category.
+        var oscarFilms: [BrunoOscarCategory: [BaseItemDto]] = [:]
+        await withTaskGroup(of: (BrunoOscarCategory, [BaseItemDto]).self) { group in
+            for (category, boxSet) in oscarBases {
+                guard let id = boxSet.id else { continue }
+                group.addTask {
+                    await (category, Self.fetchChildren(client: client, userID: userID, parentID: id, limit: 500))
+                }
+            }
+            for await (category, films) in group {
+                oscarFilms[category] = films
+            }
+        }
+
+        // Rewatchables members (one fetch, client-bucketed by genre below).
+        var rewatchablesFilms: [BaseItemDto] = []
+        if let rewatchID = snapshot.rewatchablesBoxSet?.id {
+            rewatchablesFilms = await Self.fetchChildren(client: client, userID: userID, parentID: rewatchID, limit: 1000)
+        }
+
+        if Task.isCancelled { return [] }
+
+        func hasGenre(_ item: BaseItemDto, _ genre: String) -> Bool {
+            item.genres?.contains { $0.caseInsensitiveCompare(genre) == .orderedSame } ?? false
+        }
+        func pickGenres(salt: UInt32, count: Int) -> [String] {
+            Array(BrunoRNG.shuffled(genres, seed: BrunoRNG.subSeed(seed, salt, 0, 1)).prefix(count))
+        }
+
+        var pool: [BrunoCollectionCategory] = []
+
+        // (A) Oscar winners-only, by category — name kept as "Oscar — <Cat>" so the Winner/Nominee caption
+        // and the captioned reverse-chron Show-all grid both apply.
+        for (category, boxSet) in oscarBases {
+            let winners = (oscarFilms[category] ?? []).filter { BrunoOscar.award(for: category, on: $0)?.won == true }
+            guard winners.count >= Self.randomMinItems else { continue }
+            pool.append(Self.randomShelf(
+                id: "curated-rand-oscarwin-\(category.rawValue)",
+                name: boxSet.displayTitle,
+                lens: "Academy Award Winners",
+                films: BrunoOscar.reverseChronological(winners, category: category),
+                drillStyle: .grid
+            ))
+        }
+
+        // (B) Oscar ∩ genre ÷ Oscar year — seeded (category, genre) combos, client-bucketed by award year.
+        let comboCategories = Array(BrunoRNG.shuffled(oscarBases.map(\.category), seed: BrunoRNG.subSeed(seed, 211, 0, 1)).prefix(3))
+        for (i, category) in comboCategories.enumerated() {
+            guard let boxSet = oscarBases.first(where: { $0.category == category })?.boxSet,
+                  let genre = pickGenres(salt: 223 &+ UInt32(i), count: 1).first else { continue }
+            let films = (oscarFilms[category] ?? []).filter { hasGenre($0, genre) }
+            let byYear = Dictionary(grouping: films) { BrunoOscar.award(for: category, on: $0)?.year ?? ($0.productionYear ?? 0) }
+            for (year, yearFilms) in byYear.sorted(by: { $0.key > $1.key }).prefix(4) where yearFilms.count >= Self.randomMinItems {
+                pool.append(Self.randomShelf(
+                    id: "curated-rand-oscaryr-\(category.rawValue)-\(genre)-\(year)",
+                    name: boxSet.displayTitle,
+                    lens: "\(genre) · \(year)",
+                    films: BrunoOscar.reverseChronological(yearFilms, category: category),
+                    drillStyle: .grid
+                ))
+            }
+        }
+
+        // (C) Ebert ∩ genre (Up & Down × seeded genres) — name kept as "Ebert …" so the star caption
+        // applies; `.items` so Show-all opens a static grid of exactly the genre-filtered films.
+        for ebert in ebertBases {
+            let ascending = ebert.name.lowercased().contains("down")
+            for genre in pickGenres(salt: ascending ? 308 : 307, count: 2) {
+                let films = ebert.children.filter { hasGenre($0, genre) }
+                guard films.count >= Self.randomMinItems else { continue }
+                pool.append(Self.randomShelf(
+                    id: "curated-rand-ebert-\(ascending ? "down" : "up")-\(genre)",
+                    name: ebert.name,
+                    lens: "Roger Ebert · \(genre)",
+                    films: BrunoEbert.ordered(films, ascending: ascending),
+                    drillStyle: .items
+                ))
+            }
+        }
+
+        // (D) Rewatchables ∩ genre.
+        if rewatchablesFilms.isNotEmpty {
+            for genre in pickGenres(salt: 401, count: 3) {
+                let films = rewatchablesFilms.filter { hasGenre($0, genre) }
+                guard films.count >= Self.randomMinItems else { continue }
+                pool.append(Self.randomShelf(
+                    id: "curated-rand-rewatch-\(genre)",
+                    name: "Rewatchable \(genre)",
+                    lens: "The Rewatchables",
+                    films: films,
+                    drillStyle: .items
+                ))
+            }
+        }
+
+        // Seed-shuffle the pool, drop id-dupes, cap at 24.
+        var seenIDs = Set<String>()
+        let shuffled = BrunoRNG.shuffled(pool, seed: BrunoRNG.subSeed(seed, 509, 0, 1))
+        return Array(shuffled.filter { seenIDs.insert($0.id).inserted }.prefix(24))
+    }
+
+    /// A synthetic random shelf. The boxSet is a label-only stub with a STABLE UNIQUE id (INV-2). For
+    /// Oscar/Ebert the `name` keeps the "Oscar — <Cat>" / "Ebert …" prefix so `shelf(for:)` applies the
+    /// per-poster caption; `lens` carries the human-readable variant ("Academy Award Winners", "<genre>
+    /// · <year>", "Roger Ebert · <genre>").
+    private static func randomShelf(
+        id: String,
+        name: String,
+        lens: String,
+        films: [BaseItemDto],
+        drillStyle: BrunoCollectionCategory.DrillStyle
+    ) -> BrunoCollectionCategory {
+        BrunoCollectionCategory(
+            boxSet: BaseItemDto(id: id, name: name),
+            children: films,
+            drillStyle: drillStyle,
+            lens: lens
+        )
     }
 
     // MARK: - Per-year decade shelves (Step 3b)
