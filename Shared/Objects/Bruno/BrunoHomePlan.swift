@@ -689,7 +689,11 @@ enum BrunoHomePlan {
             ))
         }
 
-        return dedupedTail(out)
+        // Fully shuffle (owner request, 2026-06-30): the tail was built as sequential FAMILY BLOCKS
+        // (×3 years, ×3 decades, ×3 rewatchables, Ebert Up+Down, ×6 curated, ×6 directors, ×6 actors),
+        // which read as "3 years in a row, 3 decades in a row, …" on Collections. Seeded shuffle (never
+        // Date()) mixes the whole tail so no family clusters — INV-3 safe, deterministic per session.
+        return BrunoRNG.shuffled(dedupedTail(out), seed: BrunoRNG.subSeed(seed, 149, 0, 0))
     }
 
     /// "Rewatchable {Decade}s": the Rewatchables BoxSet ∩ a decade's years (server-filterable parentID ∩
