@@ -312,27 +312,32 @@ struct BrunoCategoryShelves: View {
     /// number, not the mount/reveal window (visibleShelfCount below, which throttles shelf COUNT).
     private let shelfCap = 30
 
-    /// The curated/marquee preview shelves whose RELATIVE ORDER shuffles per session (owner request) —
-    /// see the shelf-loop comment above. Excludes "roger ebert"/"cities" (already dropped from the loop).
-    private static let curatedShelfNames: Set<String> = [
-        "oscars", "critically acclaimed", "rewatchables", "film school classics", "asian cinema", "seasonal",
-    ]
     /// Per-process random seed: stable for the app's lifetime (re-entering Collections keeps the same
     /// shuffled order), reshuffles on the next launch. Never `Date()` — INV-3 carve-out for browse order.
-    private static let curatedShuffleSeed: UInt32 = .random(in: .min ... .max)
+    private static let shelfShuffleSeed: UInt32 = .random(in: .min ... .max)
 
-    /// Reorders ONLY the curated-named items among `items`, keeping every other item in its existing
-    /// slot. The curated items are shuffled and dropped back into the SAME index positions they already
-    /// occupied, so the browse hubs (Directors, Studios, …) never move.
-    private static func shuffledCuratedOrder(_ items: [BrunoCollectionCategory]) -> [BrunoCollectionCategory] {
-        let curatedSlots = items.indices.filter { curatedShelfNames.contains(items[$0].name.lowercased()) }
-        guard curatedSlots.count > 1 else { return items }
-        let shuffled = BrunoRNG.shuffled(curatedSlots.map { items[$0] }, seed: curatedShuffleSeed)
-        var result = items
-        for (slot, item) in zip(curatedSlots, shuffled) {
-            result[slot] = item
+    /// One shelf below the card rows — either a static per-category preview or a procedural-tail shelf.
+    /// Wraps both so they can share ONE shuffled, windowed sequence (owner request, 2026-06-30).
+    private enum ShelfEntry: Identifiable {
+        case category(BrunoCollectionCategory)
+        case tail(BrunoShelfViewModel)
+
+        var id: String {
+            switch self {
+            case let .category(category): "cat:\(category.id)"
+            case let .tail(vm): "tail:\(vm.id)"
+            }
         }
-        return result
+    }
+
+    /// Every shelf below the card rows, fully shuffled together — no static block of category shelves
+    /// followed by a static block of tail shelves. `tail` is empty for every surface but Collections,
+    /// so this degrades to "shuffle the category shelves" everywhere else (Movies/Decades).
+    private static func shuffledShelfEntries(
+        categories: [BrunoCollectionCategory],
+        tail: [BrunoShelfViewModel]
+    ) -> [ShelfEntry] {
+        BrunoRNG.shuffled(categories.map(ShelfEntry.category) + tail.map(ShelfEntry.tail), seed: shelfShuffleSeed)
     }
 
     /// Cap-and-grow window: how many shelves are mounted right now. Starts small so entering a
@@ -420,54 +425,45 @@ struct BrunoCategoryShelves: View {
                             .id(ScrollAnchor.selector)
                     }
 
-                    // Per-category PREVIEW shelves. Two names are excluded entirely (their card-row tile
-                    // still works; only the inline preview is dropped):
-                    //  - "Roger Ebert": its only children are the 2 Ebert BoxSets, so the generic shelf
-                    //    would show 2 BOX-SET POSTERS (not movies) — the card's tap already opens the
-                    //    real movie toggle, and `collectionsTail` (below) now guarantees real Up/Down
-                    //    movie shelves in the procedural tail instead.
-                    //  - "Cities": same shape (1 child, "Chicago Movies") — same call (owner request).
-                    // The remaining curated/marquee shelves (Oscars, Critically Acclaimed, Rewatchables,
-                    // Film School Classics, Asian Cinema, Seasonal) get their RELATIVE ORDER shuffled
-                    // per session (owner request) — every other shelf (the browse hubs: Directors, Movie
-                    // Stars, Decades, Studios, Boxed Sets) keeps its position. `curatedShuffleSeed` is a
-                    // per-PROCESS random seed (not `Date()`), matching the existing per-launch-reshuffle
-                    // idiom used elsewhere (e.g. BrunoCollectionsViewModel.tailSeed) — a browse surface,
-                    // inside the documented INV-3 carve-out (not BrunoHomePlan.build-touching).
-                    ForEach(
-                        Self.shuffledCuratedOrder(
-                            categories.filter { !["roger ebert", "cities"].contains($0.name.lowercased()) }
-                        )
-                        .prefix(visibleShelfCount)
-                    ) { category in
-                        shelf(for: category)
-                    }
-
-                    // Procedural tail (Collections tab only — empty everywhere else): Home-style shelves
-                    // appended BELOW the static group shelves, sharing the SAME cap-and-grow window so the
-                    // top-down reveal (INV-8) holds across the seam. Each tail shelf is a realized
-                    // BrunoShelfView, identical to the Home render path (depth/lazy-reveal, captions,
-                    // Show-all routing). `tailShelves` is empty for every other surface ⇒ no change.
-                    if !tailShelves.isEmpty {
-                        let tailShown = max(0, visibleShelfCount - categories.count)
-                        ForEach(tailShelves.prefix(tailShown)) { vm in
+                    // EVERY shelf below the card rows — the static per-category previews (Directors,
+                    // Studios, Decades, Oscars, Seasonal, …) AND the procedural tail (Years in Film,
+                    // Best of Decade, Curated/Ebert, Directors/Actors in Focus) — is ONE fully shuffled
+                    // sequence (owner request, 2026-06-30: "no statics after the two rows"). Two names
+                    // are excluded entirely (their card-row tile still works; only the inline preview is
+                    // dropped): "Roger Ebert" (its only children are the 2 Ebert BoxSets — a box-set-
+                    // poster shelf, not movies; `collectionsTail` guarantees real Up/Down movie shelves
+                    // instead) and "Cities" (same 1-child shape). `shelfShuffleSeed` is a per-PROCESS
+                    // random seed (not `Date()`) — a browse-order surface, inside the documented INV-3
+                    // carve-out (not BrunoHomePlan.build-touching). Deterministic per call (same seed),
+                    // so the single `let` below only needs computing once per body pass.
+                    let entries = Self.shuffledShelfEntries(
+                        categories: categories.filter { !["roger ebert", "cities"].contains($0.name.lowercased()) },
+                        tail: tailShelves
+                    )
+                    ForEach(entries.prefix(visibleShelfCount)) { entry in
+                        switch entry {
+                        case let .category(category):
+                            shelf(for: category)
+                        case let .tail(vm):
+                            // Home-style realized shelf (depth/lazy-reveal, captions, Show-all routing) —
+                            // identical render path to the Home feed.
                             BrunoShelfView(viewModel: vm, snapshot: snapshot)
                         }
                     }
 
                     // Grow the mounted window as the user nears the bottom (append-only — INV-2 keeps
-                    // focus/identity). Bound by categories + tail so the window reveals straight across the seam.
-                    if visibleShelfCount < categories.count + tailShelves.count {
+                    // focus/identity).
+                    if visibleShelfCount < entries.count {
                         Color.clear
                             .frame(height: 1)
-                            .onAppear { visibleShelfCount = min(visibleShelfCount + 4, categories.count + tailShelves.count) }
+                            .onAppear { visibleShelfCount = min(visibleShelfCount + 4, entries.count) }
                     }
 
                     // Terminal footer (Movies/genre tab only — gated on `showAllMoviesAction`; Collections
                     // is deferred). Renders ONLY once every shelf is mounted (the surface's "exhausted"
                     // point), on its own bottom row, appended last — so there is zero UI/layout impact
                     // until the user has scrolled to the true end. "Show all Movies" + "Back to Top".
-                    if let showAllMoviesAction, visibleShelfCount >= categories.count + tailShelves.count {
+                    if let showAllMoviesAction, visibleShelfCount >= entries.count {
                         HStack(spacing: 24) {
                             Spacer()
                             BrunoSelectorCard(title: "Show all Movies") { showAllMoviesAction() }
