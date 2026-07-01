@@ -1007,3 +1007,87 @@ and `consolidateOscars`/`consolidateEbert`/`cardRowCategories` are deleted. (Pat
 keep the app-side synthesis, promote the synthetic cards — touches zero rendering
 code but keeps two promotion mechanisms; available if you'd rather not touch the
 id checks, but it's the *more*-scattered option.)
+
+---
+
+## EOD status — 2026-06-30 (session close)
+
+**All of §1–§5, §7, §8 shipped this push** (server + app), plus a full afternoon of
+same-day hotfixes riding on top, all on `main` (PRs #73/#74/#75 merged, then several
+direct-to-main pushes per owner authorization). Full commit-by-commit detail lives in
+`docs/CHANGELOG.md` (2026-06-30 section, newest-first) — this section is the
+end-of-day map of what's DONE vs OUTSTANDING so the next thread doesn't have to
+reconstruct it from the changelog.
+
+### Done today, beyond the migration itself
+- **§2 two-row layout — FINALIZED.** Row 1 (browse hubs): New Releases, Directors,
+  Movie Stars, Decades, Studios, Boxed Sets, Cities. Row 2 (curated content): Oscars,
+  Roger, Rewatchables, Seasonal, Asian Cinema, Film School Classics, Critically
+  Acclaimed. "Roger Ebert" displays as **"Roger"** on its card only (`BrunoCuratedCard
+  .titleParts` override) — the group name is unchanged everywhere else. This is the
+  owner's explicit final placement — no longer an open design call.
+- **Per-card colors** for all 6 promoted groups (no two Collections cards share a hue)
+  + **Cities cover art** (owner-supplied).
+- **Roger Ebert / Cities inline preview shelves — REMOVED.** Both have only 1–2
+  box-set children, so the generic per-category preview shelf showed 1–2 BOX-SET
+  POSTERS instead of movies. Their card-row tiles still open the correct destination
+  (Ebert toggle / Cities shelf-per-city drill). `collectionsTail` now guarantees two
+  real "Ebert Thumbs Up"/"Ebert Thumbs Down" movie shelves instead.
+- **Every Collections shelf below the card rows — FULLY SHUFFLED, no static blocks.**
+  Was: static category shelves always first in a fixed relative order, then the
+  (internally shuffled) procedural tail always after. Now: one seeded shuffle over
+  BOTH (`BrunoCategoryShelves.ShelfEntry`), so category shelves and tail shelves can
+  land in any order, every session.
+- **Seasonal shelf** now shows themed static art per sub-collection instead of a
+  random member movie's cover.
+- **Decades preview-shelf item taps** now route to the pill-filtered decade view
+  (matching Home's Eras shelf) instead of falling through to stock BoxSet detail.
+- **Shelf preview cap raised 14 → 30** on Collections/Movies/Decades (owner request).
+  ⚠️ Unlike Home's shelves, this surface has NO lazy incremental reveal — flagged for
+  an on-device scroll-feel check, not yet done.
+- **Stock BoxSet "Movies" grid** (every BoxSet's own detail page, not just the
+  promoted ones — e.g. Star Wars Collection, Avengers Collection): chronological
+  order + 2-line wrapping titles (was scrambled order + "…" truncation).
+- **Server data hygiene:** "Dude Approved Romance" → "Romance: Dude Approved"
+  (rename); "Teen Romance" BoxSet was critically under-populated (3 films) — grew to
+  30 after owner review, 13 ambiguous titles deliberately deferred.
+
+### Tried and reverted today
+- **Boxed Sets franchise-logo cards** (Star Wars/Avengers/Dark Knight/Jurassic Park) —
+  owner-supplied logo PNGs swapped in via a new `BrunoFranchiseLogoCard`
+  (scaledToFit over a flat dark background), replacing those 4 items' stock server
+  poster art. Owner feedback: "logo formatting is very screwed up and isn't placed
+  like cover art like the rest." **Reverted same day** — no net change; all Boxed
+  Sets still show stock poster art. If revisited, the right shape is almost
+  certainly full-bleed KEY ART with the logo baked in (matching how every sibling
+  card looks), not a mark floating on a flat color — that likely means sourcing (or
+  compositing) proper landscape art per franchise, not just a transparent logo PNG.
+
+### Outstanding — carried forward, none dropped
+- **§6 (reactive Decades hero + double-tap-down pill nav)** — highest-risk tier,
+  not started. Needs the focus-engine state machine + on-device verification
+  (sim can't certify focus feel).
+- **Asian Cinema composed shelves** (§1 R1) — still a flat 38-film `.grid`; the
+  WKW/Bong director shelves + genre-filtered shelves were never built.
+- **Cultural Touchstones lane** — the Decades "All" pill top-shelf prepend, never
+  built (the group itself retired cleanly with Curated, unsurfaced).
+- **Cities seed-eligibility** for the Home/Collections explore generators — not
+  built (Cities itself works fine as a card + shelf-per-city drill).
+- **Art for the 3 flat promotes** (Asian Cinema / Film School Classics / Critically
+  Acclaimed) — still on the brand gradient, no bundled cover art.
+- **Dead code cleanup** — `consolidateOscars`/`consolidateEbert`/`cardRowCategories`/
+  `curatedRandomShelves`/the `parent=="curated"` explore block are all unreachable
+  now (no Curated drill exists) but were left in place. Owner call: delete, or
+  re-home `curatedRandomShelves` (the PR #71 random-shelves feature) under a
+  promoted group.
+- **Oscars gold-tile design call** — the real "Oscars" group now naturally fans out
+  to the six captioned reverse-chron shelves (with the §4 lead-spread) instead of
+  the old synthetic gold-tile card row. Open owner call: keep the 6-shelf
+  presentation (current behavior) or rebuild gold tiles for the real group.
+- **Boxed Sets franchise art** — see "Tried and reverted" above; needs a different
+  visual approach if revisited.
+- **shelfCap 14→30 on-device scroll-feel check** — not yet done.
+- **A full on-device pass over the whole §1 migration** (new cards, Oscars/Roger
+  drills, Recommended routing, focus feel across all the same-day hotfixes) — the
+  single biggest remaining unknown; everything above is headless-build-verified
+  only, never run on the actual Apple TV this session.

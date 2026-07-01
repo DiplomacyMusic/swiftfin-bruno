@@ -25,14 +25,25 @@ explore tail; as of #37–41 it has deeper explore caps, a sub-genre + Rewatchab
 Releases" shelf, and **Show-all on every shelf** (D1+D2). The Movies tab is the genre browse surface.
 Repo is **main-only**; docs are tiered with `BRUNO_NAV_MAP` + `BRUNO_CODE_MAP` canonical.
 
-**IA overhaul (`docs/BRUNO_IA_OVERHAUL_PLAN.md`) — most of it SHIPPED this push** (app PRs #73 + #74
-merged; #75 open + 2 server migrations): §1 Curated-retirement migration (14 favorited groups; 5 promotes;
-Recommended/show-all repoints), §2 two-row card strip, §3 Studio04 pin, §4 Oscar lead-spread, §5 Household
-Names + John Hughes (server-side), §7 cinematic `BrunoBrandHeroBand` drill-ins, §8 generator retarget.
-**Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk, not started), Asian Cinema
-composed shelves, Cultural Touchstones lane, Cities seed-eligibility, art for the 3 flat promotes, dead
-`consolidate*`/`curatedRandomShelves` cleanup (owner call), and an **on-device** pass over the whole
-migration. See `docs/CHANGELOG.md` (2026-06-30) for what landed.
+**IA overhaul (`docs/BRUNO_IA_OVERHAUL_PLAN.md`) — most of it SHIPPED this push** (app PRs #73/#74/#75
+all merged; 3 server migrations): §1 Curated-retirement migration (14 favorited groups; 5 promotes;
+Recommended/show-all repoints), §2 two-row card strip (owner-placed row membership + Roger rename), §3
+Studio04 pin, §4 Oscar lead-spread, §5 Household Names + John Hughes (server-side), §7 cinematic
+`BrunoBrandHeroBand` drill-ins, §8 generator retarget. A same-day hotfix pass on top (all pushed straight
+to `main`, no PR) then: per-card colors for the 6 promoted groups + Cities cover art; dropped the
+Roger Ebert/Cities inline preview shelves (were showing box-set posters, not movies) and added guaranteed
+Ebert Up+Down movie shelves to the Collections tail instead; chronological order + 2-line titles on every
+stock BoxSet's own "Movies" grid; Decades preview-shelf items now route to the pill view (matching Home);
+themed static art for the Seasonal shelf; shelf preview cap 14→30; and the whole Collections shelf list
+(static category shelves + procedural tail) merged into ONE fully shuffled sequence. A Boxed Sets
+franchise-logo attempt (Star Wars/Avengers/Dark Knight/Jurassic Park) was tried and **reverted same day**
+— see Outstanding below. **Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk,
+not started), Asian Cinema composed shelves, Cultural Touchstones lane, Cities seed-eligibility, art for
+the 3 flat promotes still on gradient (Asian Cinema/Film School/Critically Acclaimed), dead
+`consolidate*`/`curatedRandomShelves` cleanup (owner call), a proper Boxed Sets franchise-art treatment
+(full-bleed key-art with the logo baked in, not a floating mark), the shelfCap 14→30 on-device scroll-feel
+check, and an **on-device** pass over the whole migration. See `docs/CHANGELOG.md` (2026-06-30) for what
+landed.
 
 **Top outstanding risk:** the held-scroll freeze fix (INV-10, `24ee9372`) and the Movies-hitch fork fix are
 landed but **not yet re-recorded on device** — see `docs/BRUNO_PERF_PLAYBOOK.md`. Recent shipped work:
