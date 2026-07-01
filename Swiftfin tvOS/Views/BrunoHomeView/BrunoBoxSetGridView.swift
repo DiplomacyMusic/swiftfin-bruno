@@ -149,16 +149,7 @@ struct BrunoBoxSetGridView: View {
     // two paths render identical tiles.
     @ViewBuilder
     private func cell(for item: BaseItemDto) -> some View {
-        if let asset = Self.franchiseLogoAsset(for: item.displayTitle) {
-            // Boxed Sets: a few franchise collections' own server art doesn't read as a clean logo
-            // (e.g. a random film still baked with a tiny title). Bundled owner-supplied logo PNGs
-            // (2026-06-30) stand in instead — name-keyed, every other Boxed Set keeps its server poster.
-            BrunoFranchiseLogoCard(asset: asset, type: posterType) {
-                router.route(to: .item(item: item))
-            } label: {
-                cardLabel(for: item)
-            }
-        } else if artCarousel {
+        if artCarousel {
             BrunoArtCarouselCard(item: item, type: posterType) {
                 router.route(to: .item(item: item))
             } label: {
@@ -171,18 +162,6 @@ struct BrunoBoxSetGridView: View {
                 cardLabel(for: item)
             }
         }
-    }
-
-    // Substring match (case-insensitive) so "Star Wars Collection" / "The Avengers Collection" / "The
-    // Dark Knight Collection" / "Jurassic Park Collection" all resolve regardless of the "The "/
-    // "Collection" wrapping the server names carry.
-    private static func franchiseLogoAsset(for name: String) -> String? {
-        let n = name.lowercased()
-        if n.contains("star wars") { return "BoxSetStarWars" }
-        if n.contains("avengers") { return "BoxSetAvengers" }
-        if n.contains("dark knight") { return "BoxSetDarkKnight" }
-        if n.contains("jurassic park") { return "BoxSetJurassicPark" }
-        return nil
     }
 
     // MARK: Household Names (curated + daily-seeded rotation) — §5
@@ -289,46 +268,6 @@ struct BrunoBoxSetGridView: View {
             // Portrait grid cards: Bruno-wide two-line title (wrap, don't truncate with "…").
             BrunoPosterTitleContentView(item: item)
         }
-    }
-}
-
-// MARK: - BrunoFranchiseLogoCard
-
-//
-// A bundled franchise-logo PNG standing in for a Boxed Set's own server poster (owner-supplied,
-// 2026-06-30 — Star Wars / Avengers / Dark Knight / Jurassic Park). The logos are transparent,
-// square-or-wide marks (not photos), so `.scaledToFit()` + padding over a dark backdrop — never
-// `.scaledToFill()`, which would crop a mark meant to be read whole. Mirrors PosterButton's tap/label
-// shape (Button + label below) so it sits identically among the stock server-art cards in the grid.
-private struct BrunoFranchiseLogoCard: View {
-
-    let asset: String
-    let type: PosterDisplayType
-    let action: () -> Void
-    let label: AnyView
-
-    init(asset: String, type: PosterDisplayType, action: @escaping () -> Void, @ViewBuilder label: () -> some View) {
-        self.asset = asset
-        self.type = type
-        self.action = action
-        self.label = AnyView(label())
-    }
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Color.black
-                Image(asset)
-                    .resizable()
-                    .scaledToFit()
-                    .padding(type == .landscape ? 40 : 24)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .posterStyle(type)
-
-            label
-        }
-        .buttonStyle(.card)
     }
 }
 
