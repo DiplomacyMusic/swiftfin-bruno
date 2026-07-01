@@ -16,7 +16,8 @@
 >
 > Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-_Last synced: 2026-06-30._
+_Last synced: 2026-07-01 (Fable assessment pass; corrected three claims invalidated by post-sync
+reverts, see the current-state paragraph)._
 
 ## Current state
 
@@ -34,10 +35,14 @@ to `main`, no PR) then: per-card colors for the 6 promoted groups + Cities cover
 Roger Ebert/Cities inline preview shelves (were showing box-set posters, not movies) and added guaranteed
 Ebert Up+Down movie shelves to the Collections tail instead; chronological order + 2-line titles on every
 stock BoxSet's own "Movies" grid; Decades preview-shelf items now route to the pill view (matching Home);
-themed static art for the Seasonal shelf; shelf preview cap 14→30; and the whole Collections shelf list
-(static category shelves + procedural tail) merged into ONE fully shuffled sequence. A Boxed Sets
-franchise-logo attempt (Star Wars/Avengers/Dark Knight/Jurassic Park) was tried and **reverted same day**
-— see Outstanding below. **Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk,
+shelf preview cap 14→30; the procedural Collections tail is fully shuffled internally
+(`BrunoHomePlan.collectionsTail`) and the curated-named STATIC shelves shuffle among themselves while the
+browse hubs keep their slots (`BrunoCategoryShelves.shuffledCuratedOrder`); and a Romance genre-bucket fix
+(stale name, drop Chicago Movies; `c7301895`). Three same-day attempts were tried and **REVERTED**, so do
+not expect them in the code: themed static Seasonal covers (`3d5393f1`/`ffb86988`, reverted by
+`3410f627` + `fbd91b25`); merging the static category shelves + procedural tail into ONE fully shuffled
+sequence (`9cd35470`, reverted by `d1337c18`); and the Boxed Sets franchise logos
+(Star Wars/Avengers/Dark Knight/Jurassic Park) — see Outstanding below. **Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk,
 not started), Asian Cinema composed shelves, Cultural Touchstones lane, Cities seed-eligibility, art for
 the 3 flat promotes still on gradient (Asian Cinema/Film School/Critically Acclaimed), dead
 `consolidate*`/`curatedRandomShelves` cleanup (owner call), a proper Boxed Sets franchise-art treatment
