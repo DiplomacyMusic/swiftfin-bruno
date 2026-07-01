@@ -585,7 +585,16 @@ struct BrunoCategoryShelves: View {
             } else {
                 BrunoShelfRow(
                     items: shelfItems(for: category),
-                    onItem: { router.route(to: .item(item: $0)) },
+                    onItem: { item in
+                        // Decades: tapping a decade tile jumps straight to that decade's pill-filtered
+                        // shelves (matching Home's Eras shelf), not the stock BoxSet detail page every
+                        // other category's item tap opens.
+                        if category.name.lowercased() == "decades" {
+                            router.route(to: .brunoCategoryShelves(parent: category.boxSet, decade: item.displayTitle))
+                        } else {
+                            router.route(to: .item(item: item))
+                        }
+                    },
                     onShowAll: { showAll(for: category) },
                     showAllTitle: namesShowAllCards ? category.name : nil,
                     artCarousel: ["studios", "directors", "movie stars"].contains(category.name.lowercased()),
