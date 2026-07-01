@@ -45,7 +45,7 @@ struct BrunoCoreGenre: Identifiable, Hashable {
         ]),
         .init(id: "comedy", title: "Comedy", members: [
             "buddy cop", "college", "comedy", "coming of age", "cubicle",
-            "dude approved romance", "ensemble", "fish out of water", "heist", "lgbtq",
+            "romance: dude approved", "ensemble", "fish out of water", "heist", "lgbtq",
             "obsession", "road trip", "romantic comedy", "romcom all-timers", "satire",
             "snl stars", "sports movies", "teen romance", "twee",
             "chicago movies",
@@ -57,9 +57,8 @@ struct BrunoCoreGenre: Identifiable, Hashable {
             "twee", "chicago movies",
         ]),
         .init(id: "romance", title: "Romance", members: [
-            "classic romance", "dude approved romance", "erotic thriller", "lgbtq", "romance",
+            "classic romance", "romance: dude approved", "erotic thriller", "lgbtq", "romance",
             "romantic comedy", "romantic drama", "romcom all-timers", "teen romance", "twee",
-            "chicago movies",
         ]),
         .init(id: "scifi-fantasy", title: "Sci-Fi & Fantasy", members: [
             "alien movies", "dystopia", "fairy tales", "fantasy", "mind blowers",
