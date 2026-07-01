@@ -56,11 +56,6 @@ struct BrunoBoxSetGridView: View {
     var householdNames: [String]?
     /// The label over the full grid when a Household Names section is shown (e.g. "All Directors").
     var allSectionTitle: String = "All"
-    /// Seasonal "Show all" only: a bundled static asset-catalog image standing in for a sub-collection's
-    /// own server poster (owner request, 2026-06-30 — mirrors the same override on the Collections
-    /// inline shelf, BrunoShelfRow.assetOverride, so the drill-down and the preview show the same themed
-    /// cover). nil (default, or nil per-item) ⇒ the standard artCarousel/PosterButton cell.
-    var assetOverride: ((BaseItemDto) -> String?)?
 
     @Router
     private var router
@@ -154,26 +149,7 @@ struct BrunoBoxSetGridView: View {
     // two paths render identical tiles.
     @ViewBuilder
     private func cell(for item: BaseItemDto) -> some View {
-        if let asset = assetOverride?(item) {
-            // Seasonal: bundled themed cover instead of the sub-collection's own server poster or
-            // cycling film art — same scaledToFill treatment as the Collections inline shelf override.
-            Button {
-                router.route(to: .item(item: item))
-            } label: {
-                ZStack {
-                    Color.black
-                    Image(asset)
-                        .resizable()
-                        .scaledToFill()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .posterStyle(posterType)
-
-                cardLabel(for: item)
-            }
-            .buttonStyle(.card)
-        } else if artCarousel {
+        if artCarousel {
             BrunoArtCarouselCard(item: item, type: posterType) {
                 router.route(to: .item(item: item))
             } label: {
@@ -423,8 +399,7 @@ extension NavigationRoute {
         oscarParent: BaseItemDto? = nil,
         heroAsset: String? = nil,
         householdNames: [String]? = nil,
-        allSectionTitle: String = "All",
-        assetOverride: ((BaseItemDto) -> String?)? = nil
+        allSectionTitle: String = "All"
     ) -> NavigationRoute {
         NavigationRoute(
             id: "bruno-boxset-grid-\(title.lowercased())",
@@ -441,8 +416,7 @@ extension NavigationRoute {
                 oscarParent: oscarParent,
                 heroAsset: heroAsset,
                 householdNames: householdNames,
-                allSectionTitle: allSectionTitle,
-                assetOverride: assetOverride
+                allSectionTitle: allSectionTitle
             )
         }
     }

@@ -75,22 +75,6 @@ enum BrunoCollectionArtwork {
         byCategory[name.lowercased()]?.first
     }
 
-    /// Seasonal sub-collection name → bundled themed art (owner request, 2026-06-30 — these were
-    /// rendering a random member MOVIE's poster instead of a themed cover). Reuses the SAME assets the
-    /// top-level Seasonal tile cycles through (`seasonalAssets`), so "Summer Blockbusters" and "4th of
-    /// July" intentionally share one asset (no dedicated July 4th art exists). Shared by the Collections
-    /// inline preview shelf (BrunoCategoryShelves) AND the Seasonal "Show all" drill-down
-    /// (BrunoBoxSetGridView) — one lookup, both surfaces.
-    static func seasonalSubCollectionAsset(for subCollectionName: String) -> String? {
-        let n = subCollectionName.lowercased()
-        if n.contains("christmas") { return "Seasonal01CHRISTMAS" }
-        if n.contains("halloween") { return "Seasonal02Halloween" }
-        if n.contains("valentine") { return "Seasonal06ValentinesDay" }
-        if n.contains("fall") || n.contains("thanksgiving") { return "Seasonal03FallThanksgiving" }
-        if n.contains("summer") || n.contains("july") { return "Seasonal07Summer" }
-        return nil
-    }
-
     /// Sep 21 – Dec 31 (Halloween through the end of Christmas): the Seasonal tile is promoted to
     /// 2nd place, right after New Releases. The rest of the year it keeps its default last slot.
     /// Same start anchor as the Halloween art window.
