@@ -303,10 +303,14 @@ struct BrunoCategoryShelves: View {
         case top // very top of the surface — the "Back to Top" footer pill jumps here
     }
 
-    /// Items previewed in each shelf before the trailing "Show all" card. Kept small: a shelf is a
-    /// preview, and every card is a focusable UIHostingController, so realizing fewer per row is the
-    /// dominant lever on vertical-scroll cost. "Show all" covers the rest.
-    private let shelfCap = 14
+    /// Items previewed in each shelf before the trailing "Show all" card. A shelf is a preview, and
+    /// every card is a focusable UIHostingController — this is the dominant lever on vertical-scroll
+    /// cost for THIS surface (Collections/Movies/Decades), which — unlike the Home feed's shelves —
+    /// has no lazy incremental reveal (BrunoShelfMetrics.maxRevealCount/revealGrowStep): the full
+    /// count renders immediately once a shelf mounts. Raised 14 → 30 (owner request, 2026-06-30) —
+    /// verify on-device scroll feel after this change; if it hitches, the lever to pull is this
+    /// number, not the mount/reveal window (visibleShelfCount below, which throttles shelf COUNT).
+    private let shelfCap = 30
 
     /// The curated/marquee preview shelves whose RELATIVE ORDER shuffles per session (owner request) —
     /// see the shelf-loop comment above. Excludes "roger ebert"/"cities" (already dropped from the loop).
