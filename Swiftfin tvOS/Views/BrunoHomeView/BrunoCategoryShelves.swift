@@ -330,14 +330,35 @@ struct BrunoCategoryShelves: View {
         }
     }
 
-    /// Every shelf below the card rows, fully shuffled together — no static block of category shelves
-    /// followed by a static block of tail shelves. `tail` is empty for every surface but Collections,
-    /// so this degrades to "shuffle the category shelves" everywhere else (Movies/Decades).
+    /// Decade-related entries are QUARANTINED from the shuffle (owner request, 2026-06-30 — an earlier
+    /// version shuffled these too and broke the intentional order): the top-level "Decades" category
+    /// preview shelf, and the procedural tail's "Best of the {Decade}" family (`BrunoShelf.Kind.decade`,
+    /// built newest-decade-first — "counting down backwards"). These stay in their ORIGINAL relative
+    /// positions; every other entry shuffles into the remaining slots.
+    private static func isDecadeRelated(_ entry: ShelfEntry) -> Bool {
+        switch entry {
+        case let .category(category): category.name.lowercased() == "decades"
+        case let .tail(vm): vm.shelf.kind == .decade
+        }
+    }
+
+    /// Every shelf below the card rows, fully shuffled together EXCEPT decade-related entries (see
+    /// `isDecadeRelated`) — no static block of category shelves followed by a static block of tail
+    /// shelves. `tail` is empty for every surface but Collections, so this degrades to "shuffle the
+    /// category shelves" everywhere else (Movies/Decades).
     private static func shuffledShelfEntries(
         categories: [BrunoCollectionCategory],
         tail: [BrunoShelfViewModel]
     ) -> [ShelfEntry] {
-        BrunoRNG.shuffled(categories.map(ShelfEntry.category) + tail.map(ShelfEntry.tail), seed: shelfShuffleSeed)
+        let all = categories.map(ShelfEntry.category) + tail.map(ShelfEntry.tail)
+        let shuffleSlots = all.indices.filter { !isDecadeRelated(all[$0]) }
+        guard shuffleSlots.count > 1 else { return all }
+        let shuffled = BrunoRNG.shuffled(shuffleSlots.map { all[$0] }, seed: shelfShuffleSeed)
+        var result = all
+        for (slot, entry) in zip(shuffleSlots, shuffled) {
+            result[slot] = entry
+        }
+        return result
     }
 
     /// Cap-and-grow window: how many shelves are mounted right now. Starts small so entering a
