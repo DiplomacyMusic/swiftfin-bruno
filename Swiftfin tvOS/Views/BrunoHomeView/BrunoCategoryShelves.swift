@@ -613,7 +613,7 @@ struct BrunoCategoryShelves: View {
                     // Seasonal only: bundled themed art instead of each sub-collection's own (movie)
                     // server poster (owner request, 2026-06-30).
                     assetOverride: category.name.lowercased() == "seasonal"
-                        ? { Self.seasonalShelfAsset(for: $0.displayTitle) }
+                        ? { BrunoCollectionArtwork.seasonalSubCollectionAsset(for: $0.displayTitle) }
                         : nil
                 )
             }
@@ -691,20 +691,6 @@ struct BrunoCategoryShelves: View {
             let lower = item.displayTitle.lowercased()
             return map.first { $0.key.lowercased() == lower }?.value
         }
-    }
-
-    /// Seasonal sub-collection name → bundled themed art (owner request, 2026-06-30 — these were
-    /// rendering a random member MOVIE's poster instead of a themed cover). Reuses the SAME assets the
-    /// top-level Seasonal tile cycles through (BrunoCollectionArtwork.seasonalAssets), so "Summer
-    /// Blockbusters" and "4th of July" intentionally share one asset (no dedicated July 4th art exists).
-    private static func seasonalShelfAsset(for subCollectionName: String) -> String? {
-        let n = subCollectionName.lowercased()
-        if n.contains("christmas") { return "Seasonal01CHRISTMAS" }
-        if n.contains("halloween") { return "Seasonal02Halloween" }
-        if n.contains("valentine") { return "Seasonal06ValentinesDay" }
-        if n.contains("fall") || n.contains("thanksgiving") { return "Seasonal03FallThanksgiving" }
-        if n.contains("summer") || n.contains("july") { return "Seasonal07Summer" }
-        return nil
     }
 
     /// A group shelf should show its sub-COLLECTIONS, not the loose movies inside each one

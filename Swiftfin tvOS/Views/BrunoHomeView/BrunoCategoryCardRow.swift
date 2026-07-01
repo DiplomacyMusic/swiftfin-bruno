@@ -241,7 +241,11 @@ func brunoRouteToShowAll(
                         artCarousel: true,
                         heroAsset: BrunoCollectionArtwork.heroAsset(for: category.name),
                         householdNames: isDirectors ? BrunoBoxSetGridView.recognizableDirectors : nil,
-                        allSectionTitle: "All \(category.name)"
+                        allSectionTitle: "All \(category.name)",
+                        // Seasonal: bundled themed cover per sub-collection, same as the inline shelf.
+                        assetOverride: category.name.lowercased() == "seasonal"
+                            ? { BrunoCollectionArtwork.seasonalSubCollectionAsset(for: $0.displayTitle) }
+                            : nil
                     ),
                     in: namespace
                 )
