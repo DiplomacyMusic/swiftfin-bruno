@@ -55,11 +55,6 @@ struct BrunoShelfRow: View {
     /// (the decade BoxSet). nil ⇒ no cover (the gradient stays bare amber, as before). A stable function
     /// of the item (same decade → same cover), so it adds no per-scroll churn — INV-10 safe.
     var restCover: ((BaseItemDto) -> BaseItemDto?)?
-    /// Seasonal shelf only: a bundled static asset-catalog image standing in for the item's own server
-    /// poster (owner-supplied seasonal art, 2026-06-30 — each seasonal sub-collection was showing a
-    /// random MOVIE cover instead of its themed cover). nil (default, or nil per-item) ⇒ the standard
-    /// server poster. Takes precedence over every other cell style when non-nil for an item.
-    var assetOverride: ((BaseItemDto) -> String?)?
 
     @FocusState
     private var showAllFocused: Bool
@@ -94,24 +89,7 @@ struct BrunoShelfRow: View {
         ) { card in
             switch card {
             case let .item(item):
-                if let asset = assetOverride?(item) {
-                    Button {
-                        onItem(item)
-                    } label: {
-                        ZStack {
-                            Color.black
-                            Image(asset)
-                                .resizable()
-                                .scaledToFill()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .posterStyle(.portrait)
-
-                        BrunoPosterTitleContentView(item: item)
-                    }
-                    .buttonStyle(.card)
-                } else if let labelArt {
+                if let labelArt {
                     BrunoLabelArtCard(item: item, style: labelArt, restCover: restCover?(item)) {
                         onItem(item)
                     }
