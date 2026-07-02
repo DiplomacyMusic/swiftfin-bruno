@@ -16,7 +16,8 @@
 >
 > Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-_Last synced: 2026-06-30._
+_Last synced: 2026-07-01 (Fable assessment pass; corrected three claims invalidated by post-sync
+reverts, see the current-state paragraph)._
 
 ## Current state
 
@@ -34,10 +35,14 @@ to `main`, no PR) then: per-card colors for the 6 promoted groups + Cities cover
 Roger Ebert/Cities inline preview shelves (were showing box-set posters, not movies) and added guaranteed
 Ebert Up+Down movie shelves to the Collections tail instead; chronological order + 2-line titles on every
 stock BoxSet's own "Movies" grid; Decades preview-shelf items now route to the pill view (matching Home);
-themed static art for the Seasonal shelf; shelf preview cap 14→30; and the whole Collections shelf list
-(static category shelves + procedural tail) merged into ONE fully shuffled sequence. A Boxed Sets
-franchise-logo attempt (Star Wars/Avengers/Dark Knight/Jurassic Park) was tried and **reverted same day**
-— see Outstanding below. **Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk,
+shelf preview cap 14→30; the procedural Collections tail is fully shuffled internally
+(`BrunoHomePlan.collectionsTail`) and the curated-named STATIC shelves shuffle among themselves while the
+browse hubs keep their slots (`BrunoCategoryShelves.shuffledCuratedOrder`); and a Romance genre-bucket fix
+(stale name, drop Chicago Movies; `c7301895`). Three same-day attempts were tried and **REVERTED**, so do
+not expect them in the code: themed static Seasonal covers (`3d5393f1`/`ffb86988`, reverted by
+`3410f627` + `fbd91b25`); merging the static category shelves + procedural tail into ONE fully shuffled
+sequence (`9cd35470`, reverted by `d1337c18`); and the Boxed Sets franchise logos
+(Star Wars/Avengers/Dark Knight/Jurassic Park) — see Outstanding below. **Still open:** §6 (reactive Decades hero + double-tap pill nav — highest-risk,
 not started), Asian Cinema composed shelves, Cultural Touchstones lane, Cities seed-eligibility, art for
 the 3 flat promotes still on gradient (Asian Cinema/Film School/Critically Acclaimed), dead
 `consolidate*`/`curatedRandomShelves` cleanup (owner call), a proper Boxed Sets franchise-art treatment
@@ -64,7 +69,7 @@ landed but **not yet re-recorded on device** — see `docs/BRUNO_PERF_PLAYBOOK.m
 | [ ] | **IA §1 — Asian Cinema composed shelves** | `BrunoBoxSetShelvesView` (builder) | NOT built. Asian Cinema is a flat `.grid` of 38 films today; the planned WKW/Bong + genre-filtered composed shelves (synthetic categories → `.shelves`) weren't added. |
 | [ ] | **IA §1 — demote Cultural Touchstones (Decades "All"-lane prepend)** | `BrunoBoxSetShelvesView` (All branch) | NOT built. Touchstones retired with Curated (unfavorited) but the best-of-lane prepend feature wasn't added. |
 | [ ] | **IA §8 — Cities seed-eligibility for Home/Collections generators** | `BrunoHomePlan.explore` / `collectionsTail` | NOT built. The per-city shelves aren't yet a `"cities"` explore source. |
-| [ ] | **IA §1 — dead-code cleanup (owner call): `consolidate*` / `curatedRandomShelves` / `parent=="curated"`** | `BrunoBoxSetShelvesView`, `BrunoHomePlan.swift:337` | The Curated retirement ORPHANED these (no Curated drill reaches `consolidateOscars/Ebert/cardRowCategories`; `curatedRandomShelves` + the `parent=="curated"` explore block now have no live caller). Delete vs. re-home is an owner call. |
+| [ ] | **IA §1 — dead-code cleanup (owner call): `consolidate*` / `curatedRandomShelves` / the `"curated"` drill gates** | `BrunoBoxSetShelvesView.swift:96-169/:670-823`, `BrunoCategoryShelves.swift:231/:579` | The Curated retirement ORPHANED the drill-side cluster (`consolidateOscars/Ebert`, `cardRowCategories` consolidation branch, `curatedRandomShelves`, the `curated-oscars` gold-tile gate) — all keyed on a drill parent named "Curated", which no route produces. NOTE (corrected 2026-07-01): `BrunoHomePlan.swift:337` (`case "curated","world"`) is ALIVE — it reads `promotedCuratedBoxSets` and stays. Also dead: `BrunoStaticItemsLibrary.swift` (whole file, zero callers) + `BrunoLibrarySnapshot.curatedBoxSets`. Delete vs. re-home is an owner call; step 3 of `Documentation/fable-plans/REFACTOR_PLAN.md` has the full checklist. |
 | [ ] | **IA §6 — reactive Decades hero + double-tap-down pill nav** | `BrunoBoxSetShelvesView`, `BrunoGenresView`, `BrunoKidsView` | NOT started — the highest-risk tier (backdrop-reload perf + focus-engine state machine, INV-7/10, on-device verification required). Build behind a shared-idiom refactor. See plan §6. |
 | [ ] | **IA — art assets for the 3 flat promotes** (Asian Cinema / Film School / Critically Acclaimed) | `Assets.xcassets/BrunoCollections`, `BrunoCollectionArtwork` | Gradient/stand-in until bespoke art is added. |
 | [ ] | Fold Studios + Rewatchables onto shared `BrunoBrandHeroBand` | `BrunoStudiosGridView`, `BrunoRewatchablesView`, `BrunoBrandHeroBand.swift` | Follow-up to §7 (`ce925ac1`): the shared band was extracted but Studios/Rewatchables still carry their own copies. Fold them on so there's truly one band (plan §7 anti-scatter). |

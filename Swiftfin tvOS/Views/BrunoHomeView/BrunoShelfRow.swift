@@ -16,8 +16,13 @@ import SwiftUI
 // MARK: - BrunoShelfRow
 
 //
-// One horizontal shelf with a trailing "Show all" CARD (not a header button — PosterHStack's
-// trailing slot is a no-op in this codebase). Lazily renders many items before the Show-all card.
+// One horizontal BROWSE shelf with a trailing "Show all" CARD rendered in-row. (Comment corrected
+// 2026-07-01: PosterHStack's trailing slot is NOT a no-op — it is a Bruno addition that
+// BrunoShelfView, this view's Home twin, uses for the same card. This view builds its own
+// CollectionHStack cells instead.) Lazily renders the capped preview before the Show-all card.
+// Sole consumer: BrunoCategoryShelves.shelf(for:) — i.e. every browse surface (Collections
+// statics, Movies/Genres rows, drill-ins). Near-duplicate of BrunoShelfView; see
+// Documentation/fable-plans/REARCHITECTURE_ASSESSMENT.md F1 before adding a flag here.
 struct BrunoShelfRow: View {
 
     let items: [BaseItemDto]

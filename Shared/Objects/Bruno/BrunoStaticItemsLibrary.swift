@@ -12,9 +12,13 @@ import SwiftUI
 // MARK: - BrunoStaticItemsLibrary
 
 //
-// A single-page `PagingLibrary` over an explicit, already-fetched item list. Used for synthetic
+// A single-page `PagingLibrary` over an explicit, already-fetched item list. Was built for synthetic
 // collections that aren't backed by one server parent — e.g. "Boxed Sets" (a computed set of
-// box sets) — so "Show all" can render them in the stock PagingLibraryView grid.
+// box sets) — so "Show all" could render them in the stock PagingLibraryView grid.
+//
+// DEAD CODE (verified 2026-07-01): zero callers. Its route (`brunoItemsGrid` below) is never routed;
+// the Boxed Sets Show-all uses `.brunoBoxSetGrid` instead. Deletion is a pending owner call
+// (docs/PROJECT_TRACKER.md dead-code row; Documentation/fable-plans/REFACTOR_PLAN.md step 3a).
 struct BrunoStaticItemsLibrary: BaseItemKindLibrary {
 
     let items: [BaseItemDto]

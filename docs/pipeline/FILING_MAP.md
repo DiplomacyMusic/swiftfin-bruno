@@ -6,16 +6,25 @@
 > **actual** Bruno code. Source of truth for HOW the enrichment files into the app. The external
 > producer is `docs/pipeline/PLAN.md` + the separate MovieCollection repo.
 >
-> **The one architectural fact that governs everything:** Bruno's app-side shelf engine has **no tag
-> source**. `BrunoQuery` (`Shared/Objects/Bruno/BrunoQuery.swift:20-56`) maps only `genres`,
-> `studioIDs`, `personIDs`, `years`, `parentID`, `minCommunityRating`, `IsUnplayed`/`IsFavorite` →
-> `BrunoQueryLibrary` (`BrunoQueryLibrary.swift:46-84`). `BrunoLibrarySnapshot` carries only group
-> BoxSets + genre *names* + years (`BrunoLibrarySnapshot.swift:24-37`). **There is no `tags` field on
-> the query, no `Tags`/`bruno-sig` in the snapshot, and nothing in Swift reads item tags today**
-> (grep: zero `bruno-sig` consumers). ⇒ Anything that is "a membership of films selected by a tag" must
-> become a **server-side Jellyfin BoxSet** to render with the engine as-is. App-side dynamic rows are
-> only possible from sources the engine already speaks: genre-name, parentID (a BoxSet), year,
-> rating, person, studio. **This is the spine vs. tail decision for the whole enrichment.**
+> **The one architectural fact that governs everything:** film MEMBERSHIP cannot be selected by tag.
+> `BrunoQuery` (`Shared/Objects/Bruno/BrunoQuery.swift`) speaks only genre-name, `parentID` (a BoxSet),
+> `years`, rating, person, studio, and the `IsUnplayed`/`IsFavorite` filters. Anything that is "a
+> membership of films selected by a tag" must become a **server-side Jellyfin BoxSet** to render with
+> the engine as-is. **This is the spine vs. tail decision for the whole enrichment.**
+>
+> **Update 2026-07-01 (supersedes the paragraph as originally written):** the app now DOES read item
+> tags, but only for display and ordering, never for membership queries. `BrunoQuery.caption` triggers
+> a `.tags` fetch in `BrunoQueryLibrary` (`Shared/Objects/Bruno/BrunoQueryLibrary.swift:56-57`) for the
+> Ebert star and Oscar Winner/Nominee captions (tags `ebert-stars:<n>`, `ebert-verdict:<up|down>`,
+> `oscar:<CATEGORY>:<won|nom>:<YEAR>`); `BrunoLibrarySnapshot.fetchDecadeBestOf` reads `bruno-sig:NN`
+> for the Eras card covers (`BrunoLibrarySnapshot.swift:238-262`); the Rewatchables surfaces read
+> `rewatchables-ep:NN`. The original 2026-06-26 claim "nothing in Swift reads item tags today" is
+> obsolete. Also since this doc was authored: the **Curated group was retired on the live server
+> (2026-06-30, §1 migration)**. Its members were promoted to top-level favorited groups (Oscars,
+> Roger Ebert, Asian Cinema, Film School Classics, Critically Acclaimed) or moved under Genres
+> (the Vibes sets, Chicago). Rows below that say "under Curated" describe the pre-migration plan;
+> the app-side accessor is now `promotedCuratedBoxSets`, not `curatedBoxSets`
+> (`BrunoLibrarySnapshot.swift:109-117`).
 
 ## Decision table — where each enrichment category files in
 

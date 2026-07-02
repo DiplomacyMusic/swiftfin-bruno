@@ -14,13 +14,15 @@ library. Before changing anything, read these in full (no skimming):
 - **`docs/PROJECT_TRACKER.md`** — current status (the heartbeat). **`BRUNO_NOTES.md`** — verified
   toolchain / SDK signatures / architecture (wins over older plans on drift).
 
-**Docs are tiered:** `docs/` = canonical & active · `docs/reference/` = stable specs ·
-`docs/archive/` = superseded (do not treat as current).
+**Docs are tiered:** `docs/` = canonical & active · `docs/reference/` = stable specs · superseded
+docs are **deleted** (recover from git; there is no `docs/archive/`). Assessment set:
+`Documentation/fable-plans/` (provenance / nav graph / duplication register, 2026-07-01).
 
 **Where code lives:** Bruno UI in `Swiftfin tvOS/Views/BrunoHomeView/`, engine in `Shared/Objects/Bruno/`;
 everything else is upstream Swiftfin — reuse, don't refactor. **One connected pipeline:** a shelf is a
 seeded descriptor (`BrunoHomePlan`) → realized to a paging VM (`BrunoHomeViewModel`) → rendered
-(`BrunoShelfView`/`PosterHStack`); all "show all" routing funnels through `brunoRouteToShowAll()`. Trace a
+(`BrunoShelfView`/`PosterHStack`); "show all" routing funnels through exactly TWO routers —
+`brunoRouteToShowAll()` for browse surfaces, `brunoHomeRouteToShowAll()` for Home shelves. Trace a
 change through the maps first — local edits ripple.
 
 **Agents:** Swift/SwiftUI/Xcode mechanics → `swift-xcode-expert`; "where/how does Bruno do X" → `bruno-expert`.

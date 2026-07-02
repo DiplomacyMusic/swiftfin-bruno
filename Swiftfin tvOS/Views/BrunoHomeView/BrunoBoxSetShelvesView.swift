@@ -93,6 +93,12 @@ struct BrunoBoxSetShelvesView: View {
         parent.displayTitle.lowercased() == "decades"
     }
 
+    /// DEAD-IN-PRACTICE since the §1 Curated retirement (2026-06-30): no route passes a drill parent
+    /// named "Curated" anymore, so this gate — and everything it guards (the `cardRowCategories`
+    /// consolidation, `consolidateOscars`/`consolidateEbert`, `curatedRandomShelves`, `lensEyebrow`'s
+    /// curated case) — is unreachable. The live Oscars/Ebert paths route via the real favorited groups
+    /// (`brunoRouteToShowAll`). Delete vs re-home is a pending owner call (docs/PROJECT_TRACKER.md;
+    /// Documentation/fable-plans/REFACTOR_PLAN.md step 3b).
     private var isCurated: Bool {
         parent.displayTitle.lowercased() == "curated"
     }
@@ -385,6 +391,12 @@ struct BrunoBoxSetShelvesView: View {
 
 // MARK: - BrunoBoxSetShelvesViewModel
 
+//
+// Shared loader for EVERY sub-group shelf surface — not just this file's drill-ins. Source: one
+// favorited group's child BoxSets (or provided `subGroups` for synthetic drills like Oscars);
+// consumers: the Decades/Oscars/Cities drill-ins here AND the Movies tab (BrunoGenresView reuses
+// this VM — the genre rows, their per-launch order, and the lead-genre pinning are all built in
+// `performLoad` below, not in BrunoGenresView).
 @MainActor
 final class BrunoBoxSetShelvesViewModel: ViewModel {
 

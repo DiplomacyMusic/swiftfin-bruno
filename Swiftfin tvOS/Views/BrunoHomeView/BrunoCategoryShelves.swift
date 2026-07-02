@@ -570,12 +570,13 @@ struct BrunoCategoryShelves: View {
             // this header (see BrunoShelfMetrics.portraitHeaderBottomInset).
             .padding(.bottom, BrunoShelfMetrics.portraitHeaderBottomInset)
 
-            // The consolidated "Oscars" curated tile (synthetic id "curated-oscars") renders its six
-            // child Oscar BoxSets as the gold award tiles — BrunoCategoryTile/Curated01, two-line
-            // "OSCAR / <category>" via titleParts — each drilling through brunoRouteToShowAll(.grid) to
-            // the captioned, reverse-chron Oscar grid (Winner/Nominee per poster). Replaces the poster
-            // cards that dead-ended on stock BoxSet detail (.item). `oscarParent` pages the full
-            // category, so empty preview children are correct (the grid fills from the live fetch).
+            // DEAD-IN-PRACTICE (2026-07-01): only the retired Curated drill's `consolidateOscars`
+            // created a "curated-oscars" category; the live Oscars group drills via `.shelves` +
+            // `subGroups` and never reaches this branch. Kept pending the owner's dead-code call
+            // (docs/PROJECT_TRACKER.md). Original behavior, if ever revived: renders the six child
+            // Oscar BoxSets as gold award tiles (BrunoCategoryTile/Curated01, two-line
+            // "OSCAR / <category>"), each drilling through brunoRouteToShowAll(.grid) to the
+            // captioned, reverse-chron Oscar grid; `oscarParent` pages the full category.
             if category.boxSet.id == "curated-oscars" {
                 BrunoCategoryCardRow(
                     categories: category.children.map {
