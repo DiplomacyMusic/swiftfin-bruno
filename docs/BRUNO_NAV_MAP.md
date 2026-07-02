@@ -14,11 +14,14 @@
 >
 > All paths are repo-relative to the Bruno root. tvOS-only unless noted.
 >
-> **Last verified against code at commit `e409fd5f`** (2026-06-29). Since the prior `40da403f` pass:
-> #63 (Curated → one Ebert/Oscars card + film shelves), #64 (Collections Decades cards backed by the
-> best-of-decade cover + decade per-year prefetch), #65 (Home Ebert/Oscar shelves carry captions +
-> captioned Show-all), #66 (item-detail "Recommended" shelf made Bruno-native — see §10). Live library
-> counts in §0.
+> **Last verified against code at commit `53685816`** (2026-07-01, Fable assessment pass; prior full
+> pass `e409fd5f` 2026-06-29). The 2026-07-01 pass corrected, against the shipped IA overhaul
+> (#73/#74/#75 + same-day hotfixes): the two different `shelfCap` meanings (§2), the whole Collections
+> tab (§3: two-row card strip, Curated retired, preview caps 30/16, procedural tail), the Movies
+> sub-genre preview caps (§4), and the Recommended fail-open rule (§10). The §0 live counts still date
+> to 2026-06-28 and predate the §1 Curated-retirement migration; re-run the §0 refresh to update them.
+> Deeper provenance (producer scripts, seeds, caps): `Documentation/fable-plans/SHELF_PROVENANCE.md`.
+> Screen-level graph + stock handoffs: `Documentation/fable-plans/NAVIGATION_MAP.md`.
 
 ---
 
@@ -90,11 +93,13 @@ Kids                                → BrunoKidsView (single grid + All/Movies/
 Settings      (utility, icon-only)  → stock SettingsView + fixed brunoUtilityTabBar()        TabItem.swift:147
 ```
 
-All See-All / card-tap routing funnels through one function: `brunoRouteToShowAll(_:router:namespace:)`
-(`Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryCardRow.swift:62-209`), switching on
+All browse See-All / card-tap routing funnels through one function:
+`brunoRouteToShowAll(_:router:namespace:)`
+(`Swiftfin tvOS/Views/BrunoHomeView/BrunoCategoryCardRow.swift:110-266`), switching on
 `BrunoCollectionCategory.drillStyle` (`.genres | .shelves | .items | .grid | .rewatchables`). Both shelf
-headers (`BrunoCategoryShelves.swift:459`) and gradient tiles (`BrunoCategoryCardRow.swift:41`) call it,
-so they cannot diverge — except where the **inputs** differ (see §4).
+headers (`BrunoCategoryShelves.swift:543`, after an Ebert special case at `:538-544`) and gradient tiles
+(`BrunoCategoryCardRow.swift:88`) call it, so they cannot diverge — except where the **inputs** differ
+(see §4). Home shelves use the second router, `brunoHomeRouteToShowAll` (§2).
 
 ---
 
@@ -102,13 +107,18 @@ so they cannot diverge — except where the **inputs** differ (see §4).
 
 Engine: `Shared/Objects/Bruno/BrunoHomePlan.swift` (pure `build(seed:snapshot:now:)`, spine + explore
 tail). View: `Swiftfin tvOS/Views/BrunoHomeView/BrunoHomeView.swift`; rows render via `BrunoShelfView`
-→ `PosterHStack`, each with a trailing **"Show all"** card (`BrunoShelfView.swift:183`). Spine cap `shelfCap = 18`; explore tail grows +2
+→ `PosterHStack`, each with a trailing **"Show all"** card. Explore tail grows +2
 per page across `exploreBlockCount = 5` blocks, hard ceiling `tailCeiling = 120`.
 
-**Per-shelf max items = 18 (`shelfCap`)** unless noted. **Show-all: as of #41 (D1+D2) every Home shelf
-has one** — routed off `shelf.kind` / `shelf.source` via `brunoHomeRouteToShowAll`; per-kind
-destinations are the §2a/§2b "Show-all" columns. The terminal footer (below) still re-surfaces the
-collection cards.
+**`shelfCap = 18` caps the NUMBER OF SHELVES in the initial plan** (`BrunoHomePlan.dedupedAndCapped`,
+`BrunoHomePlan.swift:584`) — it is NOT a per-shelf item cap. Per-shelf items come from the shelf's
+`BrunoQuery.limit` (default 60; New Releases 20, Critics 15), paged by the shelf VM and revealed
+incrementally (`BrunoShelfMetrics` reveal constants). The per-row "Max 18" values in the tables below
+are historical; treat the Derived-from column's own limits as authoritative. There is a SECOND, unrelated
+`shelfCap = 30` on browse surfaces (§3). **Show-all: every Home shelf has one** (#41 D1+D2) — routed off
+`shelf.kind` / `shelf.source` via `brunoHomeRouteToShowAll` (`BrunoHomeShowAll.swift:35`; sole caller
+`BrunoShelfView.swift:205`); per-kind destinations are the §2a/§2b "Show-all" columns. The terminal
+footer (below) still re-surfaces the collection cards.
 
 ### 2a. Spine (fixed order, contents reseed by seed)
 
@@ -150,7 +160,7 @@ gets a trailing "Show all" (#41) → its own paged query (or the Decades pill, f
 | {Studio} | From the Vault | `boxSetShelf(studioBoxSets)` → `parentQuery` | 18 |
 | Hidden in the {Decade} | Lost in Time | `boxSetShelf(decadeBoxSets)` → `parentQuery` | 18 |
 | Spotlight on {Director} | Director Spotlight | `boxSetShelf(directorBoxSets)` → `parentQuery` (different salt than spine) | 18 |
-| {Curated} | Curated | `boxSetShelf(curatedBoxSets)`, " — " stripped for display. **#65:** an Ebert/Oscar pick (`BrunoShelfCaption`, `BrunoQuery.swift:31`) renders portrait with the per-poster star / *Winner (Year)* caption, and its trailing "Show all" reaches the **Ebert toggle** / **Oscar** grid (`brunoHomeRouteToShowAll` caption branch, `BrunoHomeShowAll.swift:88`) instead of the plain paged query; all other curated picks stay `.none`/landscape → paged query grid | 18 |
+| {Curated} | Curated | `boxSetShelf(promotedCuratedBoxSets)` (§1 migration repoint, `BrunoHomePlan.swift:342` — the pool is the Oscars + Roger Ebert children plus the 3 flat promotes; the retired `curatedBoxSets` accessor is dead), " — " stripped for display. **#65:** an Ebert/Oscar pick (`BrunoShelfCaption`, `BrunoQuery.swift:18`) renders portrait with the per-poster star / *Winner (Year)* caption, and its trailing "Show all" reaches the **Ebert toggle** / **Oscar** grid (`brunoHomeRouteToShowAll` caption branch, `BrunoHomeShowAll.swift:97-125`) instead of the plain paged query; all other promoted picks stay `.none`/landscape → paged query grid | 18 |
 | {Seasonal} Picks | In Season | `seasonalShelf` — date-aware (Dec christmas / Oct halloween / Jul july), else seeded | 18 |
 | {Sub-genre} | Deeper Cuts | `case "subgenre"` (#38) → `seededPick(genreBoxSets, salt 97)` → `parentQuery(salt 97)`; `.subgenre` kind, `subgenre:<id>` dedupe (distinct Kind ⇒ never collapses into the genre-NAME shelf) | 18 |
 | Rewatchable {Genre} | The Rewatchables | `case "rewatchables"` (#40) → `rewatchablesShelf` — `rewatchablesBoxSet` parentID ∩ a seeded broad genre (Comedy/Drama/Action/Thriller/Crime/Adventure), seeded shuffle; `.rewatchables` kind; nil if no Rewatchables BoxSet | 18 |
@@ -171,27 +181,57 @@ gets a trailing "Show all" (#41) → its own paged query (or the Decades pill, f
 ## 3. Collections (`BrunoCollectionsView` → `BrunoCategoryShelves`)
 
 `Swiftfin tvOS/Views/BrunoHomeView/BrunoCollectionsView.swift` + shared
-`BrunoCategoryShelves.swift`. Category set from `BrunoCollectionCategory.fromSnapshot`
-(`BrunoCategoryShelves.swift:143`) + appended synthetic "Boxed Sets". Fixed order via
-`rank(for:)` (`:96`). One capped inline shelf per category; **inline preview cap = 14** but
-`shelfItems(for:)` (`:536`) populates the **full** child set for `.grid`/`.items` box-set groups (the
-row IS the full set there). "Genres" card is dropped (it moved to the Movies tab). Seasonal only
-ranks in during the Halloween→Christmas window. Each header's "Show all" → `brunoRouteToShowAll`.
+`BrunoCategoryShelves.swift`. **Rewritten 2026-07-01 for the shipped §1 Curated retirement +
+two-row strip + procedural tail.** Category set from `BrunoCollectionCategory.fromSnapshot`
+(`BrunoCategoryShelves.swift:156`) + the synthetic "Boxed Sets" (from the snapshot's cached
+`franchiseBoxSets`). Fixed rank order via `rank(for:)` (`:96`): New Releases, Oscars, Roger Ebert,
+Critically Acclaimed, Rewatchables, Film School Classics, Asian Cinema, Directors, Movie Stars,
+Boxed Sets, Decades, Studios, Seasonal, Cities (Seasonal promoted to 2nd during its Oct–Dec window).
+"Genres" is dropped from every group-tile surface (it IS the Movies tab).
 
-| Shelf | Lens/eyebrow | Derived from | Max items | Show-all destination (filter carried) | shelf/grid |
+The surface has three parts, top to bottom:
+
+1. **Two-row card strip** — `BrunoCategoryCardRow(twoRow: true)`, Collections hub only. Owner-placed
+   membership, hardcoded in `row1Order`/`row2Order` (`BrunoCategoryCardRow.swift:45-51`). Row 1
+   ("how to browse"): New Releases · Directors · Movie Stars · Decades · Studios · Boxed Sets ·
+   Cities. Row 2 ("what to watch"): Roger Ebert · Rewatchables · Oscars · Seasonal · Asian Cinema ·
+   Film School Classics · Critically Acclaimed. Unlisted groups append to Row 2.
+2. **Static preview shelves** — one per category, EXCEPT Roger Ebert and Cities (excluded: their
+   children are BoxSet posters, not movies — `BrunoCategoryShelves.swift:437-439`; their cards still
+   work). The curated-named shelves (Oscars, Critically Acclaimed, Rewatchables, Film School
+   Classics, Asian Cinema, Seasonal) shuffle their RELATIVE order once per launch
+   (`shuffledCuratedOrder`, `:327`); browse hubs keep their slots.
+3. **Procedural tail** — `BrunoHomePlan.collectionsTail` (`BrunoHomePlan.swift:599`), seeded per
+   launch (`BrunoCollectionsViewModel.tailSeed`), rendered below the statics with the same
+   cap-and-grow window. Families: guaranteed Ebert Thumbs Up + Down (captioned; the ONLY Ebert
+   movie shelves in Collections now), Year in Film ×3, Best of the Decade ×3, Rewatchable
+   {Decade}s ×3, promoted-curated ×6 (captioned), Director in Focus ×6, Actor in Focus ×6
+   (from the Movie Stars group). Fully seed-shuffled (`:696`); deduped by id + content, no
+   adjacency rule. Each tail shelf renders via `BrunoShelfView` with a Home-style Show-all.
+
+**Preview caps (raised 2026-06-30):** weighted-random 16 for BoxSet-children groups
+(Efraimidis–Spirakis on `childCount^0.6`, day-seeded — `weightedPreview`,
+`BrunoCategoryShelves.swift:711`); plain `prefix(30)` otherwise (`shelfCap = 30`, `:313` — note this
+is a DIFFERENT constant from `BrunoHomePlan.shelfCap = 18`, which caps Home shelf COUNT).
+
+| Shelf | Lens/eyebrow | Derived from | Preview | Show-all destination | notes |
 |---|---|---|---|---|---|
-| New Releases | Home Premiere | Flat group, no boxSet children, `showsDate=true` | 14 preview | `brunoBoxSetGrid(portrait, showsDate, newest-first)` — children sorted by premiereDate desc | shelf |
-| Directors | Auteurs | Directors group's boxSet children; weighted preview (salt `0x91A3`) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` — boxSet children only | shelf |
-| Movie Stars | Movie Stars | Actor group boxSet children; weighted preview (salt `0x91A3`, same as Directors) | 16 weighted (full set on Show-all) | `brunoBoxSetGrid(portrait, artCarousel)` | shelf |
-| Boxed Sets | Franchises | Standalone **franchise** BoxSets — every BoxSet not absorbed by a group (**54 live**, §0); **runtime-synthetic, NOT a Jellyfin group** (lens "Franchises"; see Terminology in `BRUNO_CODE_MAP.md`); weighted (salt `0xB075`) | 16 weighted of 54 | `brunoBoxSetGrid(landscape, collectionLabel)` — `category.children` (`.items`) | shelf |
-| Decades | Through the Years | Decades group boxSet children; newest-first | 14 preview | `brunoCategoryShelves(parent: Decades)` → drill-in (§3a) | shelf |
-| Curated | Hand-Picked | Curated group boxSet children | 14 preview | `brunoCategoryShelves(parent: Curated)` → drill-in (§3b) | shelf |
-| Rewatchables | Always Worth Rewatching | Favorited "Rewatchables" group (#40); flat — members are **movies**, not boxSets (like New Releases); no salt; present only if the server has the group (rank 7, or 8 when Seasonal is promoted Oct–Dec) | 14 preview | `brunoRewatchables(parent)` → `BrunoRewatchablesView` — a flat, pill-filtered grid with "Episode NN" captions (§3c) | shelf |
-| Studios | From the Vault | Studios group boxSet children; weighted (salt `0x5747`) | 16 weighted | `brunoStudiosGrid(items)` — cinematic landscape grid (curated **"Household Names"** top section + full A–Z grid) | shelf |
-| Seasonal | In Season | Seasonal group boxSet children (only Oct–Dec) | 14 preview | per `drillStyle(for:)` default `.grid` | shelf |
+| New Releases | Home Premiere | flat group, members are movies, `showsDate` | 30 | `brunoBoxSetGrid(portrait, showsDate, newest-first)` | |
+| Oscars | Academy Awards | Oscars group's 6 `Oscar <Category>` BoxSets | weighted 16 (`0x91A3`) — in practice all 6 | `.shelves` → `brunoCategoryShelves(parent, subGroups: children)` → six captioned shelves (§3b) | inline tile tap opens stock `.item` BoxSet detail (divergence, §8 #7) |
+| Roger Ebert | Roger Ebert | group with 2 Ebert BoxSets | NO inline shelf | card → `brunoEbert(up, down)` toggle grid directly (`BrunoCategoryCardRow.swift:123-127`) | |
+| Critically Acclaimed / Film School Classics / Asian Cinema | Critics' Picks / Required Viewing / World Cinema | flat promoted film groups (§1) | 30 | `.grid` → `ItemLibrary(parent)` | |
+| Rewatchables | Always Worth Rewatching | flat favorited group, members are movies | 30 | `.rewatchables` → `BrunoRewatchablesView` (§3c) | |
+| Directors | Auteurs | Directors group boxSet children | weighted 16 (`0x91A3`) | `brunoBoxSetGrid(portrait, artCarousel, hero band, Household Names)` | |
+| Movie Stars | Movie Stars | Movie Stars group boxSet children | weighted 16 (`0x91A3`) | `brunoBoxSetGrid(portrait, artCarousel, hero band)` | |
+| Boxed Sets | Franchises | synthetic: snapshot `franchiseBoxSets` (see Terminology, `BRUNO_CODE_MAP.md`) | weighted 16 (`0xB075`) | `.items` → `brunoBoxSetGrid(landscape, collectionLabel, hero band)` | |
+| Decades | Through the Years | Decades group boxSet children; cards backed by `decadeBestOf` covers | 30 | `.shelves` → drill-in (§3a) | inline decade-tile tap ALSO opens the pill view (`BrunoCategoryShelves.swift:593`, rerouted 2026-06-30) |
+| Studios | From the Vault | Studios group boxSet children | weighted 16 (`0x5747`) | `brunoStudiosGrid` (Household Names + A–Z) | |
+| Seasonal | In Season | Seasonal group children (ranks 2nd only Oct–Dec) | 30 | `.grid` default | static-cover treatment was tried and REVERTED 2026-06-30 |
+| Cities | On Location | Cities group (Chicago Movies, …) | NO inline shelf | `.shelves` → generic shelf-per-city drill | |
 
-`drillStyle(for:)` (`BrunoCategoryShelves.swift:112`): Genres→`.genres`, Decades→`.shelves`,
-Curated→`.shelves`, Rewatchables→`.rewatchables`, everything else→`.grid`. Boxed Sets is built
+`drillStyle(for:)` (`BrunoCategoryShelves.swift:118`): genres→`.genres`, decades→`.shelves`,
+oscars→`.shelves`, roger ebert→`.shelves` (special-cased to the toggle grid in the router),
+cities→`.shelves`, rewatchables→`.rewatchables`, everything else→`.grid`. Boxed Sets is built
 explicitly as `.items`.
 
 ### 3a. Decades drill-in (`BrunoBoxSetShelvesView`, `isDecades==true`)
@@ -207,26 +247,30 @@ explicitly as `.items`.
 | Other | (decade lens) | Out-of-window / yearless films | all | `.grid` `gridParent=decade, gridYear=nil` → `ItemLibrary(decade)` unfiltered | shelf |
 | {Decade} (non-splittable, e.g. "1950s & Earlier") | — | Whole bucket as one grid | all | `ItemLibrary(decade)` unfiltered | shelf |
 
-### 3b. Curated drill-in (`BrunoBoxSetShelvesView`, `isDecades==false` → card row)
+### 3b. Oscars drill-in (`BrunoBoxSetShelvesView` with `subGroups`) — replaces the retired Curated drill-in
 
-| Shelf | Lens/eyebrow | Derived from | Max | Show-all destination | shelf/grid |
+**The Curated drill-in is GONE (§1 migration, 2026-06-30).** The Curated group was unfavorited on the
+server; its film-bearing children were promoted (Oscars + Roger Ebert parent groups; Asian Cinema /
+Film School Classics / Critically Acclaimed as flat top-level groups). The old in-app consolidation
+machinery (`consolidateOscars` / `consolidateEbert` / `cardRowCategories` / `curatedRandomShelves`,
+`BrunoBoxSetShelvesView.swift:128-169/:704`) is now dead-in-practice — it keyed off a drill parent
+literally named "Curated", which no route produces. Deletion is a pending owner call (tracker).
+
+The live path: the **Oscars card** routes `.shelves` with the six real `Oscar <Category>` BoxSets as
+`subGroups` (`BrunoCategoryCardRow.swift:129-132`), so `BrunoBoxSetShelvesView` fans out one shelf per
+category through its normal `performLoad`:
+
+| Shelf | Lens/eyebrow | Derived from | Preview | Show-all destination | shelf/grid |
 |---|---|---|---|---|---|
-| {Curated sub-collection} | Hand-Picked | Each curated group boxSet child (Oscar, Ebert, …); server order; weighted preview (salt `0xC0DE`) | 14 preview | `.grid` → `ItemLibrary(curated boxSet)` — no year filter | shelf |
-| {Oscar — Category} (the 6, inside the Oscars drill-in) | OSCAR / Academy Awards | Oscar boxSet child; **reverse-chron by award year** (newest first, not shuffled) | 14 preview | `.grid` → **`brunoBoxSetGrid`** (full set paged, reverse-chron, captioned) — NOT stock `ItemLibrary` | shelf |
+| {Oscar Category} ×6 | Academy Awards | the six Oscar BoxSets, each fetched with `.tags`; **reverse-chron by award year** + per-category seeded lead-spread (`BrunoOscar.spreadLeads`, IA §4) | 13 fetch (`perShelfFetch`) | `.grid` → **`brunoBoxSetGrid`** in Oscar mode (`oscarParent` pages the FULL category, reverse-chron, captioned) — NOT stock `ItemLibrary` | shelf |
 
-**Oscars consolidation (#40):** the per-category Oscar BoxSets are folded into a single synthetic
-**"Oscars"** tile here; tapping it opens `brunoCategoryShelves(parent: «synthetic Oscars», subGroups: its
-children)` — a shelf per Oscar category — instead of one tile per category (`BrunoCategoryCardRow.swift:84`).
-
-**Oscars order + caption:** each of the six Oscar shelves (and their "Show all" grids) orders films
-**newest-first by award year** and renders a per-poster second line — *Winner (Year)* / Nominee (Year)
-— for THAT shelf's category (`BrunoOscarContentView`). Source is a per-item tag
-`oscar:<CATEGORY>:<won|nom>:<YEAR>` written by the producer (`MovieCollection/enrich/p9_oscars.py`,
-owner-run LIVE, mirrors p7); the app reads it like `rewatchables-ep:` / `bruno-sig:`. The drill-in
-replaces the day-shuffle with a deterministic reverse-chron sort for Oscar sub-groups only
-(`BrunoBoxSetShelvesView.performLoad`), and the "Show all" redirects off the stock `ItemLibrary` to
-`brunoBoxSetGrid` (which pages the full category + renders the caption). Degrades gracefully pre-stamp:
-no tag ⇒ blank (height-reserving) caption line, order falls back to premiereDate.
+**Oscars order + caption:** each shelf (and its "Show all" grid) orders films **newest-first by award
+year** and renders a per-poster *Winner (Year)* / *Nominee (Year)* line (`BrunoOscarContentView`).
+Source is the per-item tag `oscar:<CATEGORY>:<won|nom>:<YEAR>`, stamped by the producer's unified
+`Apply-Enrich-Tags.command` (idempotent; supersedes `p9_oscars.py`). Degrades gracefully pre-stamp:
+no tag ⇒ blank (height-reserving) caption line, order falls back to premiereDate. The old gold-tile
+gate (`BrunoCategoryShelves.swift:579`, synthetic id `curated-oscars`) is unreachable; keep-vs-rebuild
+is an open owner design call (tracker).
 
 ### 3c. Rewatchables drill-in (`BrunoRewatchablesView`)
 
@@ -247,15 +291,19 @@ opens stock `.item` detail (`BrunoRewatchablesView.swift:158`).
 ## 4. Movies / Genres (`BrunoMoviesView` → `BrunoGenresView`)
 
 `Swiftfin tvOS/Views/BrunoHomeView/BrunoMoviesView.swift` resolves the "Genres" group boxSet from the
-snapshot and hands it to `BrunoGenresView` (core-genre pills + a shelf per sub-genre). Genre categories
-are `recencyBiased` → row is modern-only, Show-all grid sorts newest-first (pre-1985 sink to the
-bottom). Sub-genre membership is the full set (no year filter, recency-biased), per-launch reshuffled,
-6 lead genres pinned. Preview cap 14; **84** sub-genre BoxSets total (live, §0). Trailing "All Movies"
-pill → `brunoMoviesGrid`.
+snapshot and hands it to `BrunoGenresView` (core-genre pills + a shelf per sub-genre), which loads
+through the shared `BrunoBoxSetShelvesViewModel`. Sub-genre rows show the FULL membership — no
+modern-year filter (that filter applies only to the HOME genre shelves via `BrunoHomePlan.genreQuery`);
+`recencyBiased` here drives the per-launch row reshuffle + the newest-first Show-all sort (pre-1985
+films sink to the bottom of the grid, never hidden). Row order: per-launch seeded reshuffle
+(`rowOrderSeed`), 6 lead genres pinned first (`priorityGenreOrder`,
+`BrunoBoxSetShelvesView.swift:440`). Pills are the owner-authored `BrunoCoreGenre.all` exact-name
+buckets (`BrunoGenresView.swift:39-94`); a pill filters the loaded shelves in place (debounced 500 ms).
+**84** sub-genre BoxSets total (live, §0). Trailing "All Movies" pill → `brunoMoviesGrid`.
 
-| Shelf | Lens/eyebrow | Derived from | Max | Show-all destination (filter carried) | shelf/grid |
+| Shelf | Lens/eyebrow | Derived from | Preview | Show-all destination (filter carried) | shelf/grid |
 |---|---|---|---|---|---|
-| {Sub-genre} | If You Like | Genre group boxSet child; weighted preview (salt `0xC0DE`) | 14 preview / full sub-genre on Show-all | `ItemLibrary(genre boxSet, sortBy:premiereDate desc)` — **recency sort carried** | shelf |
+| {Sub-genre} | If You Like | Genre group boxSet child; fetch 60, day-seeded child shuffle | `prefix(30)` (`shelfCap = 30`; the weighted `0xC0DE` preview applies only to the Collections-hub Genres card path, which is dropped) | `ItemLibrary(genre boxSet, sortBy:premiereDate desc)` — **recency sort carried** | shelf |
 | — (tab footer) | — | — | — | trailing "All Movies" → `brunoMoviesGrid` → `BrunoMediaView(.movie)` | — |
 
 Fallback: if no Genres group exists, the Movies tab renders `BrunoMediaView(.movie)` A–Z grid directly
@@ -308,7 +356,8 @@ Routing is centralized, so true divergence comes from **different inputs to the 
 | 3 | **Genre row (Movies / spine) vs Genre Show-all grid** | modern-only (years ≥ `modernCutoff`) | `ItemLibrary(genre, premiereDate desc)` — **all years** | Deliberate (owner: classics sink to bottom, not hidden), but the inline set ≠ grid set. Flag for de-dupe awareness, not a bug. (`BrunoHomePlan.genreQuery :367`; route `BrunoCategoryCardRow.swift:196`) |
 | 4 | **Home spine "Eras" / "Browse by Director" / "Browse the Collection" tiles** | portrait tiles | **Resolved by #41 (D2) + #46.** Eras tile-tap deep-links the decade pill (#41 D2); **Browse the Collection now renders the Collections-tab `BrunoCategoryCardRow` 1:1, so its tiles route via `brunoRouteToShowAll`** (#46). | Residual narrowed to **Browse by Director (Auteurs) only**: a Director tile-tap still opens stock `.item` detail. |
 | 5 | **Curated drill-in sub-collection Show-all** (§3b) vs **Curated tab card** | sub-collection preview | `ItemLibrary(curated boxSet)` no year filter | Curated never carries a year/era filter on Show-all, unlike Decades. Confirm this is intended (curated is hand-picked, so likely fine). |
-| 6 | **Boxed Sets card → `.items`** vs other group cards → `.grid` | franchise boxSets | `brunoBoxSetGrid(category.children)` (landscape) | Boxed Sets routes off `category.children` while Directors/Studios route off the filtered `boxSetChildren`. Different code paths in `brunoRouteToShowAll` (`.items` `:85` vs `.grid` `:100`); verify Boxed Sets children never include the group itself. |
+| 6 | **Boxed Sets card → `.items`** vs other group cards → `.grid` | franchise boxSets | `brunoBoxSetGrid(category.children)` (landscape) | Boxed Sets routes off `category.children` while Directors/Studios route off the filtered `boxSetChildren`. Different code paths in `brunoRouteToShowAll` (`.items` `:133` vs `.grid` `:150`); verify Boxed Sets children never include the group itself. |
+| 7 | **Oscars inline shelf tile vs Oscars card/Show-all** (2026-07-01) | 6 statuette BoxSet tiles; a tile TAP opens stock `.item` BoxSet detail (`BrunoCategoryShelves.swift:595`) | card/Show-all → the six captioned reverse-chron shelves (§3b) | Same inline-tap-goes-stock pattern as Directors (see `Documentation/fable-plans/NAVIGATION_MAP.md` §5 J4). Not a bug, but the stock BoxSet page lacks the Winner/Nominee captions. |
 
 The **non-mismatches** worth recording (verified identical): a Director shelf header "Show all" and a
 Director card tap both hit `.grid → brunoBoxSetGrid(portrait, artCarousel)` with the same
@@ -343,25 +392,28 @@ its branded Bruno destination — reusing existing `bruno*` routes, none invente
 `PosterHStack` (INV-1/-10) — only which tiles show and where a tap lands change.
 
 Engine: `Swiftfin tvOS/Views/BrunoHomeView/BrunoRecommendedShelf.swift` —
-`brunoRecommendedTarget(_:snapshot:)` (`:54`, the classifier, first match wins),
-`brunoRecommendedDisplayItems(_:snapshot:)` (`:117`, drops `.drop` tiles, preserves endpoint order),
-`routeBrunoRecommended(_:snapshot:router:namespace:)` (`:127`, the tap router). Identity resolves off the
-warm `BrunoLibrarySnapshot.loadShared` (a `.task` on the wrapping `Group`, not the row), so until the
-snapshot is warm — or for any unrecognized BoxSet — a tile classifies `.drop` (cold-start safety; an
-all-hub similar list renders **no header at all**, not an empty "Recommended").
+`brunoRecommendedTarget(_:snapshot:)` (`:56`, the classifier, first match wins),
+`brunoRecommendedDisplayItems(_:snapshot:)` (`:128`, drops `.drop` tiles, preserves endpoint order),
+`routeBrunoRecommended(_:snapshot:router:namespace:)` (`:138`, the tap router). Identity resolves off
+the warm `BrunoLibrarySnapshot.loadShared`. **FAIL-OPEN rule (hotfix `6ec18cab`, supersedes the
+original #66 behavior):** only a POSITIVELY-recognized nav hub is dropped; an unrecognized BoxSet —
+including anything seen before the snapshot is warm — keeps its tile and routes to stock `.item`
+(`BrunoRecommendedShelf.swift:115-121`). Dropping unrecognized tiles emptied the whole shelf on
+Director/Actor/Studio detail pages (their similar items are all BoxSets and the snapshot is often
+cold). Do not change this back to drop.
 
 | Tile class | Detected by (`brunoRecommendedTarget`) | Destination (`routeBrunoRecommended`) |
 |---|---|---|
 | Movie / series | not `.boxSet` | `.item` detail (unchanged) |
 | Rewatchables | `rewatchablesBoxSet.id` (resolved *before* the hub-drop) | `brunoRewatchables(parent)` — episode-captioned grid |
-| Nav hub (Genres/Directors/Decades/Curated/Studios/…) | `favoriteGroupBoxSets` | **dropped** |
+| Ebert (name "ebert…") | **`promotedCuratedBoxSets`** (§1; resolved *before* the hub-drop) | `brunoEbert(up, down, showingDown)` — Up⇄Down toggle grid |
+| Oscar (`BrunoOscarCategory` resolves) | `promotedCuratedBoxSets` | `brunoBoxSetGrid(oscarCategory, oscarParent)` — captioned grid |
+| Other promoted set (Asian Cinema / Film School / Critically Acclaimed) | `promotedCuratedBoxSets` | `.library(ItemLibrary(parent))` — films grid (film-bearing groups must NOT be hub-dropped) |
+| Nav hub (Directors/Decades/Studios/Oscars parent/Roger Ebert parent/…) | `favoriteGroupBoxSets` | **dropped** |
 | Decade | `decadeBoxSets` (+ "Decades" group as parent) | `brunoCategoryShelves(Decades, decade)` — pill pre-set |
-| Ebert (curated, name "ebert…") | `curatedBoxSets` | `brunoEbert(up, down, showingDown)` — Up⇄Down toggle grid |
-| Oscar (curated, `BrunoOscarCategory` resolves) | `curatedBoxSets` | `brunoBoxSetGrid(oscarCategory, oscarParent)` — captioned grid |
-| Other curated child | `curatedBoxSets` | `.library(ItemLibrary(parent))` — films grid |
 | Genre | `genreBoxSets` | `.library(ItemLibrary(parent, premiereDate desc))` — newest-first |
 | Director / Studio / Seasonal / Franchise | director/studio/seasonal/franchise BoxSets | `.library(ItemLibrary(parent))` — films grid |
-| Unresolved BoxSet / cold-start | falls through | **dropped** |
+| Unresolved BoxSet / cold snapshot | falls through | **FAILS OPEN → stock `.item` detail** (never dropped) |
 
 Note: director / studio / seasonal / franchise / other-curated all converge on `.library(ItemLibrary(parent:))`,
 which also sidesteps recursing back into the stock `CollectionItemContentView`. The Home "Browse by

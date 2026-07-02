@@ -3,7 +3,9 @@
 Orientation map for the Bruno tvOS fork. If you're landing cold, read this first, then
 `docs/BRUNO_NAV_MAP.md` for shelf/IA detail and `docs/PROJECT_TRACKER.md` for current status.
 
-_Last verified at commit `40da403f` (post #37–#41)._
+_Last verified at commit `40da403f` (post #37–#41); §2 seam list, §6 doc map, and §7 terminology
+re-verified and corrected 2026-07-01 (Fable assessment pass — see
+`Documentation/fable-plans/REARCHITECTURE_ASSESSMENT.md`)._
 
 ---
 
@@ -32,12 +34,26 @@ Bruno lives in two places:
 1. Path contains `/Bruno` or filename starts with `Bruno` → **ours**, edit freely.
 2. Brand seams — `Shared/Extensions/Color.swift` (`Color.bruno.*`), `Font+Bruno.swift`,
    `Shared/Services/SwiftfinDefaults.swift` accent defaults → **ours (small, additive)**.
-3. **Integration seams** (the only non-Bruno-named edits — this is the COMPLETE sanctioned list; anything
-   else upstream is off-limits): `Shared/Coordinators/Tabs/{TabItem,MainTabView}.swift` (tvOS Home →
-   `BrunoHomeView`, tab IA), `Swiftfin tvOS/App/SwiftfinApp.swift` (DEBUG-gated snapshot / autosignin
-   branches), and `Swiftfin tvOS/Components/PosterButton.swift` (the `FocusShadowPoster`
-   structural-stability fix — INV-10, the one perf-driven upstream edit). Keep these **minimal and
-   inert** — gated, no behavior change for upstream paths.
+3. **Integration seams** (non-Bruno-named upstream edits). ⚠️ **Corrected 2026-07-01:** this list
+   previously claimed to be complete at 4 files; the real diff vs the upstream merge-base touches
+   ~22 upstream source files. The full audited inventory with line anchors lives in
+   `Documentation/fable-plans/REARCHITECTURE_ASSESSMENT.md` §3a. Grouped summary:
+   - **Tab/IA:** `Shared/Coordinators/Tabs/{TabItem,MainTabView,TabCoordinator}.swift`,
+     `RootCoordinator.swift`, + new `Shared/Coordinators/Tabs/BrunoTabBridge.swift`.
+   - **Perf:** `Swiftfin tvOS/Components/PosterButton.swift` (INV-10 `FocusShadowPoster`),
+     `Swiftfin tvOS/Components/PosterHStack.swift` (the `.trailing{}` Show-all slot, #41),
+     the `Package.resolved` CollectionHStack fork repoint (INV-10).
+   - **Recommended (#66):** `Swiftfin tvOS/Views/ItemView/Components/SimilarItemsHStack.swift`,
+     `CollectionItemContentView.swift`.
+   - **App/session:** `Swiftfin tvOS/App/SwiftfinApp.swift` (DEBUG branches), iOS `SwiftfinApp.swift`
+     (1 line), `SwiftfinApp+ValueObservation.swift`, `UserSession.swift` + `UserSessionManager.swift`
+     (Top Shelf creds), `DataCache.swift`.
+   - **Settings/audio:** `SettingsView.swift`, `VideoPlayerSettingsView.swift`,
+     `MediaPlayerProxy+VLC.swift`, new `Shared/Objects/AudioNightMode.swift`.
+   - **Misc:** `ImageView.swift`, `ItemLibrary.swift`, `Strings.swift`.
+   Keep every seam **minimal and inert** (gated, no behavior change for upstream paths).
+   **Maintenance rule:** when a change touches a NEW upstream file, add it to this list in the same
+   commit — this list rotted precisely because that rule did not exist.
 4. Everything else → **upstream Swiftfin**. Don't refactor it; reuse it (`PosterHStack`,
    `PagingLibraryViewModel`, `ItemLibrary`, `NavigationCoordinator`, stock item/detail/player views).
 
@@ -154,8 +170,8 @@ Note: a `BrunoShelf` descriptor carries a `BrunoQuery`; `BrunoQueryLibrary` turn
   `shelf.kind` case in `brunoHomeRouteToShowAll` (`BrunoHomeShowAll.swift`).
 - **Change a Show-all destination** → there are **two** routers (#41). **Browse** (Collections / Genres /
   footer): `brunoRouteToShowAll()` in `BrunoCategoryCardRow.swift`, switching on `category.drillStyle`
-  (`.genres` / `.shelves` / `.items` / `.grid`); both shelf-header Show-all and category-tile taps go
-  through it. **Home shelves:** `brunoHomeRouteToShowAll()` in `BrunoHomeShowAll.swift`, switching on
+  (`.genres` / `.shelves` / `.items` / `.grid` / `.rewatchables`); both shelf-header Show-all and
+  category-tile taps go through it. **Home shelves:** `brunoHomeRouteToShowAll()` in `BrunoHomeShowAll.swift`, switching on
   `shelf.kind` / `shelf.source` (stock libraries · the shelf's own paged query · the Decades pill for
   year/decade/Eras). Pass filters via `ItemFilterCollection` in the `ItemLibrary` constructor.
 - **Tune scroll/focus perf** → **read `docs/BRUNO_PERF_INVARIANTS.md` first** (INV-1..10). Constants live in
@@ -213,6 +229,7 @@ merged, every cross-reference repointed, verified zero dangling):
 | `docs/reference/TOP_SHELF_SETUP.md` | reference | Top Shelf extension owner checklist |
 | `docs/reference/swift-reference.md` | reference | swift-xcode-expert doc sources |
 | `docs/pipeline/*` (README · PLAN · GENRE_MAP · TAGGING_SPEC · FILING_MAP) | external snapshot | the MovieCollection producer's design + the producer→app filing map |
+| `Documentation/fable-plans/*` (REARCHITECTURE_ASSESSMENT · NAVIGATION_MAP · SHELF_PROVENANCE · REFACTOR_PLAN) | active (assessment set, 2026-07-01) | duplication register + screen graph/stock handoffs + per-shelf provenance/seed inventory + sequenced consolidation plan |
 
 **Streamlined 2026-06-28:** the perf cluster (`PERF_HANDOFF` + `STALL_HANDBOOK` + `PERF_LOGGING`) →
 `BRUNO_PERF_PLAYBOOK.md`; the hero cluster (`HERO_LAYOUT_MAP` + `HERO_UPNAV`) → `BRUNO_HERO.md`; shipped
@@ -229,7 +246,7 @@ distinct in code, docs, and prompts:
 | Term | Means | In code |
 |---|---|---|
 | **`BoxSet`** (one word) | The **Jellyfin primitive** — `BaseItemKind.boxSet`, a collection container. Bruno ships *all* curation as BoxSets; the library holds **416** across every tier. Reserve "BoxSet" for the primitive only. | `IncludeItemTypes=[.boxSet]`, `BaseItemDto` |
-| **Group tile** (group BoxSet) | A *favorited* BoxSet, usually with BoxSet members — the group tiles: New Releases, Directors, Decades, Genres, Studios, Curated, Seasonal, Movie Stars, plus (since #40) a flat **Rewatchables** group whose members are *movies* (like New Releases). | `snapshot.favoriteGroupBoxSets`, `BrunoCollectionCategory.fromSnapshot` |
+| **Group tile** (group BoxSet) | A *favorited* BoxSet, usually with BoxSet members. Live set post-§1 (2026-06-30): New Releases, Directors, Decades, Genres, Studios, Seasonal, Movie Stars, Rewatchables (flat, movie members), Cities, **Oscars**, **Roger Ebert**, **Asian Cinema**, **Film School Classics**, **Critically Acclaimed**. **Curated is retired (unfavorited)** — use `snapshot.promotedCuratedBoxSets`, not `curatedBoxSets`. | `snapshot.favoriteGroupBoxSets`, `BrunoCollectionCategory.fromSnapshot` |
 | **Member BoxSet** | A BoxSet belonging to a group (a sub-genre, a director's set, a decade bucket, a studio set); its members are usually movies. | `snapshot.childrenByGroupName` |
 | **Franchise** (the "Boxed Sets" card) | The **user-facing** grouping of *standalone* franchise/series collections (LOTR, Star Wars) — every BoxSet **not** absorbed by a group. Runtime-synthesized, lens **"Franchises"**, `drillStyle .items`. "Boxed Sets" is its **display label only**. | `franchiseBoxSets` — `BrunoCollectionsView.swift:93-122` |
 
