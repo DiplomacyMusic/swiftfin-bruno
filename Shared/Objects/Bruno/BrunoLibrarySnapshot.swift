@@ -13,10 +13,12 @@ import JellyfinAPI
 
 //
 // Fetched ONCE (async) when the home refreshes; after that `BrunoHomePlan.build` is pure
-// over it (plan §D/§E). The owner's library is curated as 7 favorited "group" BoxSets
-// (Directors, Decades, Studios, Genres, Curated, Seasonal, New Releases) whose children are
-// the real sub-collections. We never hardcode IDs — everything is derived here from the
-// live library (validated in BRUNO_NOTES.md §Live library snapshot).
+// over it (plan §D/§E). The owner's library is curated as favorited "group" BoxSets (14 as of
+// the 2026-06-30 §1 migration: New Releases, Directors, Decades, Genres, Studios, Seasonal,
+// Movie Stars, Rewatchables, Cities, Oscars, Roger Ebert, Asian Cinema, Film School Classics,
+// Critically Acclaimed — the "Curated" group is RETIRED/unfavorited) whose children are the
+// real sub-collections. We never hardcode IDs — everything is derived here from the
+// live library. Full accessor->consumer map: Documentation/fable-plans/SHELF_PROVENANCE.md §2.
 //
 // Codable + Sendable so it can be persisted to disk (instant relaunch — see BrunoHomeCache) and
 // crossed to a detached encode/decode task without `nonisolated(unsafe)`. All stored members are
@@ -96,6 +98,9 @@ struct BrunoLibrarySnapshot: Codable {
         group("Genres")
     }
 
+    /// DEAD (verified 2026-07-01): zero callers, and the "Curated" group is unfavorited so this
+    /// resolves empty. Superseded by `promotedCuratedBoxSets` below. Deletion pending the owner's
+    /// dead-code call (docs/PROJECT_TRACKER.md).
     var curatedBoxSets: [BaseItemDto] {
         group("Curated")
     }
